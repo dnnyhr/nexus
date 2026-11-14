@@ -56,6 +56,8 @@ export interface GameState {
   };
   power: PowerSettings;
   plant: Plant;
+  /** Regolith in the astronaut's bag, not yet delivered to the processor. */
+  carried: number;
   crewHealth: number;
   sheltered: boolean;
   /** Accumulated radiation dose of the mission (mSv). */
@@ -80,6 +82,7 @@ export function newGame(now = Date.now()): GameState {
     counts: { solarMast: 0, battery: 0 },
     power: { heating: true, processor: true, robots: true, growLights: 60 },
     plant: { water: 50, light: 50, temp: 50, growth: 0, stress: 0, maxStressTime: 0, dead: false },
+    carried: 0,
     crewHealth: 100,
     sheltered: false,
     dose: 0,
