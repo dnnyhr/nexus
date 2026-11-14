@@ -72,6 +72,8 @@ const STRINGS = {
   tapGroundTouch: { es: 'Joystick para moverte · Saltar · Excavar · toca el aviso blanco para usar', en: 'Joystick to move · Hop · Dig · tap the white prompt to use' },
   jump: { es: 'Saltar', en: 'Hop' },
   bag: { es: 'Bolsa', en: 'Bag' },
+  upgradeBag: { es: 'Mejorar bolsa', en: 'Upgrade bag' },
+  bagInfo: { es: 'Bolsa nivel {n}: guarda {cap} de regolito y junta {dig} por excavación.', en: 'Bag level {n}: holds {cap} regolith and digs {dig} at a time.' },
   bagFull: { es: 'Bolsa llena · llévala al procesador', en: 'Bag full · take it to the processor' },
   deliverX: { es: 'Depositar regolito', en: 'Deliver regolith' },
   delivered: { es: '+{n} regolito al procesador', en: '+{n} regolith to the processor' },

@@ -78,6 +78,7 @@ export class BaseView {
       case 'battery': return BATTERY_SLOTS[Math.min(s.counts.battery, BATTERY_SLOTS.length - 1)];
       case 'collectorRobot': return UNLOAD;
       case 'harvesterRobot': return HARVEST_DOCK;
+      case 'bag': return null;
     }
   }
 

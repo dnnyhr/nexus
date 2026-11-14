@@ -76,8 +76,16 @@ export function step(s: GameState, dt: number, running?: Running): void {
  * The astronaut digs regolith into the bag. It is only useful once delivered to the
  * processor with deliverRegolith(). Returns how much went into the bag (0 when full).
  */
+export function carryMax(s: GameState): number {
+  return COLLECT.bagCapacity[Math.min(Math.max(1, s.levels.bag), 3) - 1];
+}
+
+export function digYield(s: GameState): number {
+  return COLLECT.digPerLevel[Math.min(Math.max(1, s.levels.bag), 3) - 1];
+}
+
 export function collectByHand(s: GameState): number {
-  const got = Math.min(COLLECT.regolithPerTap, COLLECT.carryMax - s.carried);
+  const got = Math.min(digYield(s), carryMax(s) - s.carried);
   s.carried += got;
   s.stats.regolithCollected += got;
   return got;

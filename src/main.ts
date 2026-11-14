@@ -2,14 +2,14 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CYCLE } from './game/config';
 import { build, checkBuild, nextCost } from './game/build';
-import { COLLECT, type BuildingKind } from './game/config';
+import type { BuildingKind } from './game/config';
 import { damageOf, impact, impactChance, repair, repairCost } from './game/damage';
 import { activeShower } from './game/meteors';
 import { protection, stepStorm } from './game/storm';
 import { loadSpaceWeather, radiationScale, snapshotWeather, SOURCES, type SpaceWeather } from './data/spaceweather';
 import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
-import { collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
+import { carryMax, collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { animateModel, findModel, poke } from './models/anim';
@@ -101,6 +101,7 @@ let colliders = base.colliders();
 const REACH = 2.6;
 
 const BUILD_LABEL: Record<BuildingKind, StringKey> = {
+  bag: 'bag',
   antenna: 'antenna', station: 'station', greenhouse: 'greenhouse', processor: 'processor', solarMast: 'solarMast',
   battery: 'battery', collectorRobot: 'collectorRobot', harvesterRobot: 'harvesterRobot', shield: 'shieldBerm',
 };
@@ -199,7 +200,7 @@ function dig(towards?: THREE.Vector3): void {
   if (state.sheltered || player.isBusy() || player.airborne) return;
   if (towards) player.obj.rotation.y = Math.atan2(towards.x - player.position.x, towards.z - player.position.z);
   const head = player.position.clone().add(new THREE.Vector3(0, 2.4, 0));
-  if (state.carried >= COLLECT.carryMax) return hud.float(head, t('bagFull'), true);
+  if (state.carried >= carryMax(state)) return hud.float(head, t('bagFull'), true);
   player.work(1.1, () => {
     const at = player.position.clone().add(new THREE.Vector3(Math.sin(player.obj.rotation.y) * 0.7, 0, Math.cos(player.obj.rotation.y) * 0.7));
     const got = collectByHand(state);
@@ -210,7 +211,8 @@ function dig(towards?: THREE.Vector3): void {
 
 /** Keep the action prompt next to what the astronaut would act on. */
 function updatePrompt(): void {
-  player.obj.userData.load = state.carried / COLLECT.carryMax;
+  player.obj.userData.load = state.carried / carryMax(state);
+  player.obj.userData.bagLevel = state.levels.bag;
   if (player.isBusy()) return hud.setPrompt(player.position.clone().add(new THREE.Vector3(0, 2.3, 0)), t('busy'));
   const act = currentAct();
   if (!act) hud.setPrompt(null);
