@@ -55,6 +55,9 @@ export const MAT = {
   ledGrow: flat(COLORS.ledGrow, { emissive: COLORS.ledGrow, emissiveIntensity: 0.6 }),
   /** Template for beacons; each beacon gets its own copy from beaconMaterial(). */
   beacon: flat(COLORS.beaconOff, { emissive: COLORS.beaconOn, emissiveIntensity: 0 }),
+  /** Micrometeoroid damage: scorched surface and punctures. */
+  scorch: flat(0x2b2622),
+  hole: flat(0x0b0b0c),
   /** Steady lights (headlights, floodlights, helmet lamps): dim by day, on at night. */
   lamp: flat(0x6b5a44, { emissive: 0xffe2b0, emissiveIntensity: 0.2 }),
   suit: flat(COLORS.suit),
