@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addAnimator, joint, pokeAge } from './anim';
 import { BAND, MAT } from './palette';
 import { asModel, beacon, berm, box, dome, foot, hullBand, mesh, ringBand, rock, strut, windowPane } from './kit';
 
@@ -131,6 +132,7 @@ function node(level: StationLevel): THREE.Group {
       g.add(strut([Math.cos(a) * 0.82, roofY, Math.sin(a) * 0.82], [Math.cos(a) * 0.73, roofY + 0.45, Math.sin(a) * 0.73], 0.03, MAT.hull));
     }
     g.add(dome(0.78, MAT.hull, { pos: [0, roofY + 0.45, 0], scale: [1, 0.55, 1] }));
+    g.userData.radar = radarArm(g, roofY + 0.88, 0.5);
   } else {
     // Observation tower: two glass bands, a gallery ring and a dome.
     g.add(cylAt(0.95, 1.1, 1.6, MAT.hull, roofY + 0.8));
@@ -144,17 +146,27 @@ function node(level: StationLevel): THREE.Group {
     g.add(cylAt(1.05, 1.05, 0.12, MAT.hullShade, roofY + 2.28));
     g.add(dome(1.0, MAT.hull, { pos: [0, roofY + 2.32, 0], scale: [1, 0.5, 1] }));
     const b = beacon(0.5);
-    b.position.y = roofY + 2.8;
+    b.position.set(0.3, roofY + 2.62, 0);
     g.add(b);
+    g.userData.radar = radarArm(g, roofY + 2.82, 0.8);
   }
   return g;
+}
+
+/** Small rotating sensor arm (survey radar) on a short post. */
+function radarArm(parent: THREE.Object3D, y: number, span: number): THREE.Group {
+  parent.add(mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.3, 8), MAT.structure, { pos: [0, y - 0.15, 0] }));
+  const arm = joint(parent, 0, y, 0);
+  arm.add(box(span, 0.05, 0.1, MAT.hullShade));
+  arm.add(box(0.14, 0.12, 0.12, MAT.darkMetal, { pos: [span / 2 - 0.05, 0.04, 0] }));
+  return arm;
 }
 
 function cylAt(rTop: number, rBottom: number, h: number, mat: THREE.Material, y: number): THREE.Mesh {
   return mesh(new THREE.CylinderGeometry(rTop, rBottom, h, 8), mat, { pos: [0, y, 0], rot: [0, Math.PI / 8, 0] });
 }
 
-/** Airlock vestibule with door and steps, facing +Z. */
+/** Airlock vestibule with a hinged hatch and steps, facing +Z. userData.door swings open. */
 function airlock(): THREE.Group {
   const g = new THREE.Group();
   const vz = R + 0.2;
@@ -162,8 +174,15 @@ function airlock(): THREE.Group {
   g.add(box(1.5, 2.25, 1.0, MAT.hullShade, { pos: [0, 2.0, vz] }));
   g.add(box(1.62, 0.12, 1.12, MAT.hull, { pos: [0, 3.16, vz] }));
   g.add(box(1.0, 1.75, 0.06, MAT.darkMetal, { pos: [0, 1.98, front] }));
-  g.add(box(0.86, 1.6, 0.06, MAT.hull, { pos: [0, 1.98, front + 0.03] }));
-  g.add(mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 8), MAT.glass, { pos: [0, 2.45, front + 0.07], rot: [Math.PI / 2, 0, 0] }));
+  // Hinge on the left edge of the frame.
+  const door = joint(g, -0.43, 1.98, front + 0.03);
+  door.add(box(0.86, 1.6, 0.06, MAT.hull, { pos: [0.43, 0, 0] }));
+  door.add(mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.04, 8), MAT.glass, { pos: [0.43, 0.47, 0.04], rot: [Math.PI / 2, 0, 0] }));
+  door.add(box(0.06, 0.3, 0.06, MAT.darkMetal, { pos: [0.75, -0.05, 0.05] }));
+  for (const y of [-0.55, 0.55]) door.add(mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 8), MAT.darkMetal, { pos: [0, y, 0.02] }));
+  // Lit interior seen when the door opens.
+  g.add(box(0.8, 1.55, 0.01, MAT.glass, { pos: [0, 1.98, front + 0.035] }));
+  g.userData.door = door;
   for (let i = 0; i < 4; i++) g.add(box(1.0, 0.1, 0.26, MAT.structure, { pos: [0, 0.95 - i * 0.24, front + 0.17 + i * 0.24] }));
   for (const dx of [-0.55, 0.55]) g.add(strut([dx, 1.0, front + 0.05], [dx, 0.0, front + 1.05], 0.03));
   return g;
@@ -219,7 +238,9 @@ function commsMast(): THREE.Group {
   const g = new THREE.Group();
   for (const a of [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3]) g.add(strut([Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5], [0, 5.2, 0], 0.04));
   for (const y of [1.6, 3.2]) g.add(ringBand(0.33 - y * 0.05, 0.05, y, MAT.structure));
-  g.add(mesh(new THREE.SphereGeometry(0.55, 12, 3, 0, Math.PI * 2, 0, 0.6), MAT.hullDouble, { pos: [0, 4.6, 0.2], rot: [-1.25, 0, 0] }));
+  const dishYaw = joint(g, 0, 4.6, 0);
+  dishYaw.add(mesh(new THREE.SphereGeometry(0.55, 12, 3, 0, Math.PI * 2, 0, 0.6), MAT.hullDouble, { pos: [0, 0, 0.2], rot: [-1.25, 0, 0] }));
+  g.userData.dish = dishYaw;
   g.add(strut([0, 5.45, 0], [0, 6.4, 0], 0.02));
   const b = beacon(0.15);
   b.position.y = 5.2;
@@ -248,8 +269,23 @@ export function station(level: StationLevel = 1, shieldLevel = 1): THREE.Group {
   const coreBeacon = beacon(0.3);
   coreBeacon.position.set(-2.6, Y + R - 0.25, 0.3);
   g.add(coreBeacon);
+  // Poke the station: the airlock door slides open, waits and closes.
+  const door = lock.userData.door as THREE.Group;
+  const moving: { radar?: THREE.Group; wings?: THREE.Group[]; dish?: THREE.Group; whip?: THREE.Group } = {};
+  addAnimator(g, (t) => {
+    const age = pokeAge(g, t);
+    const open = age < 3 ? Math.min(1, age / 0.6) * Math.min(1, (3 - age) / 0.6) : 0;
+    door.rotation.y = -open * 1.7 * (open * (3 - 2 * open));
+    if (moving.radar) moving.radar.rotation.y = t * 0.8;
+    if (moving.dish) moving.dish.rotation.y = Math.sin(t * 0.15) * 0.8;
+    if (moving.whip) moving.whip.rotation.z = Math.sin(t * 1.7) * 0.03;
+    // Radiators turn slowly to stay edge-on to the Sun.
+    moving.wings?.forEach((w) => (w.rotation.z = Math.sin(t * 0.08) * 0.5));
+  });
+
   if (level === 1) {
-    g.add(strut([2.4, Y + R - 0.2, -0.3], [2.4, Y + R + 1.0, -0.3], 0.025));
+    moving.whip = joint(g, 2.4, Y + R - 0.2, -0.3);
+    moving.whip.add(strut([0, 0, 0], [0, 1.2, 0], 0.025));
     return asModel(g, 'station-1', 4, 3);
   }
 
@@ -259,6 +295,7 @@ export function station(level: StationLevel = 1, shieldLevel = 1): THREE.Group {
   const n = node(level);
   n.position.x = nx;
   g.add(n);
+  moving.radar = n.userData.radar as THREE.Group;
 
   // 3. Crew quarters behind the node (along -Z).
   if (level >= 3) {
@@ -290,11 +327,13 @@ export function station(level: StationLevel = 1, shieldLevel = 1): THREE.Group {
     // Radiator wings on a mast at the far end.
     const wx = lx + len / 2 - 0.4;
     g.add(strut([wx, Y + R - 0.1, 0], [wx, Y + R + 1.4, 0], 0.07));
-    for (const side of [-1, 1]) {
-      g.add(strut([wx, Y + R + 1.3, 0], [wx, Y + R + 1.3, side * 4.05], 0.045));
-      g.add(box(1.5, 0.05, 3.2, MAT.hullShade, { pos: [wx, Y + R + 1.3, side * 2.3] }));
-      for (const dz of [-1.0, 0, 1.0]) g.add(box(1.52, 0.07, 0.05, MAT.structure, { pos: [wx, Y + R + 1.3, side * 2.3 + dz] }));
-    }
+    moving.wings = [-1, 1].map((side) => {
+      const wing = joint(g, wx, Y + R + 1.3, 0);
+      wing.add(strut([0, 0, 0], [0, 0, side * 4.05], 0.045));
+      wing.add(box(1.5, 0.05, 3.2, MAT.hullShade, { pos: [0, 0, side * 2.3] }));
+      for (const dz of [-1.0, 0, 1.0]) wing.add(box(1.52, 0.07, 0.05, MAT.structure, { pos: [0, 0, side * 2.3 + dz] }));
+      return wing;
+    });
   }
 
   // 5. Inflatable habitat in front of the node, floodlights and comms mast.
@@ -313,6 +352,7 @@ export function station(level: StationLevel = 1, shieldLevel = 1): THREE.Group {
     const mast = commsMast();
     mast.position.set(nx + 5.4, 0, -4.2);
     g.add(mast);
+    moving.dish = mast.userData.dish as THREE.Group;
   }
 
   const tiles = ([0, [4, 3], [6, 3], [6, 6], [9, 6], [9, 9]] as const)[level];
