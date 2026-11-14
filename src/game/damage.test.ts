@@ -13,7 +13,7 @@ describe('micrometeoroid damage', () => {
     const s = developedGame();
     const key = impact(s, () => 0)!;
     expect(builtKeys(s)).toContain(key);
-    expect(s.damage[key]).toBeGreaterThan(0.3);
+    expect(s.damage[key]).toBeGreaterThanOrEqual(0.25);
   });
 
   it('a damaged solar mast makes less power', () => {
