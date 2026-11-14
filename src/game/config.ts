@@ -49,7 +49,10 @@ export const PROCESSOR = {
 
 export const COLLECT = {
   regolithPerTap: 4,
-  /** What the astronaut can carry in the regolith bag before walking it to the processor. */
+  /** Regolith bag by level (1-3): what it holds and what each dig puts in it. */
+  bagCapacity: [12, 20, 32],
+  digPerLevel: [4, 5, 6],
+  /** Base bag size (level 1), kept for older code and tests. */
   carryMax: 12,
   robotPerSecond: 0.45,
 };
@@ -125,7 +128,7 @@ export const OFFLINE = {
   maxSeconds: 8 * 3600,
 };
 
-export type BuildingKind = 'antenna' | 'station' | 'greenhouse' | 'processor' | 'solarMast' | 'battery' | 'collectorRobot' | 'harvesterRobot' | 'shield';
+export type BuildingKind = 'bag' | 'antenna' | 'station' | 'greenhouse' | 'processor' | 'solarMast' | 'battery' | 'collectorRobot' | 'harvesterRobot' | 'shield';
 
 /** Material cost to build (level 1) or to upgrade to each next level. */
 /**
@@ -133,6 +136,7 @@ export type BuildingKind = 'antenna' | 'station' | 'greenhouse' | 'processor' | 
  * batteries are repeatable, so they always cost their first value.
  */
 export const COSTS: Record<BuildingKind, number[]> = {
+  bag: [0, 40, 90],
   antenna: [30],
   station: [50, 120, 220, 360, 520],
   greenhouse: [50, 90, 180, 300, 450],
@@ -146,6 +150,7 @@ export const COSTS: Record<BuildingKind, number[]> = {
 
 /** Maximum level for upgradable buildings, or maximum count for repeatable ones. */
 export const MAX_LEVEL: Record<BuildingKind, number> = {
+  bag: 3,
   antenna: 1,
   station: 5,
   greenhouse: 5,
