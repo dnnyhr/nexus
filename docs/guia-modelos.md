@@ -53,3 +53,23 @@ Materials are shared and never created inside a model, so changing one color cha
 - **Regolith processor:** a hopper, a reactor, and an oxygen tank, following the idea of extracting oxygen from regolith.
 - **Greenhouse:** a tunnel with LED growth lights, inspired by plant growth experiments on the ISS.
 - **Rover:** an open two-seat vehicle, like the lunar terrain vehicle planned for Artemis.
+
+## Model list
+| Model | Tiles | Band | Notes |
+|---|---|---|---|
+| Habitat | 4 × 3 | Habitat | Regolith berm at the back grows with shielding level 0–3 |
+| Regolith processor | 2 × 2 | Industry | Robots unload at the bottom of the conveyor |
+| Solar mast | 1 × 1 | Power | `userData.tracker` turns to face the Sun |
+| Battery | 1 × 1 | Power | Status window on the front |
+| Greenhouse | 3 × 2 | Greenhouse | `userData.plants` + `setPlantGrowth()` |
+| Collector robot | 1 × 1 | Industry | Front bucket |
+| Harvester robot | 1 × 1 | Greenhouse | Arm and crop basket |
+| Expedition rover | 2 × 1 | Industry | Goes to the ice crater |
+| Comms antenna | 1 × 1 | Habitat | Dish aimed low, where Earth sits |
+| Lander | 3 × 3 | Habitat | Arrival set piece |
+| Commander | — | Habitat (arm band, backpack) | 1.8 m, relaxed stance |
+
+The terrain (`src/scene/terrain.ts`) keeps a flat building area with a 16 m radius. It also has a permanently shadowed
+crater with ice glints at (34, −30). `heightAt(x, z)` gives the ground height, so anything can sit on the surface.
+
+Review every model in `viewer.html`. The "Conjunto" (lineup) view puts all of them together to check scale.
