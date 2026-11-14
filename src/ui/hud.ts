@@ -331,7 +331,7 @@ export class Hud {
 
   private anchorPoint(o: THREE.Object3D | null): THREE.Vector3 | null {
     if (!o) return null;
-    const box = new THREE.Box3().setFromObject(o);
+    const box = (o.userData.box as THREE.Box3 | undefined) ?? new THREE.Box3().setFromObject(o);
     return new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y, (box.min.z + box.max.z) / 2);
   }
 
