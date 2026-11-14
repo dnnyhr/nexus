@@ -48,7 +48,7 @@ export const PROCESSOR = {
 };
 
 export const COLLECT = {
-  regolithPerTap: 3,
+  regolithPerTap: 4,
   robotPerSecond: 0.45,
 };
 
@@ -94,7 +94,7 @@ export type BuildingKind = 'antenna' | 'station' | 'greenhouse' | 'processor' | 
  */
 export const COSTS: Record<BuildingKind, number[]> = {
   antenna: [30],
-  station: [60, 120, 220, 360, 520],
+  station: [50, 120, 220, 360, 520],
   greenhouse: [50, 90, 180, 300, 450],
   processor: [40, 80, 160],
   solarMast: [45],
