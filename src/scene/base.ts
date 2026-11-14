@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { BuildingKind } from '../game/config';
 import type { PowerReport } from '../game/sim';
 import type { GameState } from '../game/state';
 import { animateModel, setMode, type AnimMode } from '../models/anim';
@@ -30,6 +31,7 @@ const BATTERY_SLOTS = [[21, -10], [21, -7], [24, -10], [24, -7]].map(([x, z]) =>
 /** Where collector robots dig and where they unload (bottom of the processor conveyor). */
 const DIG_SITES = [new THREE.Vector3(22, 0, 8), new THREE.Vector3(19, 0, 16), new THREE.Vector3(-22, 0, -16)];
 const UNLOAD = new THREE.Vector3(12.7, 0, -1.6);
+const HARVEST_DOCK = new THREE.Vector3(2, 0, 8.6);
 
 /** A vehicle or person that walks a loop of targets, working a while at each. */
 interface Agent {
@@ -46,14 +48,97 @@ export class BaseView {
   readonly group = new THREE.Group();
   private built = new Map<string, { key: string; obj: THREE.Object3D }>();
   private agents: Agent[] = [];
+  /** True after the first sync, so loading a game doesn't animate every building. */
+  private ready = false;
 
   /** Building roots by slot, for picking and for the UI. */
   readonly buildings = new Map<THREE.Object3D, Slot>();
 
+  /** Ghost silhouettes where unlocked buildings can be built. */
+  private sites = new Map<string, { kind: BuildingKind; obj: THREE.Group }>();
+  /** Newly built objects rising from the ground: object -> seconds since built. */
+  private rising = new Map<THREE.Object3D, number>();
+  private ghostMat = new THREE.MeshLambertMaterial({ color: 0xf5f2ec, transparent: true, opacity: 0.28, depthWrite: false });
+  private ringMat = new THREE.MeshBasicMaterial({ color: 0xf2b54a, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+
   constructor() {
-    this.place('antenna', antenna(), SLOTS.antenna, Math.atan2(-30, -136));
     this.place('lander', lander(), SLOTS.lander, 0.4);
     this.place('rover', rover(), SLOTS.rover, -0.6);
+  }
+
+  /** Where a building kind goes (for sites and for the mission marker). */
+  slotOf(kind: BuildingKind, s: GameState): THREE.Vector3 | null {
+    switch (kind) {
+      case 'antenna': return SLOTS.antenna;
+      case 'station': case 'shield': return SLOTS.station;
+      case 'greenhouse': return SLOTS.greenhouse;
+      case 'processor': return SLOTS.processor;
+      case 'solarMast': return MAST_SLOTS[Math.min(s.counts.solarMast, MAST_SLOTS.length - 1)];
+      case 'battery': return BATTERY_SLOTS[Math.min(s.counts.battery, BATTERY_SLOTS.length - 1)];
+      case 'collectorRobot': return UNLOAD;
+      case 'harvesterRobot': return HARVEST_DOCK;
+    }
+  }
+
+  /** Show a ghost for every unlocked building that can be placed now. */
+  syncSites(s: GameState, kinds: Set<BuildingKind>): void {
+    const want = new Map<string, BuildingKind>();
+    const placeable: Partial<Record<BuildingKind, boolean>> = {
+      antenna: s.levels.antenna === 0,
+      station: s.levels.station === 0,
+      greenhouse: s.levels.greenhouse === 0,
+      processor: s.levels.processor === 0,
+      solarMast: s.counts.solarMast < MAST_SLOTS.length,
+      battery: s.counts.battery < BATTERY_SLOTS.length,
+      collectorRobot: s.levels.collectorRobot === 0,
+      harvesterRobot: s.levels.harvesterRobot === 0,
+    };
+    for (const k of kinds) if (placeable[k]) want.set(`${k}:${k === 'solarMast' ? s.counts.solarMast : k === 'battery' ? s.counts.battery : 0}`, k);
+    for (const [key, site] of this.sites) {
+      if (!want.has(key)) { this.group.remove(site.obj); this.sites.delete(key); }
+    }
+    for (const [key, kind] of want) {
+      if (this.sites.has(key)) continue;
+      const at = this.slotOf(kind, s)!;
+      const ghost = this.ghostOf(kind);
+      ghost.position.set(at.x, heightAt(at.x, at.z), at.z);
+      if (kind === 'antenna') ghost.rotation.y = Math.atan2(-30, -136);
+      if (kind === 'processor') ghost.rotation.y = -Math.PI / 2;
+      ghost.userData.site = kind;
+      this.group.add(ghost);
+      this.sites.set(key, { kind, obj: ghost });
+    }
+  }
+
+  private ghostOf(kind: BuildingKind): THREE.Group {
+    const model = ({
+      antenna, station: () => station(1), shield: () => station(1), greenhouse: () => greenhouse(1), processor, solarMast, battery,
+      collectorRobot, harvesterRobot,
+    } as Record<BuildingKind, () => THREE.Group>)[kind]();
+    model.traverse((o) => {
+      if (o instanceof THREE.Mesh) { o.material = this.ghostMat; o.castShadow = false; o.receiveShadow = false; }
+    });
+    // Footprint ring on the ground.
+    const box = new THREE.Box3().setFromObject(model);
+    const r = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2 + 0.6;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.12, r, 32), this.ringMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.04;
+    const g = new THREE.Group();
+    g.add(model, ring);
+    return g;
+  }
+
+  /** The build site closest to a point, within `range` meters of its ring. */
+  nearestSite(pos: THREE.Vector3, range: number): { kind: BuildingKind; obj: THREE.Object3D } | null {
+    let best: { kind: BuildingKind; obj: THREE.Object3D } | null = null;
+    let bestD = range;
+    for (const site of this.sites.values()) {
+      const box = new THREE.Box3().setFromObject(site.obj);
+      const d = new THREE.Box2(new THREE.Vector2(box.min.x, box.min.z), new THREE.Vector2(box.max.x, box.max.z)).distanceToPoint(new THREE.Vector2(pos.x, pos.z));
+      if (d < bestD) { bestD = d; best = site; }
+    }
+    return best;
   }
 
   /** Footprints of every building on the ground (XZ boxes), for player collisions. */
@@ -103,12 +188,15 @@ export class BaseView {
 
   /** Make the scene match the state: add, upgrade or remove buildings and robots. */
   sync(s: GameState): void {
-    this.ensure('station', `${s.levels.station}:${s.levels.shield}`, () => station(s.levels.station as StationLevel, s.levels.shield), SLOTS.station);
-    this.ensure('greenhouse', `${s.levels.greenhouse}`, () => greenhouse(s.levels.greenhouse as GreenhouseLevel), SLOTS.greenhouse);
-    this.ensure('processor', `${s.levels.processor}`, processor, SLOTS.processor, -Math.PI / 2);
+    const lv = (n: number, key = `${n}`) => (n > 0 ? key : '');
+    this.ensure('antenna', lv(s.levels.antenna), antenna, SLOTS.antenna, Math.atan2(-30, -136));
+    this.ensure('station', lv(s.levels.station, `${s.levels.station}:${s.levels.shield}`), () => station(s.levels.station as StationLevel, s.levels.shield), SLOTS.station);
+    this.ensure('greenhouse', lv(s.levels.greenhouse), () => greenhouse(s.levels.greenhouse as GreenhouseLevel), SLOTS.greenhouse);
+    this.ensure('processor', lv(s.levels.processor), processor, SLOTS.processor, -Math.PI / 2);
     MAST_SLOTS.forEach((p, i) => this.ensure(`solarMast:${i}`, i < s.counts.solarMast ? 'on' : '', solarMast, p));
     BATTERY_SLOTS.forEach((p, i) => this.ensure(`battery:${i}`, i < s.counts.battery ? 'on' : '', battery, p));
     this.syncRobots(s);
+    this.ready = true;
   }
 
   private ensure(id: string, key: string, build: () => THREE.Group, at: THREE.Vector3, rotY = 0): void {
@@ -121,7 +209,10 @@ export class BaseView {
     }
     if (!key) return;
     this.place(id, build(), at, rotY);
-    this.built.get(id)!.key = key;
+    const entry = this.built.get(id)!;
+    entry.key = key;
+    // Rise from the ground when it appears during play (not on the first sync).
+    if (this.ready) this.rising.set(entry.obj, 0);
   }
 
   private syncRobots(s: GameState): void {
@@ -129,11 +220,11 @@ export class BaseView {
       ...Array.from({ length: s.levels.collectorRobot > 0 ? 1 : 0 }, () => 'collector'),
       ...Array.from({ length: s.levels.harvesterRobot }, () => 'harvester'),
     ];
-    const have = this.agents.filter((a) => a.obj.userData.id !== 'commander').map((a) => a.obj.userData.id as string);
+    const have = this.agents.filter((a) => a.obj.userData.id !== 'astronaut').map((a) => a.obj.userData.id as string);
     if (want.join() === have.map((h) => (h === 'collector-robot' ? 'collector' : 'harvester')).join()) return;
     // Rebuild the robot fleet (it only changes when the player builds a robot).
-    for (const a of this.agents.filter((a) => a.obj.userData.id !== 'commander')) this.group.remove(a.obj);
-    this.agents = this.agents.filter((a) => a.obj.userData.id === 'commander');
+    for (const a of this.agents.filter((a) => a.obj.userData.id !== 'astronaut')) this.group.remove(a.obj);
+    this.agents = this.agents.filter((a) => a.obj.userData.id === 'astronaut');
     want.forEach((kind, i) => {
       const obj = kind === 'collector' ? collectorRobot() : harvesterRobot();
       this.group.add(obj);
@@ -148,6 +239,14 @@ export class BaseView {
   /** Per-frame update: movement, animations, and state shown on the models. */
   update(s: GameState, t: number, dt: number, sunAzimuth: number, power: PowerReport): void {
     for (const a of this.agents) this.moveAgent(a, dt, s);
+    for (const [obj, age] of this.rising) {
+      const k = Math.min(1, (age + dt) / 1.4);
+      const e = 1 - Math.pow(1 - k, 3);
+      obj.scale.set(1, Math.max(0.02, e), 1);
+      if (k >= 1) this.rising.delete(obj);
+      else this.rising.set(obj, age + dt);
+    }
+    this.ringMat.opacity = 0.45 + 0.35 * Math.sin(t * 3);
     for (const { obj } of this.built.values()) {
       if (obj.userData.id === 'processor') obj.userData.active = power.running.processor && !s.sheltered && s.res.regolith > 0;
       if (obj.userData.plants) {
@@ -169,8 +268,8 @@ export class BaseView {
   }
 
   private moveAgent(a: Agent, dt: number, s: GameState): void {
-    const isRobot = a.obj.userData.id !== 'commander';
-    // Robots stop while the crew shelters or when robots are switched off; the commander hides inside.
+    const isRobot = a.obj.userData.id !== 'astronaut';
+    // Robots stop while the crew shelters or when robots are switched off; the astronaut hides inside.
     if (s.sheltered || (isRobot && !s.power.robots)) {
       setMode(a.obj, 'idle');
       a.obj.visible = isRobot || !s.sheltered;
