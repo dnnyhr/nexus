@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MODELS } from './models';
 import { MAT, setNightLevel } from './models/palette';
+import { createLighting } from './scene/lighting';
 import './style.css';
 import './viewer.css';
 
@@ -24,15 +25,7 @@ controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI * 0.48;
 controls.autoRotateSpeed = 0.8;
 
-const sun = new THREE.DirectionalLight(0xfff4e0, 2.4);
-sun.position.set(-14, 6, 8);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-Object.assign(sun.shadow.camera, { left: -10, right: 10, top: 10, bottom: -10, near: 1, far: 50 });
-sun.shadow.bias = -0.0005;
-const ambient = new THREE.AmbientLight(0x8a8478, 0.45);
-const fill = new THREE.HemisphereLight(0x3a4152, 0x4a4640, 0.35);
-scene.add(sun, ambient, fill);
+const light = createLighting(scene, 10);
 
 const ground = new THREE.Mesh(new THREE.CylinderGeometry(9, 9.4, 0.4, 24), MAT.regolith);
 ground.position.y = -0.2;
@@ -62,6 +55,10 @@ function show(i: number): void {
   const box = new THREE.Box3().setFromObject(current);
   const size = box.getSize(new THREE.Vector3());
   controls.target.set(0, size.y * 0.4, 0);
+  // Frame the model: keep the viewing direction, set the distance from its size.
+  const dist = Math.max(size.x, size.y, size.z) * 1.9 + 3;
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  camera.position.copy(controls.target).addScaledVector(dir, dist);
   const tiles = current.userData.tiles as [number, number];
   document.querySelector('#name')!.textContent = entry.name;
   document.querySelector('#stats')!.textContent =
@@ -76,8 +73,7 @@ document.querySelector('#spin')!.addEventListener('click', () => (controls.autoR
 document.querySelector('#night')!.addEventListener('click', (e) => {
   night = !night;
   setNightLevel(night ? 1 : 0);
-  sun.intensity = night ? 0.05 : 2.4;
-  ambient.intensity = night ? 0.12 : 0.45;
+  light.setNight(night ? 1 : 0);
   (e.target as HTMLButtonElement).textContent = night ? 'Día' : 'Noche';
 });
 
@@ -89,6 +85,8 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 show(index);
+
+if (import.meta.env.DEV) Object.assign(window, { camera, controls });
 
 renderer.setAnimationLoop(() => {
   controls.update();
