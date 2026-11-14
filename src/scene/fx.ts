@@ -36,3 +36,18 @@ export class Effects {
     });
   }
 }
+
+/** Mission marker: a white chevron that bobs above the place the current mission points to. */
+export function createMarker(): THREE.Group {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 });
+  const chevron = new THREE.Mesh(new THREE.ConeGeometry(0.45, 0.8, 4), mat);
+  chevron.rotation.x = Math.PI;
+  g.add(chevron);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.62, 24), mat);
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.6;
+  g.add(ring);
+  g.userData.chevron = chevron;
+  return g;
+}
