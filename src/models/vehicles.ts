@@ -35,8 +35,8 @@ export function collectorRobot(): THREE.Group {
   // Bucket on two arms.
   const bucket = new THREE.Group();
   bucket.add(box(0.78, 0.04, 0.36, MAT.structure, { pos: [0, 0, 0.18] }));
-  bucket.add(box(0.78, 0.3, 0.04, MAT.structure, { pos: [0, 0.15, 0] }));
-  for (const side of [-1, 1]) bucket.add(box(0.04, 0.26, 0.34, MAT.structure, { pos: [side * 0.37, 0.12, 0.17] }));
+  bucket.add(box(0.76, 0.3, 0.04, MAT.structure, { pos: [0, 0.15, 0] }));
+  for (const side of [-1, 1]) bucket.add(box(0.04, 0.27, 0.38, MAT.structure, { pos: [side * 0.41, 0.13, 0.17] }));
   bucket.position.set(0, 0.12, 0.72);
   g.add(bucket);
   for (const side of [-1, 1]) g.add(strut([side * 0.3, 0.5, 0.45], [side * 0.3, 0.3, 0.74], 0.03, MAT.darkMetal));
@@ -58,7 +58,7 @@ export function harvesterRobot(): THREE.Group {
   g.add(box(0.58, 0.08, 0.82, BAND.greenhouse, { pos: [0, 0.29, 0] }));
 
   // Basket with harvested greens.
-  g.add(box(0.46, 0.18, 0.36, MAT.hullShade, { pos: [0, 0.56, -0.18] }));
+  g.add(box(0.46, 0.2, 0.36, MAT.hullShade, { pos: [0, 0.58, -0.18] }));
   g.add(mesh(new THREE.OctahedronGeometry(0.12, 0), MAT.plantLight, { pos: [-0.08, 0.66, -0.2], scale: [1, 0.6, 1] }));
   g.add(mesh(new THREE.OctahedronGeometry(0.1, 0), MAT.plant, { pos: [0.1, 0.66, -0.14], scale: [1, 0.6, 1] }));
 
@@ -95,7 +95,7 @@ export function rover(): THREE.Group {
   // Chassis frame and deck.
   g.add(box(1.5, 0.12, 3.0, MAT.structure, { pos: [0, 0.62, 0] }));
   g.add(box(1.4, 0.06, 2.4, MAT.hull, { pos: [0, 0.71, 0] }));
-  g.add(box(1.42, 0.08, 0.5, BAND.industry, { pos: [0, 0.7, 1.35] }));
+  g.add(box(1.42, 0.06, 0.5, BAND.industry, { pos: [0, 0.69, 1.35] }));
   for (const z of [-1.15, 1.15]) g.add(strut([-0.95, wr, z], [0.95, wr, z], 0.05, MAT.darkMetal));
 
   // Seats.
@@ -108,7 +108,7 @@ export function rover(): THREE.Group {
   g.add(box(0.9, 0.35, 0.2, MAT.hull, { pos: [0, 1.0, 0.75], rot: [0.5, 0, 0] }));
   g.add(box(0.5, 0.18, 0.03, MAT.glass, { pos: [0, 1.04, 0.86], rot: [0.5, 0, 0] }));
   // Cargo rack.
-  g.add(box(1.2, 0.4, 0.7, MAT.hullShade, { pos: [0, 0.94, -0.95] }));
+  g.add(box(1.2, 0.4, 0.7, MAT.hullShade, { pos: [0, 0.95, -0.95] }));
   g.add(box(1.24, 0.06, 0.74, MAT.structure, { pos: [0, 1.16, -0.95] }));
   // High-gain antenna.
   g.add(strut([0.55, 0.74, -0.55], [0.55, 1.9, -0.55], 0.03));

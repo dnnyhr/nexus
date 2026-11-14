@@ -69,7 +69,7 @@ export function processor(): THREE.Group {
 
   // Radiator panel at the back.
   g.add(box(2.4, 1.4, 0.06, MAT.hullShade, { pos: [0.2, base + 1.7, -1.55] }));
-  for (const x of [-0.6, 0.2, 1.0]) g.add(box(0.05, 1.4, 0.1, MAT.structure, { pos: [x, base + 1.7, -1.55] }));
+  for (const x of [-0.6, 0.2, 1.0]) g.add(box(0.05, 1.46, 0.1, MAT.structure, { pos: [x, base + 1.7, -1.55] }));
   g.add(strut([-0.9, base, -1.55], [-0.9, base + 1.0, -1.55], 0.04));
   g.add(strut([1.3, base, -1.55], [1.3, base + 1.0, -1.55], 0.04));
 
