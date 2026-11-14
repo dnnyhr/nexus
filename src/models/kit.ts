@@ -128,3 +128,34 @@ export function asModel(g: THREE.Group, id: string, tilesX: number, tilesZ: numb
   g.userData = { id, tiles: [tilesX, tilesZ] };
   return g;
 }
+
+/**
+ * Regolith shielding berm: a hipped heap (wide base, narrow ridge, sloped ends) along X,
+ * sitting on y = 0, with a few rocks on the ridge so it doesn't look machined.
+ */
+export function berm(length: number, height: number, depth: number, seed: number): THREE.Group {
+  const g = new THREE.Group();
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const pos = geo.getAttribute('position');
+  const ridgeLen = Math.max(length - height * 2.2, length * 0.3);
+  const ridgeDepth = depth * 0.28;
+  for (let i = 0; i < pos.count; i++) {
+    const top = pos.getY(i) > 0;
+    pos.setXYZ(
+      i,
+      Math.sign(pos.getX(i)) * (top ? ridgeLen : length) / 2,
+      top ? height : 0,
+      Math.sign(pos.getZ(i)) * (top ? ridgeDepth : depth) / 2,
+    );
+  }
+  geo.computeVertexNormals();
+  g.add(mesh(geo, MAT.regolithPiled));
+  const n = Math.max(2, Math.round(ridgeLen / 1.4));
+  for (let i = 0; i < n; i++) {
+    const r = rock(0.35 + ((seed + i) % 3) * 0.08, seed + i, MAT.regolithPiled);
+    r.position.set(-ridgeLen / 2 + (i + 0.5) * (ridgeLen / n), height - 0.05, ((i % 2) - 0.5) * ridgeDepth * 0.6);
+    r.rotation.y = i * 1.7;
+    g.add(r);
+  }
+  return g;
+}
