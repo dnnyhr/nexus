@@ -62,6 +62,19 @@ export interface GameState {
   carried: number;
   crewHealth: number;
   sheltered: boolean;
+  /** Solar storm in progress, if any (see storm.ts). */
+  storm: {
+    phase: 'none' | 'warning' | 'active';
+    timeLeft: number;
+    /** Seconds until the next storm (counts only once storms are enabled). */
+    nextIn: number;
+    strength: number;
+    flare: { id: string; class: string; peak: string; link: string } | null;
+    /** How many recent real flares have been used, to cycle through them. */
+    used: number;
+    /** True when triggered by a live GOES reading at storm level. */
+    live: boolean;
+  };
   /** Accumulated radiation dose of the mission (mSv). */
   dose: number;
   stats: {
@@ -88,6 +101,7 @@ export function newGame(now = Date.now()): GameState {
     carried: 0,
     crewHealth: 100,
     sheltered: false,
+    storm: { phase: 'none', timeLeft: 0, nextIn: 40, strength: 0, flare: null, used: 0, live: false },
     dose: 0,
     stats: { harvests: 0, regolithCollected: 0, materialsMade: 0 },
     mission: 0,
