@@ -95,7 +95,7 @@ export function hatch(w = 1.0, h = 1.9): THREE.Group {
 export function windowPane(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
   g.add(box(w + 0.1, h + 0.1, 0.05, MAT.darkMetal));
-  g.add(box(w, h, 0.07, MAT.glass, { pos: [0, 0, 0.01] }));
+  g.add(box(w, h, 0.05, MAT.glass, { pos: [0, 0, 0.018] }));
   return g;
 }
 
@@ -136,6 +136,7 @@ export function asModel(g: THREE.Group, id: string, tilesX: number, tilesZ: numb
 export function berm(length: number, height: number, depth: number, seed: number): THREE.Group {
   const g = new THREE.Group();
   const geo = new THREE.BoxGeometry(1, 1, 1);
+  geo.userData.noAudit = true;
   const pos = geo.getAttribute('position');
   const ridgeLen = Math.max(length - height * 2.2, length * 0.3);
   const ridgeDepth = depth * 0.28;

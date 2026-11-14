@@ -102,7 +102,7 @@ function serviceModule(depth: number): THREE.Group {
   const g = new THREE.Group();
   const w = 2.6;
   const h = 2.8;
-  g.add(box(w + 0.2, PLINTH, depth + 0.2, MAT.hullShade, { pos: [0, PLINTH / 2, 0] }));
+  g.add(box(w + 0.2, PLINTH + 0.03, depth + 0.2, MAT.hullShade, { pos: [0, (PLINTH + 0.03) / 2, 0] }));
   g.add(box(w, h, depth, MAT.hull, { pos: [0, PLINTH + h / 2, 0] }));
   g.add(box(w + 0.1, 0.12, depth + 0.1, MAT.hullShade, { pos: [0, PLINTH + h + 0.06, 0] }));
   g.add(box(w + 0.04, 0.3, depth + 0.04, BAND.greenhouse, { pos: [0, PLINTH + h - 0.5, 0] }));
@@ -131,8 +131,8 @@ function farmTower(plants: THREE.Object3D[]): THREE.Group {
   const r = 1.25;
   const tiers = 4;
   const tierH = 0.95;
-  g.add(mesh(new THREE.CylinderGeometry(r + 0.2, r + 0.3, PLINTH, 12), MAT.hullShade, { pos: [0, PLINTH / 2, 0] }));
-  g.add(mesh(new THREE.CylinderGeometry(r + 0.32, r + 0.32, 0.1, 12), BAND.greenhouse, { pos: [0, PLINTH - 0.05, 0] }));
+  g.add(mesh(new THREE.CylinderGeometry(r + 0.2, r + 0.3, PLINTH + 0.05, 12), MAT.hullShade, { pos: [0, (PLINTH + 0.05) / 2, 0] }));
+  g.add(mesh(new THREE.CylinderGeometry(r + 0.32, r + 0.32, 0.1, 12), BAND.greenhouse, { pos: [0, PLINTH - 0.08, 0] }));
   g.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, tiers * tierH, 8), MAT.ledGrow, { pos: [0, PLINTH + (tiers * tierH) / 2, 0] }));
   for (let t = 0; t < tiers; t++) {
     const y = PLINTH + t * tierH + 0.1;
@@ -164,9 +164,9 @@ function farmTower(plants: THREE.Object3D[]): THREE.Group {
 function biodome(plants: THREE.Object3D[]): THREE.Group {
   const g = new THREE.Group();
   const r = 4.2;
-  g.add(mesh(new THREE.CylinderGeometry(r + 0.15, r + 0.3, PLINTH, 12), MAT.hullShade, { pos: [0, PLINTH / 2, 0] }));
-  g.add(mesh(new THREE.CylinderGeometry(r + 0.32, r + 0.32, 0.1, 12), BAND.greenhouse, { pos: [0, PLINTH - 0.05, 0] }));
-  g.add(mesh(new THREE.CylinderGeometry(r - 0.2, r - 0.2, 0.06, 12), MAT.regolithDark, { pos: [0, PLINTH + 0.03, 0] }));
+  g.add(mesh(new THREE.CylinderGeometry(r + 0.15, r + 0.3, PLINTH + 0.05, 12), MAT.hullShade, { pos: [0, (PLINTH + 0.05) / 2, 0] }));
+  g.add(mesh(new THREE.CylinderGeometry(r + 0.32, r + 0.32, 0.1, 12), BAND.greenhouse, { pos: [0, PLINTH - 0.08, 0] }));
+  g.add(mesh(new THREE.CylinderGeometry(r - 0.2, r - 0.2, 0.06, 12), MAT.regolithDark, { pos: [0, PLINTH + 0.06, 0] }));
 
   // Glass: upper half of an icosphere.
   const ico = new THREE.IcosahedronGeometry(r, 1);
@@ -228,7 +228,7 @@ function corridor(fromX: number, toX: number, z: number): THREE.Group {
   const g = new THREE.Group();
   const len = Math.abs(toX - fromX);
   const cx = (fromX + toX) / 2;
-  g.add(box(len, PLINTH, 1.6, MAT.hullShade, { pos: [cx, PLINTH / 2, z] }));
+  g.add(box(len, PLINTH - 0.05, 1.6, MAT.hullShade, { pos: [cx, (PLINTH - 0.05) / 2, z] }));
   g.add(mesh(new THREE.CylinderGeometry(0.95, 0.95, len, 8, 1, true, -Math.PI / 2, Math.PI), MAT.hullDouble, {
     pos: [cx, PLINTH, z],
     rot: [0, 0, Math.PI / 2],

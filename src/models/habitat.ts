@@ -220,7 +220,7 @@ function commsMast(): THREE.Group {
   for (const a of [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3]) g.add(strut([Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5], [0, 5.2, 0], 0.04));
   for (const y of [1.6, 3.2]) g.add(ringBand(0.33 - y * 0.05, 0.05, y, MAT.structure));
   g.add(mesh(new THREE.SphereGeometry(0.55, 12, 3, 0, Math.PI * 2, 0, 0.6), MAT.hullDouble, { pos: [0, 4.6, 0.2], rot: [-1.25, 0, 0] }));
-  g.add(strut([0, 5.2, 0], [0, 6.4, 0], 0.02));
+  g.add(strut([0, 5.45, 0], [0, 6.4, 0], 0.02));
   const b = beacon(0.15);
   b.position.y = 5.2;
   g.add(b);
@@ -291,7 +291,7 @@ export function station(level: StationLevel = 1, shieldLevel = 1): THREE.Group {
     const wx = lx + len / 2 - 0.4;
     g.add(strut([wx, Y + R - 0.1, 0], [wx, Y + R + 1.4, 0], 0.07));
     for (const side of [-1, 1]) {
-      g.add(strut([wx, Y + R + 1.3, 0], [wx, Y + R + 1.3, side * 3.9], 0.045));
+      g.add(strut([wx, Y + R + 1.3, 0], [wx, Y + R + 1.3, side * 4.05], 0.045));
       g.add(box(1.5, 0.05, 3.2, MAT.hullShade, { pos: [wx, Y + R + 1.3, side * 2.3] }));
       for (const dz of [-1.0, 0, 1.0]) g.add(box(1.52, 0.07, 0.05, MAT.structure, { pos: [wx, Y + R + 1.3, side * 2.3 + dz] }));
     }
