@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MODELS } from './models';
-import { MAT, setNightLevel } from './models/palette';
+import { animateModel, findModel, poke, type AnimMode } from './models/anim';
+import { animateSharedMaterials, MAT, setNightLevel } from './models/palette';
 import { createLighting } from './scene/lighting';
 import './style.css';
 import './viewer.css';
@@ -73,7 +74,22 @@ function show(i: number): void {
   document.querySelector('#stats')!.textContent =
     ` · ${triangles(current)} triángulos · ${tiles[0]}×${tiles[1]} casillas · ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)} m`;
   history.replaceState(null, '', `#${entry.id}`);
+  updateModeButton();
 }
+
+const MODE_NAMES: Record<AnimMode, string> = { idle: 'Quieto', walk: 'Caminar', work: 'Trabajar', drive: 'Conducir' };
+const modeButton = document.querySelector<HTMLButtonElement>('#mode')!;
+function updateModeButton(): void {
+  const modes = (current?.userData.modes as AnimMode[] | undefined) ?? [];
+  modeButton.style.display = modes.length ? '' : 'none';
+  if (modes.length) modeButton.textContent = MODE_NAMES[current!.userData.mode as AnimMode];
+}
+modeButton.addEventListener('click', () => {
+  if (!current) return;
+  const modes = current.userData.modes as AnimMode[];
+  current.userData.mode = modes[(modes.indexOf(current.userData.mode) + 1) % modes.length];
+  updateModeButton();
+});
 
 let night = false;
 document.querySelector('#prev')!.addEventListener('click', () => show(index - 1));
@@ -97,7 +113,24 @@ show(index);
 
 if (import.meta.env.DEV) Object.assign(window, { camera, controls });
 
+const clock = new THREE.Clock();
+
+// Tap a structure to poke it (a tap is a press and release without dragging the camera).
+const raycaster = new THREE.Raycaster();
+let downAt: { x: number; y: number } | null = null;
+canvas.addEventListener('pointerdown', (e) => (downAt = { x: e.clientX, y: e.clientY }));
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt || !current || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) return;
+  const ndc = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObject(current, true)[0];
+  const model = findModel(hit?.object ?? null);
+  if (model) poke(model, clock.elapsedTime);
+});
 renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  if (current) animateModel(current, clock.elapsedTime, dt);
+  animateSharedMaterials(clock.elapsedTime);
   controls.update();
   renderer.render(scene, camera);
 });
