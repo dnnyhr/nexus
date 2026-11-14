@@ -20,6 +20,7 @@ interface HudDeps {
   changed(): void;
   poke(target: THREE.Object3D | null): void;
   action(): void;
+  newGame(): void;
   jump(): void;
   dig(): void;
 }
@@ -204,6 +205,7 @@ export class Hud {
       say: (text, warn) => this.float(this.anchorPoint(anchor) ?? new THREE.Vector3(), text, warn),
       poke: () => this.deps.poke(anchor),
       close: () => this.close(),
+      newGame: () => this.deps.newGame(),
     };
   }
 

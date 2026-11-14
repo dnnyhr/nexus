@@ -11,6 +11,7 @@ import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
 import { collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
+import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { createMarker, Effects, Flashes } from './scene/fx';
@@ -57,7 +58,10 @@ const light = createLighting(scene, 34);
 const terrain = createTerrain();
 scene.add(createSky(), terrain);
 
-export const state: GameState = newGame();
+// Resume the saved game (simulating the time away), or start a new one.
+const loaded = loadGame();
+export const state: GameState = loaded ?? newGame();
+const away = loaded ? simulateOffline(state, (Date.now() - loaded.savedAt) / 1000) : null;
 const base = new BaseView();
 scene.add(base.group);
 
@@ -77,6 +81,7 @@ const hud = new Hud({
   changed: () => syncWorld(),
   poke: (o) => { if (o) poke(o, clock.elapsedTime); },
   action: () => doAction(),
+  newGame: () => { clearSave(); resetting = true; location.reload(); },
   jump: () => player.jump(),
   dig: () => dig(),
 });
@@ -88,7 +93,9 @@ function syncWorld(): void {
 }
 syncWorld();
 
-const player = new Player(new THREE.Vector3(-14.5, 0, 9.5));
+const player = new Player(new THREE.Vector3(state.player.x, 0, state.player.z));
+camera.position.set(state.player.x + 11, 13, state.player.z + 14);
+controls.target.set(state.player.x, 0.8, state.player.z);
 scene.add(player.obj);
 let colliders = base.colliders();
 const REACH = 2.6;
@@ -257,7 +264,30 @@ function checkMissions(): void {
   syncWorld();
   colliders = base.colliders();
 }
-hud.radio(currentMission(state));
+if (away && away.seconds > 60) {
+  const h = Math.floor(away.seconds / 3600);
+  const m = Math.round((away.seconds % 3600) / 60);
+  hud.radioText(t('welcomeBack', {
+    time: h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`,
+    mat: Math.max(0, away.materials),
+    o2: Math.max(0, away.o2),
+    harvest: away.harvests ? t('welcomeHarvest', { n: away.harvests }) : '',
+    plant: state.levels.greenhouse ? t('welcomePlant', { stress: away.plantStress }) : '',
+  }), true);
+} else {
+  hud.radio(currentMission(state));
+}
+
+// ---- Saving: every 30 s, and whenever the page is hidden or closed ------------------------
+let resetting = false;
+function save(): void {
+  if (resetting) return;
+  state.player = { x: player.position.x, z: player.position.z };
+  saveGame(state);
+}
+setInterval(save, 30_000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(); });
+window.addEventListener('pagehide', save);
 
 // ---- Micrometeoroid impacts ----------------------------------------------------------------
 // They start once the habitat is up (so the very first steps stay calm), and are more
