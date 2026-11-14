@@ -125,7 +125,7 @@ export function rock(size: number, seed: number, mat: THREE.Material = MAT.regol
 /** Tag a model with its id and footprint in 2 m tiles. */
 export function asModel(g: THREE.Group, id: string, tilesX: number, tilesZ: number): THREE.Group {
   g.name = id;
-  g.userData = { id, tiles: [tilesX, tilesZ] };
+  Object.assign(g.userData, { id, tiles: [tilesX, tilesZ] });
   return g;
 }
 

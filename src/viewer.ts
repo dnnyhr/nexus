@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MODELS } from './models';
+import { animateModel, type AnimMode } from './models/anim';
 import { MAT, setNightLevel } from './models/palette';
 import { createLighting } from './scene/lighting';
 import './style.css';
@@ -73,7 +74,22 @@ function show(i: number): void {
   document.querySelector('#stats')!.textContent =
     ` · ${triangles(current)} triángulos · ${tiles[0]}×${tiles[1]} casillas · ${size.x.toFixed(1)}×${size.y.toFixed(1)}×${size.z.toFixed(1)} m`;
   history.replaceState(null, '', `#${entry.id}`);
+  updateModeButton();
 }
+
+const MODE_NAMES: Record<AnimMode, string> = { idle: 'Quieto', walk: 'Caminar', work: 'Trabajar', drive: 'Conducir' };
+const modeButton = document.querySelector<HTMLButtonElement>('#mode')!;
+function updateModeButton(): void {
+  const modes = (current?.userData.modes as AnimMode[] | undefined) ?? [];
+  modeButton.style.display = modes.length ? '' : 'none';
+  if (modes.length) modeButton.textContent = MODE_NAMES[current!.userData.mode as AnimMode];
+}
+modeButton.addEventListener('click', () => {
+  if (!current) return;
+  const modes = current.userData.modes as AnimMode[];
+  current.userData.mode = modes[(modes.indexOf(current.userData.mode) + 1) % modes.length];
+  updateModeButton();
+});
 
 let night = false;
 document.querySelector('#prev')!.addEventListener('click', () => show(index - 1));
@@ -97,7 +113,10 @@ show(index);
 
 if (import.meta.env.DEV) Object.assign(window, { camera, controls });
 
+const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  if (current) animateModel(current, clock.elapsedTime, dt);
   controls.update();
   renderer.render(scene, camera);
 });
