@@ -18,7 +18,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0a0b);
 
-const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 200);
+const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 400);
 camera.position.set(9, 6, 11);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -54,9 +54,18 @@ function show(i: number): void {
   scene.add(current);
   const box = new THREE.Box3().setFromObject(current);
   const size = box.getSize(new THREE.Vector3());
-  controls.target.set(0, size.y * 0.4, 0);
+  const center = box.getCenter(new THREE.Vector3());
+  controls.target.set(center.x, size.y * 0.35, center.z);
+  const groundR = Math.max(9, Math.hypot(size.x, size.z) * 0.62);
+  ground.scale.set(groundR / 9, 1, groundR / 9);
+  ground.position.set(center.x, -0.2, center.z);
+  light.sun.position.set(center.x - 16, 6, center.z + 9);
+  light.sun.target.position.copy(center);
+  const ext = Math.max(10, groundR);
+  Object.assign(light.sun.shadow.camera, { left: -ext, right: ext, top: ext, bottom: -ext });
+  light.sun.shadow.camera.updateProjectionMatrix();
   // Frame the model: keep the viewing direction, set the distance from its size.
-  const dist = Math.max(size.x, size.y, size.z) * 1.9 + 3;
+  const dist = Math.max(size.x, size.y, size.z) * (entry.id === 'lineup' ? 1.0 : 1.9) + 3;
   const dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, dist);
   const tiles = current.userData.tiles as [number, number];
