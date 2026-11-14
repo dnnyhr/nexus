@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { capacity, collectByHand, lifeSupportPercent, step } from './sim';
+import { CYCLE } from './config';
+import { capacity, collectByHand, lifeSupportPercent, step, tick } from './sim';
 import { newGame } from './state';
 
 const run = (s: ReturnType<typeof newGame>, seconds: number) => {
@@ -54,3 +55,43 @@ describe('resources', () => {
     expect(lifeSupportPercent(s)).toBeCloseTo(10);
   });
 });
+
+describe('energy and the lunar night', () => {
+  it('solar masts charge the battery during the day', () => {
+    const s = newGame();
+    s.res.energy = 10;
+    s.power.processor = false;
+    run2(s, 30);
+    expect(s.res.energy).toBeGreaterThan(10);
+  });
+
+  it('at night the battery drains and systems are shed, life support last', () => {
+    const s = newGame();
+    s.time = CYCLE.daySeconds; // start of the night
+    s.res.energy = 20;
+    s.power.growLights = 100;
+    const reports = [];
+    for (let i = 0; i < 40; i++) reports.push(tick(s, 1));
+    const firstShortage = reports.find((r) => r.shortage)!;
+    expect(firstShortage).toBeDefined();
+    expect(firstShortage.running.lights).toBeLessThan(100);
+    // Other systems are shed while life support still has power.
+    expect(firstShortage.lifeSupportPowered).toBe(true);
+    // Only when the battery is truly empty does life support fail.
+    expect(reports[reports.length - 1].lifeSupportPowered).toBe(false);
+  });
+
+  it('turning systems off at night saves the battery', () => {
+    const a = newGame();
+    const b = newGame();
+    for (const s of [a, b]) { s.time = CYCLE.daySeconds; s.res.energy = 100; }
+    b.power = { heating: false, processor: false, robots: false, growLights: 0 };
+    run2(a, 60);
+    run2(b, 60);
+    expect(b.res.energy).toBeGreaterThan(a.res.energy);
+  });
+});
+
+function run2(s: ReturnType<typeof newGame>, seconds: number) {
+  for (let i = 0; i < seconds; i++) tick(s, 1);
+}
