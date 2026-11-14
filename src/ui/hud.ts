@@ -4,6 +4,7 @@ import { capacity, lifeSupportPercent, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
 import { getLang, onLangChange, setLang, t, type StringKey } from './i18n';
+import { Joystick } from './joystick';
 import { makeBuildMenu, makePanel, makePowerPanel, type Panel, type PanelContext, type PanelKind } from './panels';
 import './hud.css';
 
@@ -32,8 +33,10 @@ export class Hud {
   private shelterBtn: HTMLButtonElement;
   private hint = el('div.hint');
   private healthRow: HTMLElement;
+  readonly joystick: Joystick;
+  private actionBtn: HTMLButtonElement;
 
-  constructor(private deps: HudDeps) {
+  constructor(private deps: HudDeps & { action(): void }) {
     const res = el('div.hw', { id: 'resources' });
     for (const key of ['lifeSupport', 'energy', 'shield', 'crewHealth'] as StringKey[]) {
       const fill = el('div.fill');
@@ -58,8 +61,10 @@ export class Hud {
     const markLang = () => langButtons.forEach((b, i) => b.classList.toggle('on', ['es', 'en'][i] === getLang()));
     markLang();
 
-    this.root.append(res, el('div', { id: 'actions' }, buildBtn, powerBtn), this.shelterBtn, langBox, this.hint);
+    this.actionBtn = el('button.hw', { id: 'action', onclick: () => deps.action() });
+    this.root.append(res, el('div', { id: 'actions' }, buildBtn, powerBtn), this.shelterBtn, langBox, this.hint, this.actionBtn);
     document.body.append(this.root);
+    this.joystick = new Joystick(this.root);
 
     onLangChange(() => {
       markLang();
@@ -115,6 +120,17 @@ export class Hud {
 
   isOpen(): boolean {
     return this.panel !== null;
+  }
+
+  /** The 3D object the open panel belongs to (null for menus or no panel). */
+  panelAnchor(): THREE.Object3D | null {
+    return this.panel?.anchor ?? null;
+  }
+
+  /** Label of the action button: what pressing it would do right now. */
+  setAction(label: string, idle = false): void {
+    setText(this.actionBtn, label);
+    this.actionBtn.classList.toggle('idle', idle);
   }
 
   /** Floating text that rises from a point in the world. */
