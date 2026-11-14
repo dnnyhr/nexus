@@ -26,7 +26,7 @@ export function checkBuild(s: GameState, kind: BuildingKind): BuildCheck {
   if (cost === null) return { ok: false, reason: 'max' };
   // A harvester needs a greenhouse; robots beyond level 1 need a bigger station to manage them.
   if (kind === 'harvesterRobot' && s.levels.greenhouse < 1) return { ok: false, reason: 'requires', requires: 'greenhouse' };
-  if (kind === 'collectorRobot' && s.levels.collectorRobot >= s.levels.station) return { ok: false, reason: 'requires', requires: 'station' };
+  if (kind === 'collectorRobot' && s.levels.collectorRobot >= Math.max(1, s.levels.station)) return { ok: false, reason: 'requires', requires: 'station' };
   if (s.res.materials < cost) return { ok: false, reason: 'materials', cost };
   return { ok: true, cost };
 }

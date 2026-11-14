@@ -5,14 +5,15 @@ import { cyclePhase, type GameState } from './state';
 // Order matters: energy is resolved first, because what has power decides what runs.
 
 export function capacity(s: GameState) {
-  const life = STORAGE.lifeBase + (s.levels.station - 1) * STORAGE.lifePerStationLevel;
+  const tier = Math.max(1, s.levels.station);
+  const life = STORAGE.lifeBase + (tier - 1) * STORAGE.lifePerStationLevel;
   return {
     o2: life,
     water: life,
     food: life,
     energy: STORAGE.energyBase + s.counts.battery * STORAGE.energyPerBattery,
-    regolith: STORAGE.regolithBase * s.levels.station,
-    materials: STORAGE.materialsBase * s.levels.station,
+    regolith: STORAGE.regolithBase * tier,
+    materials: STORAGE.materialsBase * tier,
   };
 }
 
@@ -44,12 +45,13 @@ export function step(s: GameState, dt: number, running?: Running): void {
   s.res.food -= CREW.foodPerSecond * dt;
 
   // Regolith processor: regolith -> oxygen + building materials.
-  if (active && run.processor && !s.sheltered && s.res.regolith > 0) {
+  if (active && s.levels.processor > 0 && run.processor && !s.sheltered && s.res.regolith > 0) {
     const rate = PROCESSOR.regolithPerSecond * (1 + 0.5 * (s.levels.processor - 1));
     const used = Math.min(s.res.regolith, rate * dt);
     s.res.regolith -= used;
     s.res.o2 += used * PROCESSOR.o2PerRegolith;
     s.res.materials += used * PROCESSOR.materialsPerRegolith;
+    s.stats.materialsMade += used * PROCESSOR.materialsPerRegolith;
   }
 
   // Collector robots dig on their own.
@@ -93,12 +95,12 @@ export interface PowerReport {
 }
 
 export function resolvePower(s: GameState, dt: number, isDay: boolean): PowerReport {
-  const generation = isDay ? s.counts.solarMast * ENERGY.solarPerMast : 0;
+  const generation = isDay ? ENERGY.landerSolar + s.counts.solarMast * ENERGY.solarPerMast : 0;
   const robotsCount = s.levels.collectorRobot + s.levels.harvesterRobot;
   const want = {
     lights: (s.power.growLights / 100) * ENERGY.growLightsMaxDraw * Math.min(1, s.levels.greenhouse),
     robots: s.power.robots && !s.sheltered && robotsCount > 0 ? ENERGY.robotDraw * robotsCount : 0,
-    processor: s.power.processor && !s.sheltered ? ENERGY.processorDraw : 0,
+    processor: s.levels.processor > 0 && s.power.processor && !s.sheltered ? ENERGY.processorDraw : 0,
     heating: s.power.heating && !isDay ? ENERGY.heatingDraw : 0,
   };
   let budget = s.res.energy / dt + generation - ENERGY.lifeSupportDraw;
@@ -141,7 +143,7 @@ export function inRange(v: number): boolean {
 
 export function stepGreenhouse(s: GameState, dt: number, isDay: boolean, run: Running, offline = false): void {
   const p = s.plant;
-  if (p.dead) return;
+  if (p.dead || s.levels.greenhouse === 0) return;
   const k = offline ? GREENHOUSE.offlineFactor : 1;
 
   p.water = clamp(p.water + GREENHOUSE.waterDrift * k * dt, 0, 100);
