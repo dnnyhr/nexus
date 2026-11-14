@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SHIELD } from '../game/config';
 import { currentMission, MISSIONS, type Mission } from '../game/missions';
-import { capacity, lifeSupportPercent, type PowerReport } from '../game/sim';
+import { capacity, carryMax, lifeSupportPercent, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
 import { getLang, onLangChange, setLang, t, type StringKey } from './i18n';
@@ -391,8 +391,8 @@ export class Hud {
     this.showerTag.style.display = this.showerName ? '' : 'none';
     setText(this.counts.mat, String(Math.floor(s.res.materials)));
     setText(this.counts.reg, String(Math.floor(s.res.regolith)));
-    setText(this.counts.bag, `${Math.floor(s.carried)}/12`);
-    this.counts.bag.classList.toggle('full', s.carried >= 12);
+    setText(this.counts.bag, `${Math.floor(s.carried)}/${carryMax(s)}`);
+    this.counts.bag.classList.toggle('full', s.carried >= carryMax(s));
     setText(this.hint, matchMedia('(pointer: coarse)').matches ? t('tapGroundTouch') : t('tapGround'));
     this.hint.style.display = s.mission <= 3 && !this.isOpen() ? '' : 'none';
     this.panel?.panel.update();
