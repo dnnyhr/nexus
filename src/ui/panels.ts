@@ -1,6 +1,6 @@
 import { build, checkBuild, currentLevel, nextCost } from '../game/build';
 import { ENERGY, PROCESSOR, type BuildingKind } from '../game/config';
-import { adjustClimate, capacity, harvest, inRange, irrigate, replant, type PowerReport } from '../game/sim';
+import { adjustClimate, capacity, carryMax, digYield, harvest, inRange, irrigate, replant, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
 import { t, type StringKey } from './i18n';
@@ -181,6 +181,8 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
         para(() => `${t('o2')} ${Math.floor(s.res.o2)}/${cap().o2} · ${t('water')} ${Math.floor(s.res.water)}/${cap().water} · ${t('food')} ${Math.floor(s.res.food)}/${cap().food}`, ups),
         gauge('crewHealth', () => s.crewHealth, ups),
         el('div.row', {}, upgradeButton('station', ctx, ups)),
+        para(() => t('bagInfo', { n: s.levels.bag, cap: carryMax(s), dig: digYield(s) }), ups),
+        el('div.row', {}, upgradeButton('bag', ctx, ups, 'upgradeBag')),
         para(() => t('shieldLevel', { n: s.levels.shield }), ups),
         el('div.row', {}, upgradeButton('shield', ctx, ups, 'upgradeShield')),
         para(() => t('factShield'), ups, 'fact'),
@@ -229,6 +231,8 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
       node = el('div', {},
         header(() => t('lander'), () => '', ctx, ups),
         para(() => t('landerInfo'), ups),
+        para(() => t('bagInfo', { n: s.levels.bag, cap: carryMax(s), dig: digYield(s) }), ups),
+        el('div.row', {}, upgradeButton('bag', ctx, ups, 'upgradeBag')),
         el('div.row', {}, actionButton('newGame', () => { if (confirm(t('newGameConfirm'))) ctx.newGame?.(); }, ups)),
       );
       break;

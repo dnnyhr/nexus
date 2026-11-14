@@ -111,7 +111,7 @@ window.addEventListener('resize', resize);
 resize();
 show(index);
 
-if (import.meta.env.DEV) Object.assign(window, { camera, controls });
+if (import.meta.env.DEV) Object.assign(window, { camera, controls, model: () => current });
 
 const clock = new THREE.Clock();
 

@@ -41,6 +41,8 @@ export interface GameState {
   savedAt: number;
   res: Resources;
   levels: {
+    /** Regolith bag level 1-3 (bigger bag, more per dig). */
+    bag: number;
     antenna: number;
     station: number;
     greenhouse: number;
@@ -95,7 +97,7 @@ export function newGame(now = Date.now()): GameState {
     savedAt: now,
     // The astronaut starts with only the lander: some supplies and a few materials.
     res: { o2: 90, water: 90, food: 80, energy: 100, regolith: 0, materials: 60 },
-    levels: { antenna: 0, station: 0, greenhouse: 0, processor: 0, collectorRobot: 0, harvesterRobot: 0, shield: 0 },
+    levels: { bag: 1, antenna: 0, station: 0, greenhouse: 0, processor: 0, collectorRobot: 0, harvesterRobot: 0, shield: 0 },
     counts: { solarMast: 0, battery: 0 },
     power: { heating: true, processor: true, robots: true, growLights: 60 },
     plant: { water: 50, light: 50, temp: 50, growth: 0, stress: 0, maxStressTime: 0, dead: false },
