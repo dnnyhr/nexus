@@ -77,7 +77,7 @@ function show(i: number): void {
   updateModeButton();
 }
 
-const MODE_NAMES: Record<AnimMode, string> = { idle: 'Quieto', walk: 'Caminar', work: 'Trabajar', drive: 'Conducir' };
+const MODE_NAMES: Record<AnimMode, string> = { idle: 'Quieto', walk: 'Caminar', work: 'Trabajar', drive: 'Conducir', jump: 'Saltar' };
 const modeButton = document.querySelector<HTMLButtonElement>('#mode')!;
 function updateModeButton(): void {
   const modes = (current?.userData.modes as AnimMode[] | undefined) ?? [];
