@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { asModel, beacon, foot, hatch, pad, rock, windowPane } from './kit';
 import { habitat } from './habitat';
+import { processor } from './processor';
+import { battery, solarMast } from './power';
 
 export interface ModelEntry {
   id: string;
@@ -31,5 +33,8 @@ function kitSample(): THREE.Group {
 export const MODELS: ModelEntry[] = [
   { id: 'habitat', name: 'Hábitat', build: () => habitat(1) },
   { id: 'habitat-shield-3', name: 'Hábitat · blindaje máximo', build: () => habitat(3) },
+  { id: 'processor', name: 'Procesador de regolito', build: processor },
+  { id: 'solar-mast', name: 'Mástil solar', build: solarMast },
+  { id: 'battery', name: 'Batería', build: battery },
   { id: 'kit', name: 'Piezas compartidas', build: kitSample },
 ];
