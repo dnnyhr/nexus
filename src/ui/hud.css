@@ -30,18 +30,19 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 132px;
-  padding: 0 max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0.5) 55%, rgba(0, 0, 0, 0));
+  height: 160px;
+  padding: 0 max(32px, env(safe-area-inset-right)) max(22px, env(safe-area-inset-bottom)) max(32px, env(safe-area-inset-left));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.45) 50%, rgba(0, 0, 0, 0));
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: end;
-  gap: 18px;
+  gap: 44px;
 }
 
-.gauges { display: flex; gap: 10px; align-items: flex-end; }
-.gauge-r { width: 84px; text-align: center; }
-.gauge-r svg { width: 74px; height: 74px; display: block; margin: 0 auto -6px; }
+.gauges { display: flex; gap: 22px; align-items: flex-end; }
+.gauge-r { width: 86px; text-align: center; }
+.gauge-r .label { white-space: nowrap; font-size: 10px; margin-top: 6px; }
+.gauge-r svg { width: 72px; height: 72px; display: block; margin: 0 auto -4px; }
 .gauge-r .track { stroke: var(--faint); }
 .gauge-r .val { stroke: #fff; transition: stroke-dasharray 0.35s; }
 .gauge-r text { fill: #fff; font-size: 24px; font-weight: 500; font-family: inherit; }
@@ -49,10 +50,11 @@
 .gauge-r.warn text { fill: var(--warn); }
 .gauge-r.danger .val { stroke: var(--danger); }
 .gauge-r.danger text { fill: var(--danger); }
-.gauge-r .sub { font-size: 10px; color: var(--dim); letter-spacing: 0.06em; margin-top: 2px; white-space: nowrap; }
+.gauge-r .sub { font-size: 10px; color: var(--dim); letter-spacing: 0.04em; margin-top: 4px; white-space: nowrap; }
 
-.timeline { align-self: end; padding-bottom: 8px; min-width: 0; }
-.timeline .now { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.timeline { align-self: end; padding-bottom: 6px; min-width: 0; max-width: 760px; width: 100%; justify-self: center; }
+.timeline .now { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 14px; }
+.timeline .label { margin-bottom: 4px; }
 .timeline .goal { font-size: 17px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .timeline .clock { white-space: nowrap; }
 .timeline .clock .big { font-size: 18px; margin-left: 6px; }
@@ -63,7 +65,8 @@
 .rail .node.done { background: #fff; border-color: #fff; }
 .rail .node.current { width: 13px; height: 13px; top: 2px; margin-left: -6.5px; border: 2px solid #fff; background: #000; box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.12); }
 
-.counts { display: flex; gap: 18px; padding-bottom: 8px; text-align: right; }
+.counts { display: flex; gap: 32px; padding-bottom: 6px; text-align: right; }
+.counts .label { margin-bottom: 6px; }
 
 /* ---- Top right ---- */
 #topright {
@@ -156,7 +159,7 @@
 .panel {
   position: absolute;
   width: 290px;
-  max-height: calc(100vh - 160px);
+  max-height: calc(100vh - 190px);
   overflow-y: auto;
   padding: 11px 13px 13px;
   background: var(--glass);
@@ -206,8 +209,9 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
 .hint {
   position: absolute;
   left: 50%;
-  bottom: 142px;
+  bottom: 176px;
   transform: translateX(-50%);
+  white-space: nowrap;
   font-size: 13px;
   letter-spacing: 0.06em;
   color: rgba(255, 255, 255, 0.8);
@@ -218,7 +222,7 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
 #joystick {
   position: absolute;
   left: max(18px, env(safe-area-inset-left));
-  bottom: 146px;
+  bottom: 178px;
   width: 116px;
   height: 116px;
   border-radius: 50%;
@@ -240,13 +244,14 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
 @media (pointer: fine) { #joystick { display: none; } }
 
 @media (max-height: 430px) {
-  #telemetry { height: 112px; gap: 12px; }
+  #telemetry { height: 124px; gap: 22px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
   .gauge-r { width: 70px; }
   .gauge-r svg { width: 62px; height: 62px; }
   .timeline .goal { font-size: 15px; }
   .big { font-size: 22px; }
-  #joystick { bottom: 120px; width: 100px; height: 100px; }
-  .hint { bottom: 118px; }
+  #joystick { bottom: 132px; width: 100px; height: 100px; }
+  .hint { bottom: 132px; }
+  .touch { bottom: 136px; }
   .panel { max-height: calc(100vh - 130px); }
 }
 
@@ -269,3 +274,10 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
 }
 #target-arrow .dist { font-size: 12px; letter-spacing: 0.1em; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+
+/* ---- Touch buttons (hop, dig) ---- */
+.touch { position: absolute; bottom: 190px; min-width: 92px; min-height: 52px; font-size: 13px; }
+#btn-jump { right: max(18px, env(safe-area-inset-right)); }
+#btn-dig { right: calc(max(18px, env(safe-area-inset-right)) + 104px); }
+@media (pointer: fine) { .touch { display: none; } }
+.counts .big.full { color: var(--warn); }
