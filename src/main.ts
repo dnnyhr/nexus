@@ -5,6 +5,9 @@ import { build, checkBuild, nextCost } from './game/build';
 import { COLLECT, type BuildingKind } from './game/config';
 import { damageOf, impact, impactChance, repair, repairCost } from './game/damage';
 import { activeShower } from './game/meteors';
+import { protection, stepStorm } from './game/storm';
+import { loadSpaceWeather, radiationScale, snapshotWeather, SOURCES, type SpaceWeather } from './data/spaceweather';
+import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
 import { collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
@@ -110,6 +113,7 @@ function topOf(o: THREE.Object3D, lift = 0.4): THREE.Vector3 {
 }
 
 type Act =
+  | { type: 'shelter'; obj: THREE.Object3D }
   | { type: 'build'; kind: BuildingKind; obj: THREE.Object3D }
   | { type: 'repair'; key: string; obj: THREE.Object3D }
   | { type: 'deliver'; obj: THREE.Object3D }
@@ -118,8 +122,12 @@ type Act =
 /** What F / the prompt would do right now: build here, deliver regolith, or use what is near. */
 function currentAct(): Act | null {
   if (state.sheltered || player.isBusy()) return null;
-  // Priority: urgent repairs, then delivering the bag, then building, then using.
+  // Priority: shelter during a storm, urgent repairs, delivering the bag, building, using.
   const near = base.nearest(player.position, REACH, colliders);
+  const shelter = shelterObject();
+  if (state.storm.phase !== 'none' && shelter && base.nearest(player.position, REACH + 0.6, colliders.filter((c) => c.obj === shelter)) === shelter) {
+    return { type: 'shelter', obj: shelter };
+  }
   const panel = near && panelKind(near);
   const key = near && base.keyOf(near);
   if (near && key && damageOf(state, key) > 0) return { type: 'repair', key, obj: near };
@@ -136,6 +144,12 @@ function doAction(): void {
   if (act.type === 'use') {
     poke(act.obj, clock.elapsedTime);
     hud.open(act.panel, act.obj);
+    return;
+  }
+  if (act.type === 'shelter') {
+    state.sheltered = true;
+    hud.close();
+    hud.float(topOf(act.obj), t('inShelter', { p: Math.round(protection(state) * 100) }));
     return;
   }
   if (act.type === 'repair') {
@@ -196,6 +210,8 @@ function updatePrompt(): void {
   else if (act.type === 'build') {
     const c = nextCost(state, act.kind);
     hud.setPrompt(topOf(act.obj), t('buildX', { x: t(BUILD_LABEL[act.kind]) }), c === null ? '' : `· ${c}`, !checkBuild(state, act.kind).ok);
+  } else if (act.type === 'shelter') {
+    hud.setPrompt(topOf(act.obj), t('enterShelter'));
   } else if (act.type === 'repair') {
     const kind = panelKind(act.obj);
     hud.setPrompt(topOf(act.obj), t('repairX', { x: kind ? t(KIND_LABEL[kind]) : '' }), `· ${repairCost(state, act.key)}`, state.res.materials < repairCost(state, act.key));
@@ -211,6 +227,16 @@ function updatePrompt(): void {
 
 /** Point the marker at the current mission's place (hidden for "dig anywhere"). */
 function updateMarker(t: number): void {
+  // During a solar storm the marker points to the shelter instead of the mission.
+  const shelter = shelterObject();
+  if (state.storm.phase !== 'none' && !state.sheltered && shelter) {
+    const at = shelter.position;
+    marker.visible = true;
+    hud.setTarget(new THREE.Vector3(at.x, 1, at.z), player.position);
+    marker.position.set(at.x, 6.5 + Math.sin(t * 6) * 0.3, at.z);
+    (marker.userData.chevron as THREE.Object3D).rotation.y = t * 3;
+    return;
+  }
   const m = currentMission(state);
   const kind = m.target === 'dig' ? null : m.target === 'greenhouseUse' ? 'greenhouse' : m.target;
   const at = kind ? base.slotOf(kind, state) : null;
@@ -245,6 +271,50 @@ setInterval(() => {
 }, 1000);
 hud.setShower(shower ? shower.shower.name[getLang()] : null);
 
+// ---- Solar storms with real space weather ---------------------------------------------------
+let weather: SpaceWeather = snapshotWeather();
+const refreshWeather = () => loadSpaceWeather().then((w) => (weather = w));
+refreshWeather();
+setInterval(refreshWeather, 10 * 60 * 1000);
+const STORMS_FROM = MISSIONS.findIndex((m) => m.id === 'battery');
+
+/** The habitat once built; until then the lander is the only shelter. */
+function shelterObject(): THREE.Object3D | null {
+  return base.objectOf(state.levels.station ? 'station' : 'lander');
+}
+
+function stormStep(): void {
+  const ev = stepStorm(state, SIM_STEP, state.mission >= STORMS_FROM, weather.flares, weather.live ? weather.protons.flux : 0);
+  const shelterWord = t(state.levels.station ? 'habitatWord' : 'landerWord');
+  if (ev === 'warning') {
+    const f = state.storm.flare;
+    const secs = Math.round(state.storm.timeLeft);
+    hud.radioText(f
+      ? t('stormWarnFlare', { date: new Date(f.peak).toLocaleDateString(getLang()), cls: f.class, s: secs, shelter: shelterWord })
+      : t('stormWarnLive', { flux: weather.protons.flux.toFixed(1), n: radiationScale(weather.protons.flux), shelter: shelterWord }));
+  }
+  if (ev === 'end') {
+    if (state.sheltered) state.sheltered = false;
+    hud.radioText(t('stormEnd', { d: state.dose.toFixed(1) }));
+  }
+}
+
+hud.dataPanel = () => {
+  const w = weather;
+  const when = new Date(w.fetchedAt).toLocaleString(getLang());
+  const sh = activeShower(new Date());
+  const flares = [...w.flares].sort((a, b) => b.peak.localeCompare(a.peak)).slice(0, 6);
+  return el('div', {},
+    el('p', {}, t('dataTitle')),
+    el('p.label', {}, w.live ? t('dataLive', { t: when }) : t('dataSnapshot', { t: when })),
+    el('p', {}, t('dataProtons', { f: w.protons.flux.toFixed(2), n: radiationScale(w.protons.flux) }), ' ', el('a', { href: SOURCES.goes, target: '_blank', rel: 'noopener' }, 'NOAA SWPC')),
+    el('p', {}, t('dataFlares'), ' ', el('a', { href: SOURCES.donki, target: '_blank', rel: 'noopener' }, 'DONKI')),
+    el('ul.data-list', {}, ...flares.map((f) => el('li', {}, el('span', {}, new Date(f.peak).toLocaleDateString(getLang())), f.link ? el('a', { href: f.link, target: '_blank', rel: 'noopener' }, f.class) : el('span', {}, f.class)))),
+    el('p', {}, t('dataShower', { x: sh ? sh.shower.name[getLang()] : t('none') })),
+    el('p.fact', {}, t('dataHow')),
+  );
+};
+
 function maybeImpact(): void {
   if (state.mission < IMPACTS_FROM || Math.random() >= impactChance(SIM_STEP, shower?.strength ?? 0)) return;
   const key = impact(state);
@@ -265,7 +335,7 @@ function maybeImpact(): void {
     if (shower) hud.radioText(t('showerNews', { name: shower.shower.name[getLang()] }));
   }
 }
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, sync: () => { syncWorld(); colliders = base.colliders(); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
+if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its
@@ -364,6 +434,7 @@ renderer.setAnimationLoop(() => {
     acc -= SIM_STEP;
     checkMissions();
     maybeImpact();
+    stormStep();
   }
   // Day and night fade smoothly; the Sun moves along the horizon.
   const { isDay } = cyclePhase(state.time);
@@ -388,6 +459,13 @@ renderer.setAnimationLoop(() => {
   animateSharedMaterials(clock.elapsedTime);
   fx.update(dt);
   flashes.update(dt);
+  hud.setStorm(state.storm.phase === 'none' ? null : {
+    phase: state.storm.phase,
+    seconds: state.storm.timeLeft,
+    label: state.storm.flare ? state.storm.flare.class : `S${radiationScale(weather.protons.flux)}`,
+    dose: state.dose,
+    exposed: !state.sheltered,
+  }, clock.elapsedTime);
   hud.update(dt);
   controls.update();
   renderer.render(scene, camera);
