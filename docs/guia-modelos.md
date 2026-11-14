@@ -12,7 +12,7 @@ Every 3D model in NEXUS is built from code with the same rules, so the base read
 - **Fixed segment counts:** use 8 sides for anything thinner than 1 m across (legs, pipes, wheels, tanks), 12 sides for
   hulls and big round bodies, and 12 × 6 for domes. Never mix counts on the same kind of part.
 - No bevels: edges stay hard. Details come from separate pieces (bands, hatches, ribs), not from denser meshes.
-- Use as few triangles as possible: a building should stay below about 1,500 triangles.
+- Use as few triangles as possible: a building should stay below about 1,500 triangles per level (a level-5 station is about 8,500).
 
 ## Shared language (src/models/kit.ts)
 Every structure is built from the same parts:
@@ -57,11 +57,11 @@ Materials are shared and never created inside a model, so changing one color cha
 ## Model list
 | Model | Tiles | Band | Notes |
 |---|---|---|---|
-| Habitat | 4 × 3 | Habitat | Regolith berm at the back grows with shielding level 0–3 |
+| Station, levels 1–5 | 4 × 3 → 9 × 9 | Habitat (lab: Industry) | `station(level, shield)`. 1 core module with airlock · 2 + node with cupola · 3 + crew quarters, roof handrails · 4 + lab with radiator wings, solar blankets, observation tower · 5 + inflatable habitat, floodlights, comms mast. Berms grow with shielding 0–3 |
 | Regolith processor | 2 × 2 | Industry | Robots unload at the bottom of the conveyor |
 | Solar mast | 1 × 1 | Power | `userData.tracker` turns to face the Sun |
 | Battery | 1 × 1 | Power | Status window on the front |
-| Greenhouse | 3 × 2 | Greenhouse | `userData.plants` + `setPlantGrowth()` |
+| Greenhouse, levels 1–5 | 3 × 2 → 12 × 5 | Greenhouse | `greenhouse(level)`. 1 short tunnel · 2 long tunnel, two tanks · 3 two tunnels + service module · 4 + vertical farm tower · 5 + geodesic biodome with trees. `userData.plants` + `setPlantGrowth()` |
 | Collector robot | 1 × 1 | Industry | Front bucket |
 | Harvester robot | 1 × 1 | Greenhouse | Arm and crop basket |
 | Expedition rover | 2 × 1 | Industry | Goes to the ice crater |
