@@ -1,4 +1,5 @@
-import { COLLECT, CREW, ENERGY, GREENHOUSE, PROCESSOR, STORAGE } from './config';
+import { COLLECT, CREW, DAMAGE, ENERGY, GREENHOUSE, PROCESSOR, STORAGE } from './config';
+import { batteriesCapacity, damageOf, processorFactor, solarMastsOutput } from './damage';
 import { cyclePhase, type GameState } from './state';
 
 // Simulation step. Mutates the state in place; `dt` is in game seconds.
@@ -11,7 +12,7 @@ export function capacity(s: GameState) {
     o2: life,
     water: life,
     food: life,
-    energy: STORAGE.energyBase + s.counts.battery * STORAGE.energyPerBattery,
+    energy: STORAGE.energyBase + batteriesCapacity(s) * STORAGE.energyPerBattery,
     regolith: STORAGE.regolithBase * tier,
     materials: STORAGE.materialsBase * tier,
   };
@@ -40,13 +41,13 @@ export function step(s: GameState, dt: number, running?: Running): void {
   const active = s.crewHealth > 0; // with no healthy crew, production stops until recovered
 
   // Crew breathes, drinks and eats.
-  s.res.o2 -= CREW.o2PerSecond * dt;
+  s.res.o2 -= (CREW.o2PerSecond + DAMAGE.stationO2Leak * damageOf(s, 'station')) * dt;
   s.res.water -= CREW.waterPerSecond * dt;
   s.res.food -= CREW.foodPerSecond * dt;
 
   // Regolith processor: regolith -> oxygen + building materials.
   if (active && s.levels.processor > 0 && run.processor && !s.sheltered && s.res.regolith > 0) {
-    const rate = PROCESSOR.regolithPerSecond * (1 + 0.5 * (s.levels.processor - 1));
+    const rate = PROCESSOR.regolithPerSecond * (1 + 0.5 * (s.levels.processor - 1)) * processorFactor(s);
     const used = Math.min(s.res.regolith, rate * dt);
     s.res.regolith -= used;
     s.res.o2 += used * PROCESSOR.o2PerRegolith;
@@ -107,7 +108,7 @@ export interface PowerReport {
 }
 
 export function resolvePower(s: GameState, dt: number, isDay: boolean): PowerReport {
-  const generation = isDay ? ENERGY.landerSolar + s.counts.solarMast * ENERGY.solarPerMast : 0;
+  const generation = isDay ? ENERGY.landerSolar + solarMastsOutput(s) * ENERGY.solarPerMast : 0;
   const robotsCount = s.levels.collectorRobot + s.levels.harvesterRobot;
   const want = {
     lights: (s.power.growLights / 100) * ENERGY.growLightsMaxDraw * Math.min(1, s.levels.greenhouse),
@@ -158,7 +159,7 @@ export function stepGreenhouse(s: GameState, dt: number, isDay: boolean, run: Ru
   if (p.dead || s.levels.greenhouse === 0) return;
   const k = offline ? GREENHOUSE.offlineFactor : 1;
 
-  p.water = clamp(p.water + GREENHOUSE.waterDrift * k * dt, 0, 100);
+  p.water = clamp(p.water + GREENHOUSE.waterDrift * (1 + DAMAGE.greenhouseLeak * damageOf(s, 'greenhouse')) * k * dt, 0, 100);
   // Light follows the LED brightness the power system could actually deliver.
   p.light = clamp(p.light + (run.lights - p.light) * Math.min(1, 2 * dt), 0, 100);
   const tempDrift = isDay ? GREENHOUSE.tempDayDrift : run.heating ? GREENHOUSE.tempDayDrift * 0.3 : GREENHOUSE.tempNightDrift;
