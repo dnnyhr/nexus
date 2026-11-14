@@ -47,7 +47,7 @@ function reasonText(kind: BuildingKind, ctx: PanelContext): string {
 
 /** Upgrade / build button for a building kind, with the reason shown when it can't. */
 export function upgradeButton(kind: BuildingKind, ctx: PanelContext, ups: Updater[], label: StringKey = 'upgrade'): HTMLElement {
-  const btn = el('button.hw.small', {
+  const btn = el('button.t-btn', {
     onclick: () => {
       const before = currentLevel(ctx.s, kind);
       if (build(ctx.s, kind)) {
@@ -76,7 +76,7 @@ export function upgradeButton(kind: BuildingKind, ctx: PanelContext, ups: Update
 function gauge(label: StringKey, value: () => number, ups: Updater[], opts: { band?: boolean; plant?: boolean } = {}): HTMLElement {
   const v = el('span.v');
   const track = el('div.track');
-  const node = el(`div.gauge${opts.plant ? '.plant' : ''}`, {}, el('div.label', {}, el('span', {}, t(label)), v), track);
+  const node = el(`div.gauge${opts.plant ? '.plant' : ''}`, {}, el('div.label-row', {}, el('span.label', {}, t(label)), v), track);
   let mark: HTMLElement;
   if (opts.band) {
     track.append(el('div.band'));
@@ -105,7 +105,7 @@ function para(text: () => string, ups: Updater[], cls = ''): HTMLElement {
 }
 
 function toggle(label: StringKey, get: () => boolean, set: (v: boolean) => void, ups: Updater[]): HTMLElement {
-  const btn = el('button.hw.small', { onclick: () => set(!get()) });
+  const btn = el('button.t-btn', { onclick: () => set(!get()) });
   ups.push(() => {
     setText(btn, get() ? t('on') : t('off'));
     btn.classList.toggle('off', !get());
@@ -114,7 +114,7 @@ function toggle(label: StringKey, get: () => boolean, set: (v: boolean) => void,
 }
 
 function actionButton(label: StringKey, run: () => void, ups: Updater[], extra?: () => string): HTMLElement {
-  const b = el('button.hw.small', { onclick: run });
+  const b = el('button.t-btn', { onclick: run });
   ups.push(() => setText(b, extra ? `${t(label)} ${extra()}` : t(label)));
   return b;
 }
@@ -228,7 +228,7 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
       break;
   }
 
-  const panel = el('div.panel.hw.interactive', {}, node!);
+  const panel = el('div.panel.interactive', {}, node!);
   const update = () => ups.forEach((u) => u());
   update();
   return { el: panel, update };
@@ -251,7 +251,7 @@ export function makeBuildMenu(ctx: PanelContext): Panel {
     return el('div.toggle', {}, el('span', {}, t(name), ' ', info), upgradeButton(kind, ctx, ups, kind === 'solarMast' || kind === 'battery' ? 'buildAnother' : 'upgrade'));
   });
   const node = el('div', {}, header(() => t('menuBuild'), () => `${t('materials')}: ${Math.floor(s.res.materials)}`, ctx, ups), ...list);
-  const panel = el('div.panel.hw.interactive', {}, node);
+  const panel = el('div.panel.interactive', {}, node);
   const update = () => ups.forEach((u) => u());
   update();
   return { el: panel, update };
@@ -281,7 +281,7 @@ export function makePowerPanel(ctx: PanelContext): Panel {
     shortage,
     para(() => t('factNight'), ups, 'fact'),
   );
-  const panel = el('div.panel.hw.interactive', {}, node);
+  const panel = el('div.panel.interactive', {}, node);
   const update = () => ups.forEach((u) => u());
   update();
   return { el: panel, update };
