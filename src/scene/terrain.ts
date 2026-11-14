@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { COLORS } from '../models/palette';
 import { rock } from '../models/kit';
+import { mergeStatic } from './optimize';
 
 // Lunar south-pole terrain: gentle undulation, small craters, a flat building area at the
 // center, and one large permanently shadowed crater with water ice on its floor.
@@ -76,6 +77,7 @@ export function createTerrain(size = 240, segments = 120): THREE.Group {
   const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   ground.receiveShadow = true;
   ground.name = 'ground';
+  ground.userData.dynamic = true; // keep: vertex colors, and picked by name for digging
   g.add(ground);
 
   // Water-ice glints on the shadowed crater floor.
@@ -102,5 +104,7 @@ export function createTerrain(size = 240, segments = 120): THREE.Group {
     r.rotation.y = hash(i, 6) * 6;
     g.add(r);
   }
+  // Rocks and ice glints never move: bake them into one mesh per material.
+  mergeStatic(g);
   return g;
 }

@@ -35,8 +35,13 @@ const SIM_STEP = 0.25;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// Resolution adapts to performance (see adaptQuality); start at most 1.5x on retina screens.
+const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio, 1.5);
+let pixelRatio = MAX_PIXEL_RATIO;
+renderer.setPixelRatio(pixelRatio);
 renderer.shadowMap.enabled = true;
+// Shadows are redrawn every other frame: the Sun moves slowly, so nobody notices.
+renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
@@ -116,7 +121,8 @@ function panelKind(model: THREE.Object3D): PanelKind | undefined {
 }
 
 function topOf(o: THREE.Object3D, lift = 0.4): THREE.Vector3 {
-  const box = new THREE.Box3().setFromObject(o);
+  // Buildings and sites cache their box when placed; computing it every frame is costly.
+  const box = (o.userData.box as THREE.Box3 | undefined) ?? new THREE.Box3().setFromObject(o);
   return new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y + lift, (box.min.z + box.max.z) / 2);
 }
 
@@ -367,7 +373,7 @@ function maybeImpact(): void {
     if (shower) hud.radioText(t('showerNews', { name: shower.shower.name[getLang()] }));
   }
 }
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
+if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its
@@ -457,9 +463,30 @@ function cameraTurn(dt: number): void {
   camera.position.copy(controls.target).add(offset);
 }
 
+/** Lower the resolution when frames are slow, raise it back when there is room. */
+let qualityTime = 0;
+let qualityFrames = 0;
+function adaptQuality(dt: number): void {
+  qualityTime += dt;
+  qualityFrames += 1;
+  if (qualityTime < 1.5) return;
+  const avg = qualityTime / qualityFrames;
+  qualityTime = 0;
+  qualityFrames = 0;
+  const next = avg > 1 / 40 ? Math.max(0.75, pixelRatio - 0.25) : avg < 1 / 57 ? Math.min(MAX_PIXEL_RATIO, pixelRatio + 0.25) : pixelRatio;
+  if (next !== pixelRatio) {
+    pixelRatio = next;
+    renderer.setPixelRatio(pixelRatio);
+    resize();
+  }
+}
+
 let acc = 0;
+let frame = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
+  adaptQuality(dt);
+  renderer.shadowMap.needsUpdate = frame++ % 2 === 0;
   acc += dt;
   while (acc >= SIM_STEP) {
     power = tick(state, SIM_STEP);
