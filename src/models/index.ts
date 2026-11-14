@@ -3,6 +3,7 @@ import { asModel, beacon, foot, hatch, pad, rock, windowPane } from './kit';
 import { habitat } from './habitat';
 import { processor } from './processor';
 import { battery, solarMast } from './power';
+import { greenhouse } from './greenhouse';
 
 export interface ModelEntry {
   id: string;
@@ -36,5 +37,6 @@ export const MODELS: ModelEntry[] = [
   { id: 'processor', name: 'Procesador de regolito', build: processor },
   { id: 'solar-mast', name: 'Mástil solar', build: solarMast },
   { id: 'battery', name: 'Batería', build: battery },
+  { id: 'greenhouse', name: 'Invernadero', build: greenhouse },
   { id: 'kit', name: 'Piezas compartidas', build: kitSample },
 ];
