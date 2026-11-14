@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { addAnimator, pokeAge } from './anim';
+import { addAnimator, joint, pokeAge } from './anim';
 import { BAND, MAT } from './palette';
 import { asModel, beacon, box, cyl, mesh, pad, sphere, strut, windowPane } from './kit';
 
@@ -72,7 +72,13 @@ export function lander(): THREE.Group {
   w.rotation.x = -0.08;
   g.add(w);
   g.add(box(0.8, 1.15, 0.08, MAT.darkMetal, { pos: [0.75, cy + 0.6, 0.75], rot: [0, Math.PI / 4, 0] }));
-  g.add(box(0.68, 1.02, 0.1, MAT.hullShade, { pos: [0.77, cy + 0.6, 0.77], rot: [0, Math.PI / 4, 0] }));
+  // Cabin hatch on a hinge along its left edge.
+  const k = 0.34 * Math.SQRT1_2;
+  const hatchJoint = joint(g, 0.77 - k, cy + 0.6, 0.77 + k);
+  hatchJoint.rotation.y = Math.PI / 4;
+  hatchJoint.add(box(0.68, 1.02, 0.1, MAT.hullShade, { pos: [0.34, 0, 0] }));
+  hatchJoint.add(box(0.05, 0.22, 0.05, MAT.darkMetal, { pos: [0.6, 0, 0.07] }));
+  g.add(box(0.6, 0.95, 0.01, MAT.glass, { pos: [0.75 + 0.03, cy + 0.6, 0.75 + 0.03], rot: [0, Math.PI / 4, 0] }));
 
   // Ladder down the front-right leg.
   const lt: [number, number, number] = [Math.cos(Math.PI / 4) * 1.55, deckY - 0.5, Math.sin(Math.PI / 4) * 1.55];
@@ -86,9 +92,19 @@ export function lander(): THREE.Group {
     g.add(strut([p[0] - 0.14, p[1], p[2] + 0.14], [p[0] + 0.14, p[1], p[2] - 0.14], 0.02));
   }
 
-  g.add(strut([0, cy + 2.0, 0], [0, cy + 2.8, 0], 0.025));
+  // Rendezvous radar on a short mast, always turning.
+  g.add(strut([0, cy + 2.0, 0], [0, cy + 2.5, 0], 0.035));
+  const radar = joint(g, 0, cy + 2.55, 0);
+  radar.add(box(0.7, 0.05, 0.12, MAT.hullShade));
+  radar.add(box(0.12, 0.16, 0.14, MAT.darkMetal, { pos: [0.3, 0.05, 0] }));
   const b = beacon(0.2);
   b.position.set(-0.5, cy + 1.95, 0);
   g.add(b);
+  addAnimator(g, (t) => {
+    radar.rotation.y = t * 1.1;
+    const age = pokeAge(g, t);
+    const open = age < 3 ? Math.min(1, age / 0.6) * Math.min(1, (3 - age) / 0.6) : 0;
+    hatchJoint.rotation.y = Math.PI / 4 - 1.5 * open * open * (3 - 2 * open);
+  });
   return asModel(g, 'lander', 3, 3);
 }
