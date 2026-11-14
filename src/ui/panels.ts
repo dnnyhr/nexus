@@ -21,6 +21,8 @@ export interface PanelContext {
   /** Make the object react (poke animation). */
   poke(): void;
   close(): void;
+  /** Erase the save and start over (only the lander panel offers it). */
+  newGame?(): void;
 }
 
 export interface Panel {
@@ -224,7 +226,11 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
       node = el('div', {}, header(() => t('antenna'), () => '', ctx, ups), para(() => t('antennaInfo'), ups));
       break;
     case 'lander':
-      node = el('div', {}, header(() => t('lander'), () => '', ctx, ups), para(() => t('landerInfo'), ups));
+      node = el('div', {},
+        header(() => t('lander'), () => '', ctx, ups),
+        para(() => t('landerInfo'), ups),
+        el('div.row', {}, actionButton('newGame', () => { if (confirm(t('newGameConfirm'))) ctx.newGame?.(); }, ups)),
+      );
       break;
   }
 
