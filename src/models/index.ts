@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { asModel, beacon, foot, hatch, pad, rock, windowPane } from './kit';
+import { habitat } from './habitat';
 
 export interface ModelEntry {
   id: string;
@@ -27,4 +28,8 @@ function kitSample(): THREE.Group {
   return asModel(g, 'kit', 2, 2);
 }
 
-export const MODELS: ModelEntry[] = [{ id: 'kit', name: 'Piezas compartidas', build: kitSample }];
+export const MODELS: ModelEntry[] = [
+  { id: 'habitat', name: 'Hábitat', build: () => habitat(1) },
+  { id: 'habitat-shield-3', name: 'Hábitat · blindaje máximo', build: () => habitat(3) },
+  { id: 'kit', name: 'Piezas compartidas', build: kitSample },
+];
