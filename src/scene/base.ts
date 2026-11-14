@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { PowerReport } from '../game/sim';
 import type { GameState } from '../game/state';
 import { animateModel, setMode, type AnimMode } from '../models/anim';
 import { setPlantGrowth } from '../models/greenhouse';
@@ -122,9 +123,15 @@ export class BaseView {
   }
 
   /** Per-frame update: movement, animations, and state shown on the models. */
-  update(s: GameState, t: number, dt: number, sunAzimuth: number): void {
+  update(s: GameState, t: number, dt: number, sunAzimuth: number, power: PowerReport): void {
     for (const a of this.agents) this.moveAgent(a, dt, s);
     for (const { obj } of this.built.values()) {
+      if (obj.userData.id === 'processor') obj.userData.active = power.running.processor && !s.sheltered && s.res.regolith > 0;
+      if (obj.userData.plants) {
+        obj.userData.health = 1 - s.plant.stress / 100;
+        obj.userData.dead = s.plant.dead;
+        obj.userData.lights = power.running.lights;
+      }
       if (obj.userData.id === 'solar-mast') obj.userData.sunAzimuth = sunAzimuth - obj.rotation.y;
       if (obj.userData.id === 'battery') obj.userData.charge = s.res.energy / Math.max(1, 120 + s.counts.battery * 300);
       const plants = obj.userData.plants as THREE.Object3D[] | undefined;
