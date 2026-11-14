@@ -41,6 +41,7 @@ export interface GameState {
   savedAt: number;
   res: Resources;
   levels: {
+    antenna: number;
     station: number;
     greenhouse: number;
     processor: number;
@@ -62,7 +63,10 @@ export interface GameState {
   stats: {
     harvests: number;
     regolithCollected: number;
+    materialsMade: number;
   };
+  /** Index of the current mission (see missions.ts). */
+  mission: number;
 }
 
 export function newGame(now = Date.now()): GameState {
@@ -70,15 +74,17 @@ export function newGame(now = Date.now()): GameState {
     version: 1,
     time: 0,
     savedAt: now,
-    res: { o2: 80, water: 80, food: 60, energy: 100, regolith: 20, materials: 60 },
-    levels: { station: 1, greenhouse: 1, processor: 1, collectorRobot: 0, harvesterRobot: 0, shield: 1 },
-    counts: { solarMast: 2, battery: 0 },
+    // The astronaut starts with only the lander: some supplies and a few materials.
+    res: { o2: 90, water: 90, food: 80, energy: 100, regolith: 0, materials: 60 },
+    levels: { antenna: 0, station: 0, greenhouse: 0, processor: 0, collectorRobot: 0, harvesterRobot: 0, shield: 0 },
+    counts: { solarMast: 0, battery: 0 },
     power: { heating: true, processor: true, robots: true, growLights: 60 },
     plant: { water: 50, light: 50, temp: 50, growth: 0, stress: 0, maxStressTime: 0, dead: false },
     crewHealth: 100,
     sheltered: false,
     dose: 0,
-    stats: { harvests: 0, regolithCollected: 0 },
+    stats: { harvests: 0, regolithCollected: 0, materialsMade: 0 },
+    mission: 0,
   };
 }
 
