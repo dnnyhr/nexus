@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CYCLE, GREENHOUSE } from './config';
 import { adjustClimate, harvest, irrigate, replant, stepGreenhouse, tick } from './sim';
-import { newGame } from './state';
+import { developedGame } from './testing';
 
 const day = { processor: false, robots: true, heating: false, lights: 50 };
 
 describe('greenhouse', () => {
   it('a plant kept in range grows to harvest and gives food', () => {
-    const s = newGame();
+    const s = developedGame();
     for (let i = 0; i < 400 && s.plant.growth < 100; i++) {
       s.plant.water = 50;
       s.plant.temp = 50;
@@ -21,7 +21,7 @@ describe('greenhouse', () => {
   });
 
   it('out-of-range parameters add stress and stop growth', () => {
-    const s = newGame();
+    const s = developedGame();
     s.plant.water = 5;
     s.plant.temp = 95;
     for (let i = 0; i < 40; i++) stepGreenhouse(s, 1, true, { ...day, lights: 5 });
@@ -32,7 +32,7 @@ describe('greenhouse', () => {
   });
 
   it('a plant at max stress for too long dies, and replanting costs materials', () => {
-    const s = newGame();
+    const s = developedGame();
     s.plant.stress = 100;
     s.plant.water = 0;
     for (let i = 0; i < GREENHOUSE.deathSeconds + 2; i++) stepGreenhouse(s, 1, false, { ...day, lights: 0 });
@@ -44,7 +44,7 @@ describe('greenhouse', () => {
   });
 
   it('offline the plant wilts but never dies', () => {
-    const s = newGame();
+    const s = developedGame();
     s.plant.water = 0;
     s.plant.stress = 99;
     for (let i = 0; i < 600; i++) stepGreenhouse(s, 1, false, { ...day, lights: 0 }, true);
@@ -52,7 +52,7 @@ describe('greenhouse', () => {
   });
 
   it('irrigation spends water and too much water is also out of range', () => {
-    const s = newGame();
+    const s = developedGame();
     const water = s.res.water;
     s.plant.water = 50;
     irrigate(s);
@@ -61,11 +61,11 @@ describe('greenhouse', () => {
   });
 
   it('heating costs energy, and at night without heating the greenhouse cools', () => {
-    const s = newGame();
+    const s = developedGame();
     const e = s.res.energy;
     adjustClimate(s, 1);
     expect(s.res.energy).toBe(e - GREENHOUSE.climateEnergy);
-    const n = newGame();
+    const n = developedGame();
     n.time = CYCLE.daySeconds;
     n.power.heating = false;
     const t0 = n.plant.temp;
@@ -74,7 +74,7 @@ describe('greenhouse', () => {
   });
 
   it('the harvester robot picks ready plants on its own', () => {
-    const s = newGame();
+    const s = developedGame();
     s.levels.harvesterRobot = 1;
     s.plant.growth = 100;
     stepGreenhouse(s, 0.1, true, day);
