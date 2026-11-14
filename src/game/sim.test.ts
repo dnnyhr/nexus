@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CYCLE } from './config';
 import { capacity, collectByHand, lifeSupportPercent, step, tick } from './sim';
-import { newGame } from './state';
+import { developedGame } from './testing';
 
-const run = (s: ReturnType<typeof newGame>, seconds: number) => {
+const run = (s: ReturnType<typeof developedGame>, seconds: number) => {
   for (let i = 0; i < seconds; i++) step(s, 1);
 };
 
 describe('resources', () => {
   it('the crew consumes oxygen, water and food over time', () => {
-    const s = newGame();
+    const s = developedGame();
     s.power.processor = false;
     const before = { ...s.res };
     run(s, 60);
@@ -19,7 +19,7 @@ describe('resources', () => {
   });
 
   it('the processor turns regolith into oxygen and materials', () => {
-    const s = newGame();
+    const s = developedGame();
     s.res.regolith = 50;
     const o2 = s.res.o2;
     const mat = s.res.materials;
@@ -30,14 +30,14 @@ describe('resources', () => {
   });
 
   it('collecting by hand never exceeds storage', () => {
-    const s = newGame();
+    const s = developedGame();
     s.res.regolith = capacity(s).regolith - 1;
     expect(collectByHand(s)).toBe(1);
     expect(collectByHand(s)).toBe(0);
   });
 
   it('crew health drops when a life resource runs out and production stops at zero health', () => {
-    const s = newGame();
+    const s = developedGame();
     s.res.food = 0;
     s.res.regolith = 100;
     run(s, 300);
@@ -48,7 +48,7 @@ describe('resources', () => {
   });
 
   it('life support shows the weakest resource', () => {
-    const s = newGame();
+    const s = developedGame();
     s.res.o2 = 100;
     s.res.water = 100;
     s.res.food = 10;
@@ -58,7 +58,7 @@ describe('resources', () => {
 
 describe('energy and the lunar night', () => {
   it('solar masts charge the battery during the day', () => {
-    const s = newGame();
+    const s = developedGame();
     s.res.energy = 10;
     s.power.processor = false;
     run2(s, 30);
@@ -66,7 +66,7 @@ describe('energy and the lunar night', () => {
   });
 
   it('at night the battery drains and systems are shed, life support last', () => {
-    const s = newGame();
+    const s = developedGame();
     s.time = CYCLE.daySeconds; // start of the night
     s.res.energy = 20;
     s.power.growLights = 100;
@@ -82,8 +82,8 @@ describe('energy and the lunar night', () => {
   });
 
   it('turning systems off at night saves the battery', () => {
-    const a = newGame();
-    const b = newGame();
+    const a = developedGame();
+    const b = developedGame();
     for (const s of [a, b]) { s.time = CYCLE.daySeconds; s.res.energy = 100; }
     b.power = { heating: false, processor: false, robots: false, growLights: 0 };
     run2(a, 60);
@@ -92,6 +92,19 @@ describe('energy and the lunar night', () => {
   });
 });
 
-function run2(s: ReturnType<typeof newGame>, seconds: number) {
+function run2(s: ReturnType<typeof developedGame>, seconds: number) {
   for (let i = 0; i < seconds; i++) tick(s, 1);
 }
+
+describe('a new game starts with only the lander', () => {
+  it('has no buildings, a few materials, and the lander keeps power up by day', async () => {
+    const { newGame } = await import('./state');
+    const s = newGame();
+    expect(s.levels).toMatchObject({ antenna: 0, station: 0, greenhouse: 0, processor: 0 });
+    expect(s.counts.solarMast).toBe(0);
+    expect(s.res.materials).toBeGreaterThan(0);
+    s.res.energy = 10;
+    for (let i = 0; i < 20; i++) tick(s, 1);
+    expect(s.res.energy).toBeGreaterThan(10);
+  });
+});

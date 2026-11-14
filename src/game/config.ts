@@ -29,6 +29,8 @@ export const CREW = {
 };
 
 export const ENERGY = {
+  /** The lander's own small solar panels keep the first systems alive. */
+  landerSolar: 1.2,
   solarPerMast: 2.4,
   lifeSupportDraw: 0.6,
   heatingDraw: 0.5,
@@ -46,7 +48,7 @@ export const PROCESSOR = {
 };
 
 export const COLLECT = {
-  regolithPerTap: 3,
+  regolithPerTap: 4,
   robotPerSecond: 0.45,
 };
 
@@ -83,22 +85,28 @@ export const OFFLINE = {
   maxSeconds: 8 * 3600,
 };
 
-export type BuildingKind = 'station' | 'greenhouse' | 'processor' | 'solarMast' | 'battery' | 'collectorRobot' | 'harvesterRobot' | 'shield';
+export type BuildingKind = 'antenna' | 'station' | 'greenhouse' | 'processor' | 'solarMast' | 'battery' | 'collectorRobot' | 'harvesterRobot' | 'shield';
 
 /** Material cost to build (level 1) or to upgrade to each next level. */
+/**
+ * Material cost of each step: index = current level (0 means "build it"). Solar masts and
+ * batteries are repeatable, so they always cost their first value.
+ */
 export const COSTS: Record<BuildingKind, number[]> = {
-  station: [0, 120, 220, 360, 520],
-  greenhouse: [40, 90, 180, 300, 450],
-  processor: [0, 80, 160],
+  antenna: [30],
+  station: [50, 120, 220, 360, 520],
+  greenhouse: [50, 90, 180, 300, 450],
+  processor: [40, 80, 160],
   solarMast: [45],
-  battery: [70],
+  battery: [60],
   collectorRobot: [60, 110, 180],
   harvesterRobot: [90],
-  shield: [0, 50, 90, 140],
+  shield: [40, 70, 110],
 };
 
 /** Maximum level for upgradable buildings, or maximum count for repeatable ones. */
 export const MAX_LEVEL: Record<BuildingKind, number> = {
+  antenna: 1,
   station: 5,
   greenhouse: 5,
   processor: 3,

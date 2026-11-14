@@ -6,7 +6,7 @@ import { battery, solarMast } from './power';
 import { greenhouse, type GreenhouseLevel } from './greenhouse';
 import { collectorRobot, harvesterRobot, rover } from './vehicles';
 import { antenna, lander } from './landmarks';
-import { commander } from './commander';
+import { astronaut } from './astronaut';
 
 export interface ModelEntry {
   id: string;
@@ -69,7 +69,7 @@ function lineup(): THREE.Group {
   place(collectorRobot(), -6, 5, -0.6);
   place(harvesterRobot(), 7, 4.5, 0.4);
   place(rover(), 3, 6, 0.3);
-  place(commander(), -1.4, 4.4, 0.3);
+  place(astronaut(), -1.4, 4.4, 0.3);
   return asModel(g, 'lineup', 0, 0);
 }
 
@@ -88,6 +88,6 @@ export const MODELS: ModelEntry[] = [
   { id: 'rover', name: 'Rover de expedición', build: rover },
   { id: 'antenna', name: 'Antena de comunicaciones', build: antenna },
   { id: 'lander', name: 'Módulo de aterrizaje', build: lander },
-  { id: 'commander', name: 'Comandante', build: commander },
+  { id: 'astronaut', name: 'Astronauta', build: astronaut },
   { id: 'kit', name: 'Piezas compartidas', build: kitSample },
 ];
