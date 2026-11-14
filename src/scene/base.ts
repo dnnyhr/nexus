@@ -129,11 +129,11 @@ export class BaseView {
       ...Array.from({ length: s.levels.collectorRobot > 0 ? 1 : 0 }, () => 'collector'),
       ...Array.from({ length: s.levels.harvesterRobot }, () => 'harvester'),
     ];
-    const have = this.agents.filter((a) => a.obj.userData.id !== 'commander').map((a) => a.obj.userData.id as string);
+    const have = this.agents.filter((a) => a.obj.userData.id !== 'astronaut').map((a) => a.obj.userData.id as string);
     if (want.join() === have.map((h) => (h === 'collector-robot' ? 'collector' : 'harvester')).join()) return;
     // Rebuild the robot fleet (it only changes when the player builds a robot).
-    for (const a of this.agents.filter((a) => a.obj.userData.id !== 'commander')) this.group.remove(a.obj);
-    this.agents = this.agents.filter((a) => a.obj.userData.id === 'commander');
+    for (const a of this.agents.filter((a) => a.obj.userData.id !== 'astronaut')) this.group.remove(a.obj);
+    this.agents = this.agents.filter((a) => a.obj.userData.id === 'astronaut');
     want.forEach((kind, i) => {
       const obj = kind === 'collector' ? collectorRobot() : harvesterRobot();
       this.group.add(obj);
@@ -169,8 +169,8 @@ export class BaseView {
   }
 
   private moveAgent(a: Agent, dt: number, s: GameState): void {
-    const isRobot = a.obj.userData.id !== 'commander';
-    // Robots stop while the crew shelters or when robots are switched off; the commander hides inside.
+    const isRobot = a.obj.userData.id !== 'astronaut';
+    // Robots stop while the crew shelters or when robots are switched off; the astronaut hides inside.
     if (s.sheltered || (isRobot && !s.power.robots)) {
       setMode(a.obj, 'idle');
       a.obj.visible = isRobot || !s.sheltered;

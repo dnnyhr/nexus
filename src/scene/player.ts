@@ -1,9 +1,9 @@
 import * as THREE from 'three';
 import { setMode } from '../models/anim';
-import { commander } from '../models/commander';
+import { astronaut } from '../models/astronaut';
 import { heightAt } from './terrain';
 
-// The commander, driven by the player. Movement comes as a 2D input (joystick or keys,
+// The astronaut, driven by the player. Movement comes as a 2D input (joystick or keys,
 // already turned to world directions), the body turns towards where it walks, and it
 // slides along building footprints instead of passing through them.
 
@@ -12,7 +12,7 @@ const RADIUS = 0.35; // body radius for collisions
 const WORLD_LIMIT = 60;
 
 export class Player {
-  readonly obj = commander();
+  readonly obj = astronaut();
   private busy = 0;
   private onDone: (() => void) | null = null;
 

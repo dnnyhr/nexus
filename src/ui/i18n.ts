@@ -73,7 +73,7 @@ const STRINGS = {
   use: { es: 'Usar: {x}', en: 'Use: {x}' },
   getCloser: { es: 'Acércate para usarlo', en: 'Walk closer to use it' },
   busy: { es: 'Trabajando…', en: 'Working…' },
-  sender: { es: 'De: Dra. Rivera, directora de vuelo', en: 'From: Dr. Rivera, flight director' },
+  sender: { es: 'Radio · Comandante Rivera, Control Tierra', en: 'Radio · Commander Rivera, Mission Control' },
   menuBuild: { es: 'Construir', en: 'Build' },
   menuPower: { es: 'Energía', en: 'Power' },
   procRunning: { es: 'Procesando: convierte regolito en oxígeno y materiales.', en: 'Running: turns regolith into oxygen and materials.' },
