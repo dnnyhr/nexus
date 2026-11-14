@@ -159,3 +159,11 @@ export function berm(length: number, height: number, depth: number, seed: number
   }
   return g;
 }
+
+/** Vehicle wheel (open-mesh style lunar wheel): dark tire, light hub. Axis along X. */
+export function wheel(r: number, width: number): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.CylinderGeometry(r, r, width, 8), MAT.darkMetal, { rot: [0, 0, Math.PI / 2] }));
+  g.add(mesh(new THREE.CylinderGeometry(r * 0.45, r * 0.45, width + 0.04, 8), MAT.hullShade, { rot: [0, 0, Math.PI / 2] }));
+  return g;
+}
