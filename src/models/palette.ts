@@ -33,6 +33,7 @@ export const COLORS = {
 export const MAT = {
   hull: flat(COLORS.hull),
   hullShade: flat(COLORS.hullShade),
+  hullDouble: flat(COLORS.hull, { side: THREE.DoubleSide }),
   structure: flat(COLORS.structure),
   darkMetal: flat(COLORS.darkMetal),
   solarCell: flat(COLORS.solarCell, { side: THREE.DoubleSide }),
