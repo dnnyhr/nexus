@@ -49,6 +49,8 @@ export const PROCESSOR = {
 
 export const COLLECT = {
   regolithPerTap: 4,
+  /** What the astronaut can carry in the regolith bag before walking it to the processor. */
+  carryMax: 12,
   robotPerSecond: 0.45,
 };
 
