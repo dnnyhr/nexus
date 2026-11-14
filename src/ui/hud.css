@@ -281,3 +281,16 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
 #btn-dig { right: calc(max(18px, env(safe-area-inset-right)) + 104px); }
 @media (pointer: fine) { .touch { display: none; } }
 .counts .big.full { color: var(--warn); }
+.timeline .clock { text-align: right; }
+#hud > .shower {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  padding: 7px 12px 7px 10px;
+  background: var(--glass);
+  border-left: 2px solid var(--warn);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--warn);
+}

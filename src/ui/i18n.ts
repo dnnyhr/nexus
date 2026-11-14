@@ -170,6 +170,18 @@ const STRINGS = {
   lunarDay: { es: 'Día lunar', en: 'Lunar day' },
   lunarNight: { es: 'Noche lunar', en: 'Lunar night' },
   ok: { es: 'Entendido', en: 'Got it' },
+  impact: { es: '¡Impacto de micrometeorito!', en: 'Micrometeoroid impact!' },
+  repairX: { es: 'Reparar {x}', en: 'Repair {x}' },
+  repaired: { es: '¡Reparado!', en: 'Repaired!' },
+  shower: { es: 'Lluvia de meteoros', en: 'Meteor shower' },
+  impactNews: {
+    es: 'Detectamos impactos de micrometeoritos. En la Luna no hay atmósfera que los frene: viajan a decenas de km por segundo y perforan el equipo. Acércate a lo dañado y repáralo con materiales.',
+    en: 'We detected micrometeoroid impacts. The Moon has no atmosphere to stop them: they travel at tens of km per second and puncture equipment. Walk up to what is damaged and repair it with materials.',
+  },
+  showerNews: {
+    es: 'Hoy la Luna cruza la lluvia de meteoros {name}: habrá más impactos. Dato real: la NASA ha filmado destellos de impactos en la Luna durante lluvias de meteoros.',
+    en: 'Today the Moon is crossing the {name} meteor shower: expect more impacts. Real fact: NASA has filmed impact flashes on the Moon during meteor showers.',
+  },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

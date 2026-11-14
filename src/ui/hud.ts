@@ -79,6 +79,8 @@ export class Hud {
   private missionTag = el('div.label');
   private clockLabel = el('span.label');
   private clockValue = el('span.big');
+  private showerTag = el('div.shower');
+  private showerName: string | null = null;
   private rail = el('div.rail');
   private railDone = el('div.done-line');
   private nodes: HTMLElement[] = [];
@@ -134,7 +136,7 @@ export class Hud {
     );
 
     this.prompt.addEventListener('click', () => deps.action());
-    this.root.append(band, el('div', { id: 'topright' }, this.powerBtn, this.shelterBtn, langBox), this.radioBox, this.prompt, this.hint, this.arrow);
+    this.root.append(band, el('div', { id: 'topright' }, this.powerBtn, this.shelterBtn, langBox), this.radioBox, this.prompt, this.hint, this.arrow, this.showerTag);
     document.body.append(this.root);
     this.joystick = new Joystick(this.root);
     // Touch buttons: hop (hold to keep hopping) and dig.
@@ -157,13 +159,17 @@ export class Hud {
 
   /** Queue a transmission. Radio messages arrive with the Earth-Moon delay (1.3 s). */
   radio(mission: Mission): void {
-    const fromLander = mission.from === 'lander';
-    this.radioQueue.push({
-      from: fromLander ? t('landerComputer') : t('radioFrom'),
-      text: t(`m_${mission.id}_text` as StringKey),
-      delay: fromLander ? 0.3 : 1.3,
-    });
+    this.radioText(t(`m_${mission.id}_text` as StringKey), mission.from === 'lander');
+  }
+
+  radioText(text: string, fromLander = false): void {
+    this.radioQueue.push({ from: fromLander ? t('landerComputer') : t('radioFrom'), text, delay: fromLander ? 0.3 : 1.3 });
     if (!this.radioTyping && this.radioBox.classList.contains('hidden')) this.nextRadio();
+  }
+
+  /** Active meteor shower shown under the lunar clock (null when none). */
+  setShower(name: string | null): void {
+    this.showerName = name;
   }
 
   private nextRadio(): void {
@@ -347,6 +353,8 @@ export class Hud {
     setText(this.clockLabel, ph.isDay ? t('lunarDay') : t('lunarNight'));
     const sec = Math.ceil(ph.secondsLeft);
     setText(this.clockValue, `T−${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`);
+    setText(this.showerTag, this.showerName ? `${t('shower')} · ${this.showerName}` : '');
+    this.showerTag.style.display = this.showerName ? '' : 'none';
     setText(this.counts.mat, String(Math.floor(s.res.materials)));
     setText(this.counts.reg, String(Math.floor(s.res.regolith)));
     setText(this.counts.bag, `${Math.floor(s.carried)}/12`);
