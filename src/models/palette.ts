@@ -3,8 +3,11 @@ import * as THREE from 'three';
 // Shared materials. Models never create their own materials: changing a color here
 // changes it everywhere. See docs/guia-modelos.md.
 
+// Every material is double-sided: many parts are open surfaces (domes, fenders, nozzles,
+// half tunnels) and a single-sided material makes their back look transparent. Three.js
+// flips the normal of back faces, so the inside is lit correctly too.
 const flat = (color: number, extra: THREE.MeshLambertMaterialParameters = {}) =>
-  new THREE.MeshLambertMaterial({ color, flatShading: true, ...extra });
+  new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide, ...extra });
 
 export const COLORS = {
   hull: 0xf5f2ec,
@@ -33,10 +36,11 @@ export const COLORS = {
 export const MAT = {
   hull: flat(COLORS.hull),
   hullShade: flat(COLORS.hullShade),
-  hullDouble: flat(COLORS.hull, { side: THREE.DoubleSide }),
+  /** Kept as a name for open surfaces; every material is double-sided now. */
+  hullDouble: flat(COLORS.hull),
   structure: flat(COLORS.structure),
   darkMetal: flat(COLORS.darkMetal),
-  solarCell: flat(COLORS.solarCell, { side: THREE.DoubleSide }),
+  solarCell: flat(COLORS.solarCell),
   glass: flat(COLORS.glass, { emissive: COLORS.glassLit, emissiveIntensity: 0 }),
   regolith: flat(COLORS.regolith),
   regolithDark: flat(COLORS.regolithDark),
@@ -47,7 +51,7 @@ export const MAT = {
   bandGreenhouse: flat(COLORS.bandGreenhouse),
   plant: flat(COLORS.plant),
   plantLight: flat(COLORS.plantLight),
-  greenhouseRoof: flat(0xe9efe2, { transparent: true, opacity: 0.38, depthWrite: false, side: THREE.DoubleSide }),
+  greenhouseRoof: flat(0xe9efe2, { transparent: true, opacity: 0.38, depthWrite: false }),
   ledGrow: flat(COLORS.ledGrow, { emissive: COLORS.ledGrow, emissiveIntensity: 0.6 }),
   beacon: flat(COLORS.beaconOff, { emissive: COLORS.beaconOn, emissiveIntensity: 0 }),
   suit: flat(COLORS.suit),
