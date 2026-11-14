@@ -1,0 +1,109 @@
+// Every tunable number of the simulation lives here, so balancing the game never means
+// hunting through logic. Units: resources are abstract units, time is in game seconds.
+// Values are first guesses for the demo and are meant to be adjusted while play-testing.
+
+export const CYCLE = {
+  /** One full lunar day + night in real seconds (10 + 10 min). Real: ~29.5 Earth days. */
+  daySeconds: 600,
+  nightSeconds: 600,
+};
+
+export const STORAGE = {
+  /** Base capacity of O2, water and food, raised by station levels. */
+  lifeBase: 100,
+  lifePerStationLevel: 40,
+  materialsBase: 200,
+  regolithBase: 150,
+  /** Battery capacity: the station has a small one, each battery adds more. */
+  energyBase: 120,
+  energyPerBattery: 300,
+};
+
+export const CREW = {
+  o2PerSecond: 0.07,
+  waterPerSecond: 0.045,
+  foodPerSecond: 0.035,
+  /** Health lost per second for each empty life resource. */
+  healthLossPerEmpty: 0.5,
+  healthRecovery: 0.1,
+};
+
+export const ENERGY = {
+  solarPerMast: 2.4,
+  lifeSupportDraw: 0.6,
+  heatingDraw: 0.5,
+  processorDraw: 1.2,
+  robotDraw: 0.25,
+  /** Grow lights draw scales with their brightness (0-100). */
+  growLightsMaxDraw: 0.9,
+};
+
+export const PROCESSOR = {
+  regolithPerSecond: 0.5,
+  /** More than 40 % of regolith by mass is oxygen bound in minerals. */
+  o2PerRegolith: 0.42,
+  materialsPerRegolith: 0.55,
+};
+
+export const COLLECT = {
+  regolithPerTap: 3,
+  robotPerSecond: 0.45,
+};
+
+export const GREENHOUSE = {
+  optimalMin: 40,
+  optimalMax: 60,
+  waterDrift: -0.35,
+  tempDayDrift: 0.18,
+  tempNightDrift: -0.3,
+  /** Stress gained per second per parameter out of range; lost per second when all are fine. */
+  stressPerBadParam: 1.6,
+  stressRecovery: 1.2,
+  growthPerSecond: 0.55,
+  /** Plant stops growing above this stress; dies after `deathSeconds` at max stress. */
+  stressNoGrowth: 60,
+  deathSeconds: 30,
+  foodPerHarvestPerLevel: 14,
+  waterPerIrrigation: 2,
+  irrigationAmount: 22,
+  climateStep: 12,
+  climateEnergy: 3,
+  replantMaterials: 8,
+  /** Offline, parameters drift at a quarter of their speed and plants never die. */
+  offlineFactor: 0.25,
+};
+
+export const SHIELD = {
+  base: 25,
+  perBermLevel: 22,
+  shelterBonus: 45,
+};
+
+export const OFFLINE = {
+  maxSeconds: 8 * 3600,
+};
+
+export type BuildingKind = 'station' | 'greenhouse' | 'processor' | 'solarMast' | 'battery' | 'collectorRobot' | 'harvesterRobot' | 'shield';
+
+/** Material cost to build (level 1) or to upgrade to each next level. */
+export const COSTS: Record<BuildingKind, number[]> = {
+  station: [0, 120, 220, 360, 520],
+  greenhouse: [40, 90, 180, 300, 450],
+  processor: [0, 80, 160],
+  solarMast: [45],
+  battery: [70],
+  collectorRobot: [60, 110, 180],
+  harvesterRobot: [90],
+  shield: [0, 50, 90, 140],
+};
+
+export const MAX_LEVEL: Record<BuildingKind, number> = {
+  station: 5,
+  greenhouse: 5,
+  processor: 3,
+  solarMast: 1,
+  battery: 1,
+  collectorRobot: 3,
+  harvesterRobot: 1,
+  shield: 3,
+};
