@@ -65,7 +65,7 @@ function show(i: number): void {
   Object.assign(light.sun.shadow.camera, { left: -ext, right: ext, top: ext, bottom: -ext });
   light.sun.shadow.camera.updateProjectionMatrix();
   // Frame the model: keep the viewing direction, set the distance from its size.
-  const dist = Math.max(size.x, size.y, size.z) * (entry.id === 'lineup' ? 1.0 : 1.9) + 3;
+  const dist = Math.max(size.x, size.y, size.z) * (entry.id === 'lineup' || entry.id.endsWith('progression') ? 0.75 : 1.9) + 3;
   const dir = camera.position.clone().sub(controls.target).normalize();
   camera.position.copy(controls.target).addScaledVector(dir, dist);
   const tiles = current.userData.tiles as [number, number];
