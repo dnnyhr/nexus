@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MAT } from './palette';
+import { beaconMaterial, MAT } from './palette';
 
 // Shared parts. Every model is assembled from these so the whole base shares one visual
 // language: same segment counts, same feet, same pads, same hatches, same beacons.
@@ -95,15 +95,15 @@ export function hatch(w = 1.0, h = 1.9): THREE.Group {
 export function windowPane(w: number, h: number): THREE.Group {
   const g = new THREE.Group();
   g.add(box(w + 0.1, h + 0.1, 0.05, MAT.darkMetal));
-  g.add(box(w, h, 0.07, MAT.glass, { pos: [0, 0, 0.01] }));
+  g.add(box(w, h, 0.05, MAT.glass, { pos: [0, 0, 0.018] }));
   return g;
 }
 
-/** Small lamp on a post, lit at night through MAT.beacon. */
+/** Small blinking beacon on a post. Each one blinks with its own rhythm. */
 export function beacon(height = 0.5): THREE.Group {
   const g = new THREE.Group();
   g.add(cyl(0.035, 0.035, height, MAT.structure, { pos: [0, height / 2, 0] }));
-  g.add(cyl(0.08, 0.08, 0.12, MAT.beacon, { pos: [0, height + 0.06, 0] }));
+  g.add(cyl(0.08, 0.08, 0.12, beaconMaterial(), { pos: [0, height + 0.06, 0] }));
   g.add(cyl(0.1, 0.1, 0.03, MAT.darkMetal, { pos: [0, height + 0.135, 0] }));
   return g;
 }
@@ -125,7 +125,7 @@ export function rock(size: number, seed: number, mat: THREE.Material = MAT.regol
 /** Tag a model with its id and footprint in 2 m tiles. */
 export function asModel(g: THREE.Group, id: string, tilesX: number, tilesZ: number): THREE.Group {
   g.name = id;
-  g.userData = { id, tiles: [tilesX, tilesZ] };
+  Object.assign(g.userData, { id, tiles: [tilesX, tilesZ] });
   return g;
 }
 
@@ -136,6 +136,7 @@ export function asModel(g: THREE.Group, id: string, tilesX: number, tilesZ: numb
 export function berm(length: number, height: number, depth: number, seed: number): THREE.Group {
   const g = new THREE.Group();
   const geo = new THREE.BoxGeometry(1, 1, 1);
+  geo.userData.noAudit = true;
   const pos = geo.getAttribute('position');
   const ridgeLen = Math.max(length - height * 2.2, length * 0.3);
   const ridgeDepth = depth * 0.28;
@@ -165,5 +166,26 @@ export function wheel(r: number, width: number): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(new THREE.CylinderGeometry(r, r, width, 8), MAT.darkMetal, { rot: [0, 0, Math.PI / 2] }));
   g.add(mesh(new THREE.CylinderGeometry(r * 0.45, r * 0.45, width + 0.04, 8), MAT.hullShade, { rot: [0, 0, Math.PI / 2] }));
+  return g;
+}
+
+/**
+ * Parabolic-looking dish whose back sits exactly at the origin and opens along +Y, with a
+ * feed horn on three struts. Tilt the returned group to aim it.
+ */
+export function dish(radius: number, depthAngle = 0.6): THREE.Group {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.SphereGeometry(radius, 12, 3, 0, Math.PI * 2, 0, depthAngle), MAT.hullDouble, {
+    pos: [0, radius, 0],
+    rot: [Math.PI, 0, 0],
+  }));
+  const rimY = radius * (1 - Math.cos(depthAngle));
+  const rimR = radius * Math.sin(depthAngle) * 0.95;
+  const focus = radius * 0.62;
+  for (const a of [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3]) {
+    g.add(strut([Math.cos(a) * rimR, rimY, Math.sin(a) * rimR], [0, focus, 0], Math.max(0.008, radius * 0.012), MAT.structure));
+  }
+  g.add(cyl(radius * 0.07, radius * 0.05, radius * 0.14, MAT.darkMetal, { pos: [0, focus + radius * 0.05, 0] }));
+  g.add(cyl(radius * 0.12, radius * 0.12, radius * 0.06, MAT.darkMetal, { pos: [0, 0.01, 0] }));
   return g;
 }
