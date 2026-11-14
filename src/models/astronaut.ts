@@ -3,7 +3,7 @@ import { addAnimator, approach, joint, setModes } from './anim';
 import { BAND, MAT } from './palette';
 import { asModel, box, mesh, sphere, strut } from './kit';
 
-// The commander in an EVA suit, about 1.9 m tall with the helmet. Built on real joints
+// The astronaut (the player character) in an EVA suit, about 1.9 m tall with the helmet. Built on real joints
 // (hips, knees, shoulders, elbows, neck) so it can idle, walk with the bouncy lunar lope
 // astronauts used in the Apollo missions, and kneel to work. Faces +Z.
 
@@ -19,7 +19,7 @@ function bellows(parent: THREE.Object3D, radius: number, y = 0): void {
   parent.add(mesh(new THREE.TorusGeometry(radius, 0.022, 4, 8), MAT.hullShade, { pos: [0, y, 0], rot: [Math.PI / 2, 0, 0] }));
 }
 
-export function commander(): THREE.Group {
+export function astronaut(): THREE.Group {
   const g = new THREE.Group();
   const hipY = 0.98;
   const pelvis = joint(g, 0, hipY, 0);
@@ -122,5 +122,5 @@ export function commander(): THREE.Group {
     neck.rotation.y = (1 - w) * (1 - crouch) * Math.sin(t * 0.45) * 0.45;
     neck.rotation.x = crouch * 0.35;
   });
-  return asModel(g, 'commander', 1, 1);
+  return asModel(g, 'astronaut', 1, 1);
 }
