@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CYCLE } from './game/config';
 import { build, checkBuild, nextCost } from './game/build';
-import type { BuildingKind } from './game/config';
+import { COLLECT, type BuildingKind } from './game/config';
 import { advanceMission, currentMission, unlocked } from './game/missions';
-import { collectByHand, tick, type PowerReport } from './game/sim';
+import { collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
@@ -70,6 +70,8 @@ const hud = new Hud({
   changed: () => syncWorld(),
   poke: (o) => { if (o) poke(o, clock.elapsedTime); },
   action: () => doAction(),
+  jump: () => player.jump(),
+  dig: () => dig(),
 });
 
 /** Buildings and build sites follow the state (and what the missions have unlocked). */
@@ -105,18 +107,19 @@ function topOf(o: THREE.Object3D, lift = 0.4): THREE.Vector3 {
 
 type Act =
   | { type: 'build'; kind: BuildingKind; obj: THREE.Object3D }
-  | { type: 'use'; panel: PanelKind; obj: THREE.Object3D }
-  | { type: 'dig' };
+  | { type: 'deliver'; obj: THREE.Object3D }
+  | { type: 'use'; panel: PanelKind; obj: THREE.Object3D };
 
-/** What pressing Action would do right now: build here, use what is near, or dig. */
+/** What F / the prompt would do right now: build here, deliver regolith, or use what is near. */
 function currentAct(): Act | null {
   if (state.sheltered || player.isBusy()) return null;
   const site = base.nearestSite(player.position, REACH);
   if (site) return { type: 'build', kind: site.kind, obj: site.obj };
   const near = base.nearest(player.position, REACH, colliders);
   const panel = near && panelKind(near);
+  if (near && panel === 'processor' && state.carried > 0) return { type: 'deliver', obj: near };
   if (near && panel) return { type: 'use', panel, obj: near };
-  return { type: 'dig' };
+  return null;
 }
 
 function doAction(): void {
@@ -127,44 +130,57 @@ function doAction(): void {
     hud.open(act.panel, act.obj);
     return;
   }
-  if (act.type === 'build') {
-    const check = checkBuild(state, act.kind);
-    if (!check.ok) {
-      hud.float(topOf(act.obj), check.reason === 'materials' ? t('needMaterials', { n: Math.ceil((check.cost ?? 0) - state.res.materials) }) : t('maxed'), true);
-      return;
-    }
-    const at = topOf(act.obj, 0).setY(0);
-    player.obj.rotation.y = Math.atan2(at.x - player.position.x, at.z - player.position.z);
-    player.work(1.5, () => {
-      if (!build(state, act.kind)) return;
-      syncWorld();
-      colliders = base.colliders();
-      fx.dust(at);
-      hud.float(at.clone().setY(3), t('built'));
-    });
+  if (act.type === 'deliver') {
+    const amount = deliverRegolith(state);
+    poke(act.obj, clock.elapsedTime);
+    hud.float(topOf(act.obj), amount > 0 ? t('delivered', { n: amount }) : t('hopperFull'), amount === 0);
     return;
   }
+  const check = checkBuild(state, act.kind);
+  if (!check.ok) {
+    hud.float(topOf(act.obj), check.reason === 'materials' ? t('needMaterials', { n: Math.ceil((check.cost ?? 0) - state.res.materials) }) : t('maxed'), true);
+    return;
+  }
+  const at = topOf(act.obj, 0).setY(0);
+  player.obj.rotation.y = Math.atan2(at.x - player.position.x, at.z - player.position.z);
+  player.work(1.5, () => {
+    if (!build(state, act.kind)) return;
+    syncWorld();
+    colliders = base.colliders();
+    // The new building may have appeared where the astronaut stands.
+    player.unstick(colliders);
+    fx.dust(at);
+    hud.float(at.clone().setY(3), t('built'));
+  });
+}
+
+/** Dig regolith into the bag, facing `towards` when given (right click on the ground). */
+function dig(towards?: THREE.Vector3): void {
+  if (state.sheltered || player.isBusy() || player.airborne) return;
+  if (towards) player.obj.rotation.y = Math.atan2(towards.x - player.position.x, towards.z - player.position.z);
+  const head = player.position.clone().add(new THREE.Vector3(0, 2.4, 0));
+  if (state.carried >= COLLECT.carryMax) return hud.float(head, t('bagFull'), true);
   player.work(1.1, () => {
     const at = player.position.clone().add(new THREE.Vector3(Math.sin(player.obj.rotation.y) * 0.7, 0, Math.cos(player.obj.rotation.y) * 0.7));
     const got = collectByHand(state);
     fx.dust(at);
-    hud.float(at.clone().add(new THREE.Vector3(0, 1.6, 0)), got > 0 ? t('regolithGain', { n: got }) : t('storageFull'), got === 0);
+    hud.float(at.clone().add(new THREE.Vector3(0, 1.6, 0)), got > 0 ? t('regolithGain', { n: got }) : t('bagFull'), got === 0);
   });
 }
 
 /** Keep the action prompt next to what the astronaut would act on. */
 function updatePrompt(): void {
-  const head = player.position.clone().add(new THREE.Vector3(0, 2.3, 0));
-  if (player.isBusy()) return hud.setPrompt(head, t('busy'));
+  player.obj.userData.load = state.carried / COLLECT.carryMax;
+  if (player.isBusy()) return hud.setPrompt(player.position.clone().add(new THREE.Vector3(0, 2.3, 0)), t('busy'));
   const act = currentAct();
-  if (!act) return hud.setPrompt(null);
-  if (act.type === 'build') {
+  if (!act) hud.setPrompt(null);
+  else if (act.type === 'build') {
     const c = nextCost(state, act.kind);
     hud.setPrompt(topOf(act.obj), t('buildX', { x: t(BUILD_LABEL[act.kind]) }), c === null ? '' : `· ${c}`, !checkBuild(state, act.kind).ok);
-  } else if (act.type === 'use') {
-    hud.setPrompt(topOf(act.obj), t('useX', { x: t(KIND_LABEL[act.panel]) }));
+  } else if (act.type === 'deliver') {
+    hud.setPrompt(topOf(act.obj), t('deliverX'), `· ${Math.floor(state.carried)}`);
   } else {
-    hud.setPrompt(head, t('dig'));
+    hud.setPrompt(topOf(act.obj), t('useX', { x: t(KIND_LABEL[act.panel]) }));
   }
   // Walking away closes the panel of the structure left behind.
   const anchor = hud.panelAnchor();
@@ -213,7 +229,7 @@ canvas.addEventListener('pointerup', (e) => {
   const ndc = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const model = findModel(raycaster.intersectObject(base.group, true)[0]?.object ?? null);
-  if (!model) return hud.close();
+  if (!model || model.userData.site) return hud.close();
   poke(model, clock.elapsedTime);
   const kind = panelKind(model);
   // The astronaut has to walk up to a structure to use it.
@@ -240,15 +256,26 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
-// ---- Keyboard (desktop): WASD / arrows move the astronaut, Q / E turn the camera,
-// Space / F is the action button.
+// ---- Keyboard and mouse (desktop): WASD / arrows move, Space hops, F uses, right click
+// (or R) digs, Q / E turn the camera.
 const keys = new Set<string>();
 window.addEventListener('keydown', (e) => {
   if ((e.target as HTMLElement).tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
-  if ((k === ' ' || k === 'f') && !keys.has(k)) doAction();
+  if (!keys.has(k)) {
+    if (k === ' ') player.jump();
+    if (k === 'f') doAction();
+    if (k === 'r') dig();
+  }
   keys.add(k);
   if (k === ' ') e.preventDefault();
+});
+canvas.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const ndc = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const ground = raycaster.intersectObject(terrain, true).find((h) => h.object.name === 'ground');
+  dig(ground?.point);
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => keys.clear());
@@ -293,7 +320,7 @@ renderer.setAnimationLoop(() => {
   cameraTurn(dt);
   // The astronaut moves; the camera follows (keeping the angle the player chose).
   colliders = base.colliders();
-  player.update(dt, moveInput(), colliders, state.sheltered);
+  player.update(dt, moveInput(), colliders, state.sheltered, keys.has(' ') || hud.jumpHeld());
   animateModel(player.obj, clock.elapsedTime, dt);
   const follow = new THREE.Vector3(player.position.x, 0.8, player.position.z).sub(controls.target).multiplyScalar(Math.min(1, dt * 4));
   controls.target.add(follow);

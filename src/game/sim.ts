@@ -71,13 +71,25 @@ export function step(s: GameState, dt: number, running?: Running): void {
   s.time += dt;
 }
 
-/** The player taps the surface to collect regolith by hand. */
+/**
+ * The astronaut digs regolith into the bag. It is only useful once delivered to the
+ * processor with deliverRegolith(). Returns how much went into the bag (0 when full).
+ */
 export function collectByHand(s: GameState): number {
-  const cap = capacity(s);
-  const got = Math.min(COLLECT.regolithPerTap, cap.regolith - s.res.regolith);
-  s.res.regolith += got;
+  const got = Math.min(COLLECT.regolithPerTap, COLLECT.carryMax - s.carried);
+  s.carried += got;
   s.stats.regolithCollected += got;
   return got;
+}
+
+/** Empty the bag into the processor's hopper (limited by its storage). Returns the amount. */
+export function deliverRegolith(s: GameState): number {
+  if (s.levels.processor === 0) return 0;
+  const room = capacity(s).regolith - s.res.regolith;
+  const amount = Math.min(s.carried, room);
+  s.carried -= amount;
+  s.res.regolith += amount;
+  return amount;
 }
 
 // ---------------------------------------------------------------------------------------
