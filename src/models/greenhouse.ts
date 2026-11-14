@@ -17,6 +17,7 @@ const PLINTH = 0.35;
 /** One plant: a few faceted leaf clumps. Scale it with setPlantGrowth(). */
 export function plant(seed: number): THREE.Group {
   const g = new THREE.Group();
+  g.userData.dynamic = true; // grows, sways and wilts
   const leaves = [
     [0, 0.12, 0, 0.2, MAT.plant],
     [0.09, 0.2, 0.05, 0.14, MAT.plantLight],
@@ -25,6 +26,7 @@ export function plant(seed: number): THREE.Group {
   ] as const;
   leaves.forEach(([x, y, z, r, mat], i) => {
     const leaf = mesh(new THREE.OctahedronGeometry(r * 1.1, 0), mat, { pos: [x, y, z], scale: [1, 0.7, 1] });
+    leaf.castShadow = false; // tiny: not worth a shadow draw call
     leaf.rotation.y = seed * 1.3 + i;
     g.add(leaf);
   });
@@ -38,6 +40,7 @@ export function setPlantGrowth(p: THREE.Object3D, growth: number): void {
 /** Dwarf tree for the biodome: faceted crown on a short trunk. */
 function tree(seed: number): THREE.Group {
   const g = new THREE.Group();
+  g.userData.dynamic = true; // sways
   g.add(mesh(new THREE.CylinderGeometry(0.08, 0.12, 1.0, 6), MAT.structure, { pos: [0, 0.5, 0] }));
   g.add(mesh(new THREE.IcosahedronGeometry(0.65, 0), MAT.plant, { pos: [0, 1.35, 0], rot: [seed, seed * 2, 0], scale: [1, 0.85, 1] }));
   g.add(mesh(new THREE.IcosahedronGeometry(0.4, 0), MAT.plantLight, { pos: [0.25, 1.75, 0.1], rot: [seed * 3, 0, seed] }));
@@ -281,6 +284,7 @@ function addGreenhouseLife(g: THREE.Group, plants: THREE.Object3D[], trees: THRE
   const drops = plants.filter((_, i) => i % 3 === 0).slice(0, 18).map((p, i) => {
     const d = mesh(new THREE.OctahedronGeometry(0.06, 0), dropMat);
     d.visible = false;
+    d.userData.dynamic = true;
     p.parent!.add(d);
     return { d, p, offset: (i % 5) * 0.12 };
   });

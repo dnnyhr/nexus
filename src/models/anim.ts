@@ -39,6 +39,7 @@ export function animateModel(root: THREE.Object3D, t: number, dt: number): void 
 /** Empty group used as a joint: children hang from it and rotate around its origin. */
 export function joint(parent: THREE.Object3D, x: number, y: number, z: number): THREE.Group {
   const j = new THREE.Group();
+  j.userData.joint = true; // animated: keep it out of static mesh merging
   j.position.set(x, y, z);
   parent.add(j);
   return j;
