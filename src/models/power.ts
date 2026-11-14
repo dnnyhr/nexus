@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { BAND, MAT } from './palette';
+import { addAnimator, pokeAge } from './anim';
+import { BAND, MAT, statusLight } from './palette';
 import { asModel, beacon, box, cyl, foot, pad, strut, windowPane } from './kit';
 
 // Solar mast: a tall vertical array that turns to follow the Sun, which at the lunar
@@ -35,6 +36,15 @@ export function solarMast(): THREE.Group {
   b.position.y = base + 0.7 + mastH;
   g.add(b);
   g.userData.tracker = tracker;
+
+  // The panel follows the Sun (the game sets userData.sunAzimuth); without it, it drifts
+  // slowly as the Sun crawls along the horizon. Poke: a full recalibration turn.
+  addAnimator(g, (t) => {
+    const target = (g.userData.sunAzimuth as number | undefined) ?? Math.sin(t * 0.05) * 0.6;
+    const age = pokeAge(g, t);
+    const spin = age < 1.6 ? (1 - Math.cos((age / 1.6) * Math.PI)) * Math.PI : 0;
+    tracker.rotation.y = target + spin;
+  });
   return asModel(g, 'solar-mast', 1, 1);
 }
 
@@ -55,6 +65,23 @@ export function battery(): THREE.Group {
   const w = windowPane(0.5, 0.14);
   w.position.set(0, lift + 0.45, 0.56);
   g.add(w);
+  // Charge meter: five lights under the window. userData.charge (0-1) comes from the game.
+  const leds = Array.from({ length: 5 }, (_, i) => {
+    const m = statusLight();
+    g.add(box(0.07, 0.05, 0.02, m, { pos: [-0.2 + i * 0.1, lift + 0.3, 0.56] }));
+    return m;
+  });
+  addAnimator(g, (t) => {
+    const charge = (g.userData.charge as number | undefined) ?? 0.6 + Math.sin(t * 0.15) * 0.4;
+    const lit = Math.ceil(charge * 5);
+    const age = pokeAge(g, t);
+    leds.forEach((m, i) => {
+      // Poke: a chase sweep across the meter. Otherwise the top lit light blinks (charging).
+      const chase = age < 1.2 ? (Math.floor(age * 10) % 5 === i ? 1 : 0.1) : -1;
+      const on = i < lit ? (i === lit - 1 && t % 1 < 0.5 ? 0.4 : 1) : 0.05;
+      m.emissiveIntensity = chase >= 0 ? chase : on;
+    });
+  });
   g.add(strut([0.5, lift + 0.2, 0.3], [0.7, 0.05, 0.9], 0.04, MAT.darkMetal));
   const b = beacon(0.2);
   b.position.set(0.5, lift + 1.2, -0.3);

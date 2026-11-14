@@ -58,6 +58,11 @@ export const MAT = {
   visor: flat(COLORS.visor, { emissive: 0x7a5a2a, emissiveIntensity: 0.15 }),
 } as const;
 
+/** Status light for indicators with their own state (battery charge). One per instance. */
+export function statusLight(): THREE.MeshLambertMaterial {
+  return flat(0x2c3328, { emissive: 0x9fd88a, emissiveIntensity: 0 });
+}
+
 export type BandKind = 'habitat' | 'industry' | 'power' | 'greenhouse';
 
 export const BAND: Record<BandKind, THREE.Material> = {

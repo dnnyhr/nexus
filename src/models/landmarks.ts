@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addAnimator, pokeAge } from './anim';
 import { BAND, MAT } from './palette';
 import { asModel, beacon, box, cyl, mesh, pad, sphere, strut, windowPane } from './kit';
 
@@ -15,15 +16,24 @@ export function antenna(): THREE.Group {
   g.add(box(0.52, 0.1, 0.42, BAND.habitat, { pos: [0, 0.46, 0] }));
   g.add(cyl(0.1, 0.1, 0.3, MAT.darkMetal, { pos: [0, 2.0, 0] }));
 
+  const yaw = new THREE.Group();
+  yaw.position.set(0, 2.15, 0);
+  g.add(yaw);
   const head = new THREE.Group();
-  head.position.set(0, 2.15, 0);
   head.rotation.x = -1.35; // aim ~12° above the horizon, towards +Z
   head.add(mesh(new THREE.SphereGeometry(1.0, 12, 3, 0, Math.PI * 2, 0, 0.55), MAT.hullDouble, { pos: [0, -0.15, 0], rot: [Math.PI, 0, 0] }));
   for (const a of [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3]) {
     head.add(strut([Math.cos(a) * 0.5, 0.0, Math.sin(a) * 0.5], [0, 0.55, 0], 0.012, MAT.structure));
   }
   head.add(cyl(0.06, 0.04, 0.12, MAT.darkMetal, { pos: [0, 0.58, 0] }));
-  g.add(head);
+  yaw.add(head);
+  // Fine tracking jitter around Earth; poke: a full sweep to re-acquire the signal.
+  addAnimator(g, (t) => {
+    const age = pokeAge(g, t);
+    const sweep = age < 2.2 ? (1 - Math.cos((age / 2.2) * Math.PI)) * Math.PI : 0;
+    yaw.rotation.y = Math.sin(t * 0.3) * 0.06 + sweep;
+    head.rotation.x = -1.35 + Math.sin(t * 0.23) * 0.03 + (age < 2.2 ? Math.sin((age / 2.2) * Math.PI) * 0.35 : 0);
+  });
   const b = beacon(0.15);
   b.position.set(0.18, 0.56, 0.1);
   g.add(b);
