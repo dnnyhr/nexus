@@ -112,7 +112,8 @@ export function resolvePower(s: GameState, dt: number, isDay: boolean): PowerRep
   const robotsCount = s.levels.collectorRobot + s.levels.harvesterRobot;
   const want = {
     lights: (s.power.growLights / 100) * ENERGY.growLightsMaxDraw * Math.min(1, s.levels.greenhouse),
-    robots: s.power.robots && !s.sheltered && robotsCount > 0 ? ENERGY.robotDraw * robotsCount : 0,
+    // Robots also park during a solar storm to protect their electronics.
+    robots: s.power.robots && !s.sheltered && s.storm.phase !== 'active' && robotsCount > 0 ? ENERGY.robotDraw * robotsCount : 0,
     processor: s.levels.processor > 0 && s.power.processor && !s.sheltered ? ENERGY.processorDraw : 0,
     heating: s.power.heating && !isDay ? ENERGY.heatingDraw : 0,
   };
