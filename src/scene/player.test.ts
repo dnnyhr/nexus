@@ -21,6 +21,35 @@ describe('player', () => {
     expect(airtime).toBeLessThan(1.4);
   });
 
+  it('absorbs each landing before the next hop, even holding the jump key', () => {
+    const p = new Player(new THREE.Vector3(0, 0, 0));
+    p.jump();
+    const ground: number[] = [];
+    let onGround = 0;
+    let wasAir = true;
+    for (let i = 0; i < 60 * 6; i++) {
+      p.update(1 / 60, still, [], false, true);
+      if (p.airborne) {
+        if (!wasAir && onGround > 0) ground.push(onGround);
+        onGround = 0;
+        wasAir = true;
+      } else {
+        onGround += 1 / 60;
+        wasAir = false;
+      }
+    }
+    expect(ground.length).toBeGreaterThan(1);
+    for (const g of ground) expect(g).toBeGreaterThanOrEqual(0.3);
+  });
+
+  it('a jump pressed right on landing is ignored', () => {
+    const p = new Player(new THREE.Vector3(0, 0, 0));
+    p.jump();
+    while (p.airborne) p.update(1 / 60, still, [], false, false);
+    p.jump();
+    expect(p.airborne).toBe(false);
+  });
+
   it('is pushed out when a building appears on top of it', () => {
     const p = new Player(new THREE.Vector3(0, 0, 0));
     const box = new THREE.Box2(new THREE.Vector2(-2, -1), new THREE.Vector2(3, 4));
