@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { MODELS } from './models';
-import { animateModel, type AnimMode } from './models/anim';
-import { MAT, setNightLevel } from './models/palette';
+import { animateModel, findModel, poke, type AnimMode } from './models/anim';
+import { animateSharedMaterials, MAT, setNightLevel } from './models/palette';
 import { createLighting } from './scene/lighting';
 import './style.css';
 import './viewer.css';
@@ -114,9 +114,23 @@ show(index);
 if (import.meta.env.DEV) Object.assign(window, { camera, controls });
 
 const clock = new THREE.Clock();
+
+// Tap a structure to poke it (a tap is a press and release without dragging the camera).
+const raycaster = new THREE.Raycaster();
+let downAt: { x: number; y: number } | null = null;
+canvas.addEventListener('pointerdown', (e) => (downAt = { x: e.clientX, y: e.clientY }));
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt || !current || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 6) return;
+  const ndc = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObject(current, true)[0];
+  const model = findModel(hit?.object ?? null);
+  if (model) poke(model, clock.elapsedTime);
+});
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   if (current) animateModel(current, clock.elapsedTime, dt);
+  animateSharedMaterials(clock.elapsedTime);
   controls.update();
   renderer.render(scene, camera);
 });

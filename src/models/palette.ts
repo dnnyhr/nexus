@@ -67,10 +67,21 @@ export const BAND: Record<BandKind, THREE.Material> = {
   greenhouse: MAT.bandGreenhouse,
 };
 
+let night = 0;
+
 /** Night lighting: windows and beacons glow, grow lights get brighter. 0 = day, 1 = night. */
 export function setNightLevel(level: number): void {
-  const t = THREE.MathUtils.clamp(level, 0, 1);
-  MAT.glass.emissiveIntensity = 0.9 * t;
-  MAT.beacon.emissiveIntensity = 1.2 * t;
-  MAT.ledGrow.emissiveIntensity = 0.6 + 0.8 * t;
+  night = THREE.MathUtils.clamp(level, 0, 1);
+  MAT.glass.emissiveIntensity = 0.9 * night;
+  animateSharedMaterials(0);
+}
+
+/**
+ * Per-frame life for shared materials: beacons blink (a short flash every ~1.6 s, faint
+ * by day and bright at night) and grow lights breathe softly.
+ */
+export function animateSharedMaterials(t: number): void {
+  const flash = (t % 1.6) < 0.25 ? 1 : 0.25;
+  MAT.beacon.emissiveIntensity = (0.25 + 1.1 * night) * flash;
+  MAT.ledGrow.emissiveIntensity = (0.6 + 0.8 * night) * (0.92 + 0.08 * Math.sin(t * 1.3));
 }
