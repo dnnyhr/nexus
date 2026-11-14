@@ -6,11 +6,12 @@ import { heightAt } from './terrain';
 // The astronaut, driven by the player. Movement comes as a 2D input already turned to
 // world directions. The body turns where it walks, slides along building footprints, and
 // can never get trapped: if a building appears on top of it, it is pushed out to the
-// nearest edge. Space makes it hop like Apollo astronauts did: long, floaty, faster.
+// nearest edge. Space makes it hop like Apollo astronauts did: low, short, a bit faster.
 
 const WALK = 2.6; // m/s
-const HOP = 4.4; // m/s while airborne
-const HOP_SPEED_UP = 1.75; // initial vertical speed of a hop, m/s
+const HOP = 3.5; // m/s while airborne: a bit faster than walking, not flying
+// A low bunny hop like the Apollo astronauts': ~0.25 m high, ~1.1 s in the air.
+const HOP_SPEED_UP = 0.9; // initial vertical speed of a hop, m/s
 const MOON_G = 1.62; // m/s², lunar gravity
 const RADIUS = 0.35;
 const WORLD_LIMIT = 60;
