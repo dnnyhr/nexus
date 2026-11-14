@@ -101,6 +101,26 @@ export const DAMAGE = {
   repairPerDamage: 18,
 };
 
+/** Solar storms (solar energetic particle events), each recreating a real recent flare. */
+export const STORM = {
+  /** Mean seconds between storms once they are enabled (first one comes sooner). */
+  meanInterval: 420,
+  firstDelay: 40,
+  /** Warning time before particles arrive: stronger flares give less time. */
+  warnMax: 35,
+  warnMin: 20,
+  durationMin: 30,
+  durationMax: 70,
+  /** Dose rate outside, in mSv per second of play, for a weak and a very strong storm. */
+  doseMin: 0.4,
+  doseMax: 4,
+  /** The suit alone stops very little; the lander hull a good part; the habitat most. */
+  suitProtection: 0.1,
+  landerProtection: 0.6,
+  /** Crew health lost per mSv received. */
+  healthPerMsv: 0.35,
+};
+
 export const OFFLINE = {
   maxSeconds: 8 * 3600,
 };
