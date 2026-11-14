@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { addAnimator, approach, joint, setModes } from './anim';
 import { BAND, MAT } from './palette';
-import { asModel, beacon, box, mesh, rock, strut } from './kit';
+import { asModel, beacon, box, dish as dishPart, mesh, rock, strut } from './kit';
 
 // Robots and the expedition rover, with moving parts. All vehicles face +Z and share the
 // same wheel, headlight and sensor-mast pieces. Modes: idle, drive, work.
@@ -49,7 +49,7 @@ function sensorMast(height: number): { group: THREE.Group; pan: THREE.Group } {
 function headlights(g: THREE.Object3D, spread: number, y: number, z: number): void {
   for (const s of [-1, 1]) {
     g.add(box(0.12, 0.07, 0.04, MAT.darkMetal, { pos: [s * spread, y, z] }));
-    g.add(box(0.09, 0.045, 0.02, MAT.beacon, { pos: [s * spread, y, z + 0.025] }));
+    g.add(box(0.09, 0.045, 0.02, MAT.lamp, { pos: [s * spread, y, z + 0.025] }));
   }
 }
 
@@ -265,7 +265,7 @@ export function rover(): THREE.Group {
   for (const s of [-1, 1]) body.add(strut([s * 0.48, 0.72, 1.05], [s * 0.48, 1.3, 1.05], 0.025));
   for (const x of [-0.36, -0.12, 0.12, 0.36]) {
     body.add(box(0.16, 0.08, 0.06, MAT.darkMetal, { pos: [x, 1.32, 1.1] }));
-    body.add(box(0.12, 0.05, 0.02, MAT.beacon, { pos: [x, 1.32, 1.138] }));
+    body.add(box(0.12, 0.05, 0.02, MAT.lamp, { pos: [x, 1.32, 1.138] }));
   }
   headlights(body, 0.45, 0.6, 1.68);
 
@@ -286,7 +286,9 @@ export function rover(): THREE.Group {
   con.add(box(0.9, 0.34, 0.16, MAT.hull));
   con.add(box(0.46, 0.18, 0.02, MAT.glass, { pos: [0, 0.03, 0.09] }));
   body.add(strut([0, 0.72, 0.62], [0, 0.95, 0.66], 0.04));
-  body.add(strut([0, 0.98, 0.45], [0, 1.12, 0.47], 0.018, MAT.darkMetal));
+  // Hand controller on a pedestal between the seats.
+  body.add(box(0.16, 0.28, 0.24, MAT.hullShade, { pos: [0, 0.86, 0.42] }));
+  body.add(strut([0, 1.0, 0.45], [0, 1.12, 0.47], 0.018, MAT.darkMetal));
   body.add(mesh(new THREE.SphereGeometry(0.04, 8, 4), MAT.darkMetal, { pos: [0, 1.13, 0.47] }));
 
   // Rear cargo rack: sample boxes and a shovel.
@@ -300,8 +302,9 @@ export function rover(): THREE.Group {
   // High-gain antenna on a mast; the dish slowly tracks Earth.
   body.add(strut([0.5, 0.72, -0.6], [0.5, 1.95, -0.6], 0.03));
   const dish = joint(body, 0.5, 1.95, -0.6);
-  dish.add(mesh(new THREE.SphereGeometry(0.34, 12, 3, 0, Math.PI * 2, 0, 0.6), MAT.hullDouble, { rot: [-1.25, 0, 0] }));
-  dish.add(strut([0, 0, 0], [0, 0.12, 0.3], 0.01, MAT.structure));
+  const hga = dishPart(0.34);
+  hga.rotation.x = 0.9;
+  dish.add(hga);
   const cam = sensorMast(0.45);
   cam.group.position.set(-0.52, 0.72, 0.95);
   body.add(cam.group);

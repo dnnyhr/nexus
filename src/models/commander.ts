@@ -88,7 +88,7 @@ export function commander(): THREE.Group {
   // Helmet lights and camera.
   for (const s of [-1, 1]) {
     neck.add(box(0.05, 0.05, 0.08, MAT.hullShade, { pos: [s * 0.2, helmetY + 0.08, 0.03] }));
-    neck.add(box(0.035, 0.035, 0.01, MAT.beacon, { pos: [s * 0.2, helmetY + 0.08, 0.075] }));
+    neck.add(box(0.035, 0.035, 0.01, MAT.lamp, { pos: [s * 0.2, helmetY + 0.08, 0.075] }));
   }
   neck.add(box(0.06, 0.04, 0.07, MAT.darkMetal, { pos: [0.12, helmetY + 0.19, 0.0] }));
 

@@ -53,7 +53,10 @@ export const MAT = {
   plantLight: flat(COLORS.plantLight),
   greenhouseRoof: flat(0xe9efe2, { transparent: true, opacity: 0.38, depthWrite: false }),
   ledGrow: flat(COLORS.ledGrow, { emissive: COLORS.ledGrow, emissiveIntensity: 0.6 }),
+  /** Template for beacons; each beacon gets its own copy from beaconMaterial(). */
   beacon: flat(COLORS.beaconOff, { emissive: COLORS.beaconOn, emissiveIntensity: 0 }),
+  /** Steady lights (headlights, floodlights, helmet lamps): dim by day, on at night. */
+  lamp: flat(0x6b5a44, { emissive: 0xffe2b0, emissiveIntensity: 0.2 }),
   suit: flat(COLORS.suit),
   visor: flat(COLORS.visor, { emissive: 0x7a5a2a, emissiveIntensity: 0.15 }),
 } as const;
@@ -74,11 +77,25 @@ export const BAND: Record<BandKind, THREE.Material> = {
 
 let night = 0;
 
+// Every beacon has its own material with its own rhythm, so the base never blinks in
+// unison. Weak references let materials of discarded models be garbage-collected.
+interface BeaconEntry { ref: WeakRef<THREE.MeshLambertMaterial>; phase: number; period: number }
+const beacons: BeaconEntry[] = [];
+let beaconCount = 0;
+
+export function beaconMaterial(): THREE.MeshLambertMaterial {
+  const m = MAT.beacon.clone();
+  const k = beaconCount++;
+  // Golden-ratio spacing spreads phases evenly; periods vary between 1.3 and 2.1 s.
+  beacons.push({ ref: new WeakRef(m), phase: (k * 0.618) % 1, period: 1.3 + ((k * 0.381) % 1) * 0.8 });
+  return m;
+}
+
 /** Night lighting: windows and beacons glow, grow lights get brighter. 0 = day, 1 = night. */
 export function setNightLevel(level: number): void {
   night = THREE.MathUtils.clamp(level, 0, 1);
   MAT.glass.emissiveIntensity = 0.9 * night;
-  animateSharedMaterials(0);
+  MAT.lamp.emissiveIntensity = 0.2 + 1.3 * night;
 }
 
 /**
@@ -86,7 +103,14 @@ export function setNightLevel(level: number): void {
  * by day and bright at night) and grow lights breathe softly.
  */
 export function animateSharedMaterials(t: number): void {
-  const flash = (t % 1.6) < 0.25 ? 1 : 0.25;
-  MAT.beacon.emissiveIntensity = (0.25 + 1.1 * night) * flash;
+  const base = 0.25 + 1.1 * night;
+  for (let i = beacons.length - 1; i >= 0; i--) {
+    const b = beacons[i];
+    const m = b.ref.deref();
+    if (!m) { beacons.splice(i, 1); continue; }
+    const u = (t / b.period + b.phase) % 1;
+    m.emissiveIntensity = base * (u < 0.14 ? 1 : 0.2);
+  }
+  MAT.lamp.emissiveIntensity = 0.2 + 1.3 * night;
   MAT.ledGrow.emissiveIntensity = (0.6 + 0.8 * night) * (0.92 + 0.08 * Math.sin(t * 1.3));
 }
