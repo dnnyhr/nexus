@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CYCLE } from './config';
-import { capacity, collectByHand, lifeSupportPercent, step, tick } from './sim';
+import { COLLECT, CYCLE } from './config';
+import { collectByHand, deliverRegolith, lifeSupportPercent, step, tick } from './sim';
 import { developedGame } from './testing';
 
 const run = (s: ReturnType<typeof developedGame>, seconds: number) => {
@@ -29,11 +29,24 @@ describe('resources', () => {
     expect(s.res.o2).toBeGreaterThan(o2 - 20 * 0.07); // net O2 better than crew use alone
   });
 
-  it('collecting by hand never exceeds storage', () => {
+  it('digging fills the bag, and the processor only gets regolith when it is delivered', () => {
     const s = developedGame();
-    s.res.regolith = capacity(s).regolith - 1;
-    expect(collectByHand(s)).toBe(1);
+    s.res.regolith = 0;
+    for (let i = 0; i < 5; i++) collectByHand(s);
+    expect(s.carried).toBe(COLLECT.carryMax);
     expect(collectByHand(s)).toBe(0);
+    expect(s.res.regolith).toBe(0);
+    expect(deliverRegolith(s)).toBe(COLLECT.carryMax);
+    expect(s.carried).toBe(0);
+    expect(s.res.regolith).toBe(COLLECT.carryMax);
+  });
+
+  it('nothing can be delivered without a processor', () => {
+    const s = developedGame();
+    s.levels.processor = 0;
+    collectByHand(s);
+    expect(deliverRegolith(s)).toBe(0);
+    expect(s.carried).toBeGreaterThan(0);
   });
 
   it('crew health drops when a life resource runs out and production stops at zero health', () => {
