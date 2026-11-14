@@ -1,31 +1,37 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { MODELS } from './models';
+import { createLighting } from './scene/lighting';
+import { createSky } from './scene/sky';
+import { createTerrain } from './scene/terrain';
 import './style.css';
 
-// Minimal bootstrap: renderer, camera and a placeholder ground plane.
-// Real terrain, models and gameplay arrive in later changes.
+// Game scene preview: terrain, sky and the base lineup under the south-pole lighting.
+// Gameplay arrives in later changes.
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0a0a0b);
+scene.background = new THREE.Color(0x050506);
 
-const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
-camera.position.set(18, 16, 18);
-camera.lookAt(0, 0, 0);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 600);
+camera.position.set(26, 22, 30);
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.minDistance = 12;
+controls.maxDistance = 70;
+controls.minPolarAngle = 0.35;
+controls.maxPolarAngle = 1.36;
 
-// Low, grazing sun: at the lunar south pole the Sun never rises far above the horizon.
-const sun = new THREE.DirectionalLight(0xfff4e0, 2.2);
-sun.position.set(-30, 4, 10);
-scene.add(sun, new THREE.AmbientLight(0x8a8478, 0.35));
-
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(60, 60),
-  new THREE.MeshLambertMaterial({ color: 0x8e8a82 }),
-);
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
+createLighting(scene, 24);
+scene.add(createSky(), createTerrain());
+const base = MODELS.find((m) => m.id === 'lineup')!.build();
+scene.add(base);
 
 function resize(): void {
   const { innerWidth: w, innerHeight: h } = window;
@@ -36,4 +42,7 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
-renderer.setAnimationLoop(() => renderer.render(scene, camera));
+renderer.setAnimationLoop(() => {
+  controls.update();
+  renderer.render(scene, camera);
+});
