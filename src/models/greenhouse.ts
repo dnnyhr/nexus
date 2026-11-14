@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addAnimator, joint, pokeAge } from './anim';
 import { BAND, MAT } from './palette';
 import { asModel, beacon, box, hatch, mesh, strut, windowPane } from './kit';
 
@@ -134,18 +135,23 @@ function farmTower(plants: THREE.Object3D[]): THREE.Group {
   g.add(mesh(new THREE.CylinderGeometry(r + 0.2, r + 0.3, PLINTH + 0.05, 12), MAT.hullShade, { pos: [0, (PLINTH + 0.05) / 2, 0] }));
   g.add(mesh(new THREE.CylinderGeometry(r + 0.32, r + 0.32, 0.1, 12), BAND.greenhouse, { pos: [0, PLINTH - 0.08, 0] }));
   g.add(mesh(new THREE.CylinderGeometry(0.16, 0.16, tiers * tierH, 8), MAT.ledGrow, { pos: [0, PLINTH + (tiers * tierH) / 2, 0] }));
+  // Each tier turns slowly (alternating directions) so every plant gets even light.
+  const tierJoints: THREE.Group[] = [];
   for (let t = 0; t < tiers; t++) {
     const y = PLINTH + t * tierH + 0.1;
-    g.add(mesh(new THREE.CylinderGeometry(r - 0.1, r - 0.1, 0.12, 12), MAT.hullShade, { pos: [0, y, 0] }));
+    const tier = joint(g, 0, y, 0);
+    tier.add(mesh(new THREE.CylinderGeometry(r - 0.1, r - 0.1, 0.12, 12), MAT.hullShade));
     for (let i = 0; i < 7; i++) {
       const a = (i / 7) * Math.PI * 2 + t * 0.45;
       const p = plant(100 + t * 7 + i);
-      p.position.set(Math.cos(a) * (r - 0.4), y + 0.06, Math.sin(a) * (r - 0.4));
+      p.position.set(Math.cos(a) * (r - 0.4), 0.06, Math.sin(a) * (r - 0.4));
       p.scale.setScalar(0.8);
-      g.add(p);
+      tier.add(p);
       plants.push(p);
     }
+    tierJoints.push(tier);
   }
+  addAnimator(g, (_t, dt) => tierJoints.forEach((tier, i) => (tier.rotation.y += dt * 0.12 * (i % 2 ? -1 : 1))));
   g.add(mesh(new THREE.CylinderGeometry(r, r, tiers * tierH, 12, 1, true), MAT.greenhouseRoof, { pos: [0, PLINTH + (tiers * tierH) / 2, 0] }));
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
@@ -190,8 +196,11 @@ function biodome(plants: THREE.Object3D[]): THREE.Group {
 
   // Trees and a ring of planters.
   const spots = [[0, 0], [-1.6, 1.1], [1.7, 0.9], [0.3, -1.8], [-1.2, -1.5]] as const;
+  const trees: THREE.Group[] = [];
+  g.userData.trees = trees;
   spots.forEach(([x, z], i) => {
     const t = tree(i + 1);
+    trees.push(t);
     t.position.set(x, PLINTH + 0.05, z);
     t.scale.setScalar(i === 0 ? 1.5 : 1.0);
     g.add(t);
@@ -241,9 +250,38 @@ function corridor(fromX: number, toX: number, z: number): THREE.Group {
 
 export type GreenhouseLevel = 1 | 2 | 3 | 4 | 5;
 
+/**
+ * Gentle life for any greenhouse: plants and trees sway in the circulation fans' airflow.
+ * Poke: the irrigation runs (droplets fall over the plants and they shake off the water).
+ */
+function addGreenhouseLife(g: THREE.Group, plants: THREE.Object3D[], trees: THREE.Group[]): void {
+  const dropMat = new THREE.MeshLambertMaterial({ color: 0xbfd9e6, transparent: true, opacity: 0.8, flatShading: true });
+  const drops = plants.filter((_, i) => i % 3 === 0).slice(0, 18).map((p, i) => {
+    const d = mesh(new THREE.OctahedronGeometry(0.06, 0), dropMat);
+    d.visible = false;
+    p.parent!.add(d);
+    return { d, p, offset: (i % 5) * 0.12 };
+  });
+  addAnimator(g, (t) => {
+    const age = pokeAge(g, t);
+    plants.forEach((p, i) => {
+      const wiggle = age < 1.4 ? Math.sin(age * 25 + i) * 0.25 * (1 - age / 1.4) : 0;
+      p.rotation.z = Math.sin(t * 1.3 + i * 0.7) * 0.06 + wiggle;
+      p.rotation.x = Math.cos(t * 1.1 + i * 0.5) * 0.04;
+    });
+    trees.forEach((tr, i) => (tr.rotation.z = Math.sin(t * 0.6 + i) * 0.025));
+    for (const { d, p, offset } of drops) {
+      const a = age - offset;
+      d.visible = a > 0 && a < 0.8;
+      if (d.visible) d.position.set(p.position.x, p.position.y + 0.9 - a * 1.1, p.position.z);
+    }
+  });
+}
+
 export function greenhouse(level: GreenhouseLevel = 1): THREE.Group {
   const g = new THREE.Group();
   const plants: THREE.Object3D[] = [];
+  const trees: THREE.Group[] = [];
 
   if (level <= 2) {
     const len = level === 1 ? 5.2 : 7.8;
@@ -261,6 +299,7 @@ export function greenhouse(level: GreenhouseLevel = 1): THREE.Group {
     b.position.set(len / 2 - 0.2, PLINTH + R - 0.05, 0);
     g.add(b);
     g.userData.plants = plants;
+    addGreenhouseLife(g, plants, trees);
     return asModel(g, `greenhouse-${level}`, level === 1 ? 3 : 4, 2);
   }
 
@@ -292,6 +331,7 @@ export function greenhouse(level: GreenhouseLevel = 1): THREE.Group {
 
   if (level >= 5) {
     const dome = biodome(plants);
+    trees.push(...(dome.userData.trees as THREE.Group[]));
     const dx = -len / 2 - 2.6 - 4.2;
     dome.position.set(dx, 0, 0);
     g.add(dome);
@@ -303,6 +343,7 @@ export function greenhouse(level: GreenhouseLevel = 1): THREE.Group {
   }
 
   g.userData.plants = plants;
+  addGreenhouseLife(g, plants, trees);
   const tiles = ([0, 0, 0, [6, 5], [7, 5], [12, 5]] as const)[level] as readonly [number, number];
   return asModel(g, `greenhouse-${level}`, tiles[0], tiles[1]);
 }
