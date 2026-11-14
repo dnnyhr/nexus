@@ -3,14 +3,16 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CYCLE } from './game/config';
 import { build, checkBuild, nextCost } from './game/build';
 import { COLLECT, type BuildingKind } from './game/config';
-import { advanceMission, currentMission, unlocked } from './game/missions';
+import { damageOf, impact, impactChance, repair, repairCost } from './game/damage';
+import { activeShower } from './game/meteors';
+import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
 import { collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
-import { createMarker, Effects } from './scene/fx';
+import { createMarker, Effects, Flashes } from './scene/fx';
 import { Hud } from './ui/hud';
-import { t, type StringKey } from './ui/i18n';
+import { getLang, t, type StringKey } from './ui/i18n';
 import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
 import { createLighting } from './scene/lighting';
@@ -61,6 +63,8 @@ const fx = new Effects();
 scene.add(fx.group);
 const marker = createMarker();
 scene.add(marker);
+const flashes = new Flashes();
+scene.add(flashes.group);
 
 const clock = new THREE.Clock();
 const hud = new Hud({
@@ -107,17 +111,21 @@ function topOf(o: THREE.Object3D, lift = 0.4): THREE.Vector3 {
 
 type Act =
   | { type: 'build'; kind: BuildingKind; obj: THREE.Object3D }
+  | { type: 'repair'; key: string; obj: THREE.Object3D }
   | { type: 'deliver'; obj: THREE.Object3D }
   | { type: 'use'; panel: PanelKind; obj: THREE.Object3D };
 
 /** What F / the prompt would do right now: build here, deliver regolith, or use what is near. */
 function currentAct(): Act | null {
   if (state.sheltered || player.isBusy()) return null;
-  const site = base.nearestSite(player.position, REACH);
-  if (site) return { type: 'build', kind: site.kind, obj: site.obj };
+  // Priority: urgent repairs, then delivering the bag, then building, then using.
   const near = base.nearest(player.position, REACH, colliders);
   const panel = near && panelKind(near);
+  const key = near && base.keyOf(near);
+  if (near && key && damageOf(state, key) > 0) return { type: 'repair', key, obj: near };
   if (near && panel === 'processor' && state.carried > 0) return { type: 'deliver', obj: near };
+  const site = base.nearestSite(player.position, REACH);
+  if (site) return { type: 'build', kind: site.kind, obj: site.obj };
   if (near && panel) return { type: 'use', panel, obj: near };
   return null;
 }
@@ -128,6 +136,17 @@ function doAction(): void {
   if (act.type === 'use') {
     poke(act.obj, clock.elapsedTime);
     hud.open(act.panel, act.obj);
+    return;
+  }
+  if (act.type === 'repair') {
+    const cost = repairCost(state, act.key);
+    if (state.res.materials < cost) {
+      hud.float(topOf(act.obj), t('needMaterials', { n: Math.ceil(cost - state.res.materials) }), true);
+      return;
+    }
+    player.work(2, () => {
+      if (repair(state, act.key)) hud.float(topOf(act.obj), t('repaired'));
+    });
     return;
   }
   if (act.type === 'deliver') {
@@ -177,6 +196,9 @@ function updatePrompt(): void {
   else if (act.type === 'build') {
     const c = nextCost(state, act.kind);
     hud.setPrompt(topOf(act.obj), t('buildX', { x: t(BUILD_LABEL[act.kind]) }), c === null ? '' : `· ${c}`, !checkBuild(state, act.kind).ok);
+  } else if (act.type === 'repair') {
+    const kind = panelKind(act.obj);
+    hud.setPrompt(topOf(act.obj), t('repairX', { x: kind ? t(KIND_LABEL[kind]) : '' }), `· ${repairCost(state, act.key)}`, state.res.materials < repairCost(state, act.key));
   } else if (act.type === 'deliver') {
     hud.setPrompt(topOf(act.obj), t('deliverX'), `· ${Math.floor(state.carried)}`);
   } else {
@@ -210,7 +232,40 @@ function checkMissions(): void {
   colliders = base.colliders();
 }
 hud.radio(currentMission(state));
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls } });
+
+// ---- Micrometeoroid impacts ----------------------------------------------------------------
+// They start once the habitat is up (so the very first steps stay calm), and are more
+// frequent while the Moon crosses a real meteor shower on today's date.
+const IMPACTS_FROM = MISSIONS.findIndex((m) => m.id === 'robot');
+let shower = activeShower(new Date());
+let impactsSeen = 0;
+setInterval(() => {
+  shower = activeShower(new Date());
+  hud.setShower(shower ? shower.shower.name[getLang()] : null);
+}, 1000);
+hud.setShower(shower ? shower.shower.name[getLang()] : null);
+
+function maybeImpact(): void {
+  if (state.mission < IMPACTS_FROM || Math.random() >= impactChance(SIM_STEP, shower?.strength ?? 0)) return;
+  const key = impact(state);
+  const obj = key ? base.objectOf(key) : null;
+  if (!obj) return;
+  const box = new THREE.Box3().setFromObject(obj);
+  const at = new THREE.Vector3(
+    box.min.x + Math.random() * (box.max.x - box.min.x),
+    box.min.y + (0.4 + Math.random() * 0.5) * (box.max.y - box.min.y),
+    box.min.z + Math.random() * (box.max.z - box.min.z),
+  );
+  flashes.flash(at);
+  fx.dust(at.clone().setY(0));
+  poke(obj, clock.elapsedTime);
+  hud.float(topOf(obj), t('impact'), true);
+  if (impactsSeen++ === 0 && state.levels.antenna) {
+    hud.radioText(t('impactNews'));
+    if (shower) hud.radioText(t('showerNews', { name: shower.shower.name[getLang()] }));
+  }
+}
+if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, sync: () => { syncWorld(); colliders = base.colliders(); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its
@@ -308,6 +363,7 @@ renderer.setAnimationLoop(() => {
     power = tick(state, SIM_STEP);
     acc -= SIM_STEP;
     checkMissions();
+    maybeImpact();
   }
   // Day and night fade smoothly; the Sun moves along the horizon.
   const { isDay } = cyclePhase(state.time);
@@ -331,6 +387,7 @@ renderer.setAnimationLoop(() => {
   base.update(state, clock.elapsedTime, dt, Math.atan2(Math.cos(az), Math.sin(az)), power);
   animateSharedMaterials(clock.elapsedTime);
   fx.update(dt);
+  flashes.update(dt);
   hud.update(dt);
   controls.update();
   renderer.render(scene, camera);

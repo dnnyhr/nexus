@@ -10,6 +10,7 @@ import { battery, solarMast } from '../models/power';
 import { processor } from '../models/processor';
 import { greenhouse, type GreenhouseLevel } from '../models/greenhouse';
 import { collectorRobot, harvesterRobot, rover } from '../models/vehicles';
+import { setDamage } from '../models/damage';
 import type { StationLevel } from '../models/habitat';
 import { heightAt } from './terrain';
 
@@ -161,6 +162,17 @@ export class BaseView {
     return out;
   }
 
+  /** Built object for a damage key ('processor', 'solarMast:1', ...). */
+  objectOf(key: string): THREE.Object3D | null {
+    return this.built.get(key)?.obj ?? null;
+  }
+
+  /** Damage key of a built object (inverse of objectOf). */
+  keyOf(obj: THREE.Object3D): string | null {
+    for (const [id, b] of this.built) if (b.obj === obj) return id;
+    return null;
+  }
+
   /** The building closest to a point, if its footprint is within `range` meters. */
   nearest(pos: THREE.Vector3, range: number, colliders = this.colliders()): THREE.Object3D | null {
     let best: THREE.Object3D | null = null;
@@ -247,7 +259,8 @@ export class BaseView {
       else this.rising.set(obj, age + dt);
     }
     this.ringMat.opacity = 0.45 + 0.35 * Math.sin(t * 3);
-    for (const { obj } of this.built.values()) {
+    for (const [id, { obj }] of this.built) {
+      setDamage(obj, s.damage[id] ?? 0);
       if (obj.userData.id === 'processor') obj.userData.active = power.running.processor && !s.sheltered && s.res.regolith > 0;
       if (obj.userData.plants) {
         obj.userData.health = 1 - s.plant.stress / 100;
