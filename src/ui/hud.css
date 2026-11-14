@@ -1,0 +1,151 @@
+/* HUD, panels and effects. Matte gray hardware panels, normal case text, color only for
+   states (amber = attention, brick = danger, olive = plants). See the approved v3 mockup. */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-size: 13px;
+  color: var(--text);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#hud * { box-sizing: border-box; }
+#hud .interactive, #hud button, #hud input { pointer-events: auto; }
+
+.hw {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-bottom-width: 3px;
+  border-radius: 3px;
+}
+
+button.hw {
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  padding: 9px 14px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+button.hw:active { transform: translateY(1px); border-bottom-width: 2px; }
+button.hw.danger { background: var(--danger); border-color: #8e3a29; color: #fff6ee; }
+button.hw.small { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+button.hw .cost { color: #c9c6be; margin-left: 6px; font-variant-numeric: tabular-nums; }
+button.hw.muted { color: #b9b6ae; }
+
+/* ---- Resources (top left) ---- */
+#resources {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  width: 230px;
+  padding: 9px 11px;
+}
+
+.res-row { display: grid; grid-template-columns: 92px 1fr 30px; gap: 8px; align-items: center; margin: 3px 0; }
+.res-row .track { height: 8px; background: var(--panel-edge); border-radius: 1px; overflow: hidden; }
+.res-row .fill { height: 100%; background: #e8e4da; transition: width 0.3s; }
+.res-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.res-row.warn, .res-row.warn .num { color: var(--warn); }
+.res-row.warn .fill { background: var(--warn); }
+.res-row.danger, .res-row.danger .num { color: #ff9a85; }
+.res-row.danger .fill { background: var(--danger); }
+.res-sub { display: flex; gap: 8px; margin: 0 0 4px 0; justify-content: flex-end; color: #cfccc4; font-size: 11px; font-variant-numeric: tabular-nums; }
+.res-foot { display: flex; justify-content: space-between; border-top: 1px solid #4a4c4e; margin-top: 7px; padding-top: 6px; color: #d9d6cf; }
+.res-foot b { font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ---- Bottom bar ---- */
+#actions {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 6px;
+}
+
+#shelter {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+}
+
+#lang {
+  position: absolute;
+  right: max(10px, env(safe-area-inset-right));
+  top: max(10px, env(safe-area-inset-top));
+  padding: 0;
+  display: flex;
+}
+
+#lang button { background: none; border: 0; color: #b9b6ae; font: inherit; padding: 8px 10px; min-height: 36px; cursor: pointer; }
+#lang button.on { color: var(--text); font-weight: 500; }
+
+/* ---- Context panel next to a 3D object ---- */
+.panel {
+  position: absolute;
+  width: 280px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+  pointer-events: auto;
+}
+
+.panel h3 { margin: 0; font-size: 15px; font-weight: 500; }
+.panel .head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.panel .head .sub { color: #cfccc4; font-size: 12px; }
+.panel .close { background: none; border: 0; color: #cfccc4; font: inherit; cursor: pointer; padding: 4px 6px; }
+.panel p { margin: 6px 0; line-height: 1.4; color: #e3e0d8; }
+.panel .fact { color: #cfccc4; font-size: 12px; border-top: 1px dashed #4a4c4e; padding-top: 6px; }
+.panel .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.panel .row > button { flex: 1 1 auto; }
+.panel .reason { color: var(--warn); min-height: 1em; margin-top: 6px; font-size: 12px; }
+
+.gauge { margin: 7px 0; }
+.gauge .label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
+.gauge .label .v { font-variant-numeric: tabular-nums; }
+.gauge .track { position: relative; height: 10px; background: var(--panel-edge); border-radius: 1px; }
+.gauge .band { position: absolute; top: 0; bottom: 0; left: 40%; width: 20%; background: rgba(110, 139, 90, 0.55); }
+.gauge .mark { position: absolute; top: -3px; width: 3px; height: 16px; background: #f2f0eb; margin-left: -1px; transition: left 0.3s; }
+.gauge.bad .label { color: var(--warn); }
+.gauge.bad .mark { background: var(--warn); }
+.gauge .fill { position: absolute; top: 0; bottom: 0; left: 0; background: #e8e4da; }
+.gauge.plant .fill { background: var(--plant); }
+
+.toggle { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #4a4c4e; }
+.toggle button { min-width: 108px; }
+.toggle button.off { color: #b9b6ae; background: #4b4d4f; }
+input[type='range'].hw-range { width: 100%; accent-color: #e8e4da; }
+
+/* ---- Floating feedback text ---- */
+.float {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  font-weight: 500;
+  font-size: 15px;
+  color: #f2f0eb;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.float.warn { color: var(--warn); }
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  color: #d9d6cf;
+  font-size: 13px;
+  padding: 6px 10px;
+  background: rgba(20, 20, 22, 0.55);
+  border-radius: 2px;
+}
+
+@media (max-height: 430px) {
+  #resources { width: 210px; padding: 7px 9px; }
+  .panel { width: 250px; }
+  button.hw { min-height: 40px; padding: 7px 11px; }
+}
