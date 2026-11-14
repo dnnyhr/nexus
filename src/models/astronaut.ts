@@ -60,6 +60,12 @@ export function astronaut(): THREE.Group {
     torso.add(strut([s * 0.21, 0.2, 0.05], [s * 0.12, 0.27, 0.19], 0.022, MAT.darkMetal));
   }
 
+  // Regolith sample bag on the hip; its size shows the load (userData.load, 0-1).
+  const sack = joint(torso, -0.27, 0.12, -0.08);
+  sack.add(box(0.2, 0.24, 0.24, MAT.regolithPiled, { pos: [0, -0.12, 0] }));
+  sack.add(box(0.21, 0.04, 0.25, MAT.darkMetal, { pos: [0, -0.035, 0] }));
+  sack.visible = false;
+
   // ---- Arms -------------------------------------------------------------------------
   const arms = [-1, 1].map((s) => {
     const shoulder = joint(torso, s * 0.28, 0.5, 0);
@@ -95,28 +101,34 @@ export function astronaut(): THREE.Group {
   // ---- Animation --------------------------------------------------------------------
   let crouch = 0;
   let walkBlend = 0;
-  setModes(g, ['idle', 'walk', 'work']);
+  let tuck = 0;
+  setModes(g, ['idle', 'walk', 'work', 'jump']);
   addAnimator(g, (t, dt, mode) => {
     walkBlend = approach(walkBlend, mode === 'walk' ? 1 : 0, 6, dt);
+    const load = (g.userData.load as number | undefined) ?? 0;
+    sack.visible = load > 0.01;
+    sack.scale.setScalar(0.45 + 0.55 * load);
     crouch = approach(crouch, mode === 'work' ? 1 : 0, 4, dt);
+    tuck = approach(tuck, mode === 'jump' ? 1 : 0, 9, dt);
     const p = t * 5.2; // lope cadence
     const w = walkBlend;
 
     // Lunar lope: both legs push together, the body floats up between steps.
     pelvis.position.y = hipY + w * Math.abs(Math.sin(p)) * 0.09 - crouch * 0.32;
-    torso.rotation.x = w * 0.12 + crouch * 0.35 + Math.sin(t * 1.6) * 0.015 * (1 - w);
+    torso.rotation.x = w * 0.12 + crouch * 0.35 + tuck * 0.2 + Math.sin(t * 1.6) * 0.015 * (1 - w);
     legs.forEach(({ hip, knee, ankle }, i) => {
       const s = i === 0 ? 1 : -1;
       const swing = Math.sin(p + (i === 0 ? 0 : 0.6)) * 0.45 * w;
-      hip.rotation.x = -swing * s * 0.7 - w * 0.12 - crouch * 1.0;
-      knee.rotation.x = w * (0.18 + Math.max(0, Math.sin(p + 1.2)) * 0.45) + crouch * 1.55;
+      // In a hop both legs tuck together, one slightly ahead.
+      hip.rotation.x = (-swing * s * 0.7 - w * 0.12) * (1 - tuck) - crouch * 1.0 - tuck * (0.75 + (i === 0 ? 0.25 : 0));
+      knee.rotation.x = w * (0.18 + Math.max(0, Math.sin(p + 1.2)) * 0.45) * (1 - tuck) + crouch * 1.55 + tuck * 1.1;
       // Keep the boot level with the ground whatever the leg does.
       ankle.rotation.x = -(hip.rotation.x + knee.rotation.x);
     });
     arms.forEach(({ shoulder, elbow }, i) => {
       const s = i === 0 ? -1 : 1;
       const work = Math.sin(t * 6 + i * Math.PI) * 0.25;
-      shoulder.rotation.x = (1 - crouch) * (Math.sin(p) * 0.35 * s * w + Math.sin(t * 1.2 + i) * 0.03 * (1 - w)) - crouch * (1.1 + work);
+      shoulder.rotation.x = (1 - crouch) * (1 - tuck) * (Math.sin(p) * 0.35 * s * w + Math.sin(t * 1.2 + i) * 0.03 * (1 - w)) - crouch * (1.1 + work) - tuck * 0.9;
       elbow.rotation.x = -0.25 - w * 0.25 - crouch * (0.6 - work);
     });
     neck.rotation.y = (1 - w) * (1 - crouch) * Math.sin(t * 0.45) * 0.45;

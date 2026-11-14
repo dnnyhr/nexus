@@ -3,18 +3,26 @@ import { setMode } from '../models/anim';
 import { astronaut } from '../models/astronaut';
 import { heightAt } from './terrain';
 
-// The astronaut, driven by the player. Movement comes as a 2D input (joystick or keys,
-// already turned to world directions), the body turns towards where it walks, and it
-// slides along building footprints instead of passing through them.
+// The astronaut, driven by the player. Movement comes as a 2D input already turned to
+// world directions. The body turns where it walks, slides along building footprints, and
+// can never get trapped: if a building appears on top of it, it is pushed out to the
+// nearest edge. Space makes it hop like Apollo astronauts did: long, floaty, faster.
 
-const SPEED = 2.6; // m/s, a brisk lunar lope
-const RADIUS = 0.35; // body radius for collisions
+const WALK = 2.6; // m/s
+const HOP = 4.4; // m/s while airborne
+const HOP_SPEED_UP = 1.75; // initial vertical speed of a hop, m/s
+const MOON_G = 1.62; // m/s², lunar gravity
+const RADIUS = 0.35;
 const WORLD_LIMIT = 60;
+
+type Footprint = { box: THREE.Box2 };
 
 export class Player {
   readonly obj = astronaut();
   private busy = 0;
   private onDone: (() => void) | null = null;
+  private height = 0;
+  private vy = 0;
 
   constructor(start: THREE.Vector3) {
     this.obj.position.copy(start);
@@ -24,9 +32,13 @@ export class Player {
     return this.obj.position;
   }
 
-  /** Play the work animation for `seconds`, then run `done` (e.g. add regolith). */
+  get airborne(): boolean {
+    return this.height > 0 || this.vy > 0;
+  }
+
+  /** Play the work animation for `seconds`, then run `done`. Not while hopping. */
   work(seconds: number, done: () => void): boolean {
-    if (this.busy > 0) return false;
+    if (this.busy > 0 || this.airborne) return false;
     this.busy = seconds;
     this.onDone = done;
     return true;
@@ -36,7 +48,29 @@ export class Player {
     return this.busy > 0;
   }
 
-  update(dt: number, input: THREE.Vector2, colliders: { box: THREE.Box2 }[], hidden: boolean): void {
+  jump(): void {
+    if (this.busy > 0 || this.airborne) return;
+    this.vy = HOP_SPEED_UP;
+  }
+
+  /** If standing inside a footprint, step out to its nearest edge. */
+  unstick(colliders: Footprint[]): void {
+    const p = new THREE.Vector2(this.position.x, this.position.z);
+    for (const { box } of colliders) {
+      if (box.distanceToPoint(p) >= RADIUS) continue;
+      const exits = [
+        { d: p.x - box.min.x, x: box.min.x - RADIUS - 0.05, z: p.y },
+        { d: box.max.x - p.x, x: box.max.x + RADIUS + 0.05, z: p.y },
+        { d: p.y - box.min.y, x: p.x, z: box.min.y - RADIUS - 0.05 },
+        { d: box.max.y - p.y, x: p.x, z: box.max.y + RADIUS + 0.05 },
+      ].sort((a, b) => a.d - b.d);
+      p.set(exits[0].x, exits[0].z);
+    }
+    this.position.x = p.x;
+    this.position.z = p.y;
+  }
+
+  update(dt: number, input: THREE.Vector2, colliders: Footprint[], hidden: boolean, holdJump: boolean): void {
     this.obj.visible = !hidden;
     if (hidden) return;
     if (this.busy > 0) {
@@ -49,25 +83,42 @@ export class Player {
       }
       return;
     }
-    const len = Math.min(1, input.length());
-    if (len < 0.08) {
-      setMode(this.obj, 'idle');
-      return;
-    }
-    setMode(this.obj, 'walk');
-    const heading = Math.atan2(input.x, input.y);
-    let turn = heading - this.obj.rotation.y;
-    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
-    this.obj.rotation.y += turn * Math.min(1, dt * 10);
 
-    const step = SPEED * len * dt;
-    const next = new THREE.Vector2(this.position.x + (input.x / input.length()) * step, this.position.z + (input.y / input.length()) * step);
-    // Resolve each axis separately so the body slides along walls.
-    const blocked = (x: number, z: number) => colliders.some((c) => c.box.distanceToPoint(new THREE.Vector2(x, z)) < RADIUS);
-    if (!blocked(next.x, this.position.z)) this.position.x = next.x;
-    if (!blocked(this.position.x, next.y)) this.position.z = next.y;
-    const r = Math.hypot(this.position.x, this.position.z);
-    if (r > WORLD_LIMIT) this.position.multiplyScalar(WORLD_LIMIT / r);
-    this.position.y = heightAt(this.position.x, this.position.z);
+    // Vertical: a hop in lunar gravity; keep hopping while the jump key is held.
+    if (this.airborne) {
+      this.vy -= MOON_G * dt;
+      this.height += this.vy * dt;
+      if (this.height <= 0) {
+        this.height = 0;
+        this.vy = 0;
+        if (holdJump) this.jump();
+      }
+    }
+
+    const len = Math.min(1, input.length());
+    if (len >= 0.08) {
+      const heading = Math.atan2(input.x, input.y);
+      let turn = heading - this.obj.rotation.y;
+      turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+      this.obj.rotation.y += turn * Math.min(1, dt * 10);
+      const step = (this.airborne ? HOP : WALK) * len * dt;
+      const dir = input.clone().normalize();
+      const nx = this.position.x + dir.x * step;
+      const nz = this.position.z + dir.y * step;
+      // A footprint blocks only if we are not already inside it, so we can always walk out.
+      const blocked = (x: number, z: number) => colliders.some((c) => {
+        const here = c.box.distanceToPoint(new THREE.Vector2(this.position.x, this.position.z)) < RADIUS;
+        return !here && c.box.distanceToPoint(new THREE.Vector2(x, z)) < RADIUS;
+      });
+      if (!blocked(nx, this.position.z)) this.position.x = nx;
+      if (!blocked(this.position.x, nz)) this.position.z = nz;
+      const r = Math.hypot(this.position.x, this.position.z);
+      if (r > WORLD_LIMIT) {
+        this.position.x *= WORLD_LIMIT / r;
+        this.position.z *= WORLD_LIMIT / r;
+      }
+    }
+    this.position.y = heightAt(this.position.x, this.position.z) + this.height;
+    setMode(this.obj, this.airborne ? 'jump' : len >= 0.08 ? 'walk' : 'idle');
   }
 }
