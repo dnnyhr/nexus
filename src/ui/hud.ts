@@ -20,6 +20,8 @@ interface HudDeps {
   changed(): void;
   poke(target: THREE.Object3D | null): void;
   action(): void;
+  jump(): void;
+  dig(): void;
 }
 
 interface Floater { node: HTMLElement; world: THREE.Vector3; age: number }
@@ -80,7 +82,8 @@ export class Hud {
   private rail = el('div.rail');
   private railDone = el('div.done-line');
   private nodes: HTMLElement[] = [];
-  private counts = { mat: el('div.big'), reg: el('div.big') };
+  private counts = { mat: el('div.big'), reg: el('div.big'), bag: el('div.big') };
+  private jumpDown = false;
   private powerBtn: HTMLButtonElement;
   private shelterBtn: HTMLButtonElement;
   private radioBox = el('div', { id: 'radio', class: 'hidden interactive' });
@@ -109,6 +112,7 @@ export class Hud {
       el('div.now', {}, el('div', {}, this.missionTag, this.goal), el('div.clock', {}, this.clockLabel, this.clockValue)),
       this.rail);
     const counts = el('div.counts', {},
+      el('div', {}, el('div.label', { 'data-label': 'bag' }, t('bag')), this.counts.bag),
       el('div', {}, el('div.label', { 'data-label': 'materials' }, t('materials')), this.counts.mat),
       el('div', {}, el('div.label', { 'data-label': 'regolith' }, t('regolith')), this.counts.reg));
     const band = el('div', { id: 'telemetry' }, gauges, timeline, counts);
@@ -133,6 +137,12 @@ export class Hud {
     this.root.append(band, el('div', { id: 'topright' }, this.powerBtn, this.shelterBtn, langBox), this.radioBox, this.prompt, this.hint, this.arrow);
     document.body.append(this.root);
     this.joystick = new Joystick(this.root);
+    // Touch buttons: hop (hold to keep hopping) and dig.
+    const hop = el('button.t-btn.touch', { id: 'btn-jump' }, el('span', { 'data-label': 'jump' }, t('jump')));
+    hop.addEventListener('pointerdown', () => { this.jumpDown = true; deps.jump(); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) hop.addEventListener(ev, () => (this.jumpDown = false));
+    const digBtn = el('button.t-btn.touch', { id: 'btn-dig', onclick: () => deps.dig() }, el('span', { 'data-label': 'dig' }, t('dig')));
+    this.root.append(hop, digBtn);
 
     onLangChange(() => {
       markLang();
@@ -231,9 +241,13 @@ export class Hud {
     const label = this.prompt.querySelector('.txt') ?? el('span.txt');
     const costEl = this.prompt.querySelector('.cost') ?? el('span.cost');
     if (!key.parentNode) this.prompt.append(key, label, costEl);
-    setText(key as HTMLElement, t('keySpace'));
+    setText(key as HTMLElement, t('keyUse'));
     setText(label as HTMLElement, text);
     setText(costEl as HTMLElement, cost);
+  }
+
+  jumpHeld(): boolean {
+    return this.jumpDown;
   }
 
   /** Mission target: when it is off screen, an arrow on the edge points to it. */
@@ -247,7 +261,7 @@ export class Hud {
     const p = tg.world.clone().project(this.deps.camera);
     const behind = p.z > 1;
     const W = window.innerWidth;
-    const H = window.innerHeight - 140;
+    const H = window.innerHeight - 175;
     let x = ((p.x + 1) / 2) * W;
     let y = ((1 - p.y) / 2) * window.innerHeight;
     if (behind) { x = W - x; y = H; }
@@ -292,7 +306,7 @@ export class Hud {
     const w = node.offsetWidth;
     const h = node.offsetHeight;
     const W = window.innerWidth;
-    const H = window.innerHeight - 140;
+    const H = window.innerHeight - 175;
     const pt = this.anchorPoint(this.panel.anchor);
     let x = W - w - 16;
     let y = 64;
@@ -335,8 +349,10 @@ export class Hud {
     setText(this.clockValue, `T−${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`);
     setText(this.counts.mat, String(Math.floor(s.res.materials)));
     setText(this.counts.reg, String(Math.floor(s.res.regolith)));
-    setText(this.hint, t('tapGround'));
-    this.hint.style.display = s.stats.regolithCollected < 4 && s.mission <= 1 && !this.isOpen() ? '' : 'none';
+    setText(this.counts.bag, `${Math.floor(s.carried)}/12`);
+    this.counts.bag.classList.toggle('full', s.carried >= 12);
+    setText(this.hint, matchMedia('(pointer: coarse)').matches ? t('tapGroundTouch') : t('tapGround'));
+    this.hint.style.display = s.mission <= 3 && !this.isOpen() ? '' : 'none';
     this.panel?.panel.update();
   }
 
@@ -355,8 +371,12 @@ export class Hud {
     }
     if (this.promptAnchor && !this.prompt.classList.contains('hidden')) {
       const sp = this.toScreen(this.promptAnchor);
-      this.prompt.style.left = `${sp.x}px`;
-      this.prompt.style.top = `${sp.y - 10}px`;
+      // Keep the whole prompt on screen (it is centered on its anchor).
+      const half = this.prompt.offsetWidth / 2;
+      const x = Math.max(half + 8, Math.min(window.innerWidth - half - 8, sp.x));
+      const y = Math.max(this.prompt.offsetHeight + 60, Math.min(window.innerHeight - 180, sp.y - 10));
+      this.prompt.style.left = `${x}px`;
+      this.prompt.style.top = `${y}px`;
     }
     for (const f of this.floaters) {
       f.age += dt;
