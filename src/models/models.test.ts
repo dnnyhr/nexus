@@ -76,3 +76,31 @@ describe('models have no coplanar overlapping faces (z-fighting)', () => {
     });
   }
 });
+
+// Open surfaces (cylinders without caps, partial spheres, discs, rings) have a back side
+// that the camera can see. With a single-sided material that side is not drawn and the
+// part looks transparent from behind.
+function isOpen(geo: THREE.BufferGeometry): boolean {
+  if (geo instanceof THREE.CylinderGeometry || geo instanceof THREE.ConeGeometry) {
+    return geo.parameters.openEnded || geo.parameters.thetaLength < Math.PI * 2 - 1e-6;
+  }
+  if (geo instanceof THREE.SphereGeometry) {
+    return geo.parameters.phiLength < Math.PI * 2 - 1e-6 || geo.parameters.thetaLength < Math.PI - 1e-6;
+  }
+  if (geo instanceof THREE.TorusGeometry) return false;
+  return geo instanceof THREE.CircleGeometry || geo instanceof THREE.RingGeometry || geo instanceof THREE.PlaneGeometry;
+}
+
+describe('open surfaces are double-sided (no see-through backs)', () => {
+  for (const entry of MODELS.filter((m) => !m.id.endsWith('progression') && m.id !== 'lineup')) {
+    it(entry.id, () => {
+      const bad: string[] = [];
+      entry.build().traverse((o) => {
+        if (o instanceof THREE.Mesh && isOpen(o.geometry) && (o.material as THREE.Material).side !== THREE.DoubleSide) {
+          bad.push(o.geometry.type);
+        }
+      });
+      expect(bad).toEqual([]);
+    });
+  }
+});
