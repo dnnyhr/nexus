@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { addAnimator, joint, pokeAge } from './anim';
-import { BAND, MAT } from './palette';
+import { BAND, getNight, MAT } from './palette';
 import { asModel, beacon, box, hatch, mesh, strut, windowPane } from './kit';
 
 // The greenhouse grows in 5 levels:
@@ -254,7 +254,29 @@ export type GreenhouseLevel = 1 | 2 | 3 | 4 | 5;
  * Gentle life for any greenhouse: plants and trees sway in the circulation fans' airflow.
  * Poke: the irrigation runs (droplets fall over the plants and they shake off the water).
  */
+// Plant colors from healthy to wilted to dead.
+const HEALTHY = new THREE.Color(MAT.plant.color);
+const HEALTHY_LIGHT = new THREE.Color(MAT.plantLight.color);
+const WILTED = new THREE.Color(0xa08c4c);
+const DEAD = new THREE.Color(0x6b5a44);
+
+/**
+ * State shown by the model (set by the game in userData; the viewer leaves them unset):
+ *  - health 0-1: plants droop and yellow as stress rises.
+ *  - dead: plants turn brown and fall over.
+ *  - lights 0-100: brightness of this greenhouse's grow lights.
+ * Each greenhouse gets its own plant and LED materials so its state never leaks to others.
+ */
 function addGreenhouseLife(g: THREE.Group, plants: THREE.Object3D[], trees: THREE.Group[]): void {
+  const plantMat = MAT.plant.clone();
+  const plantLightMat = MAT.plantLight.clone();
+  const ledMat = MAT.ledGrow.clone();
+  g.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    if (o.material === MAT.plant) o.material = plantMat;
+    else if (o.material === MAT.plantLight) o.material = plantLightMat;
+    else if (o.material === MAT.ledGrow) o.material = ledMat;
+  });
   const dropMat = new THREE.MeshLambertMaterial({ color: 0xbfd9e6, transparent: true, opacity: 0.8, flatShading: true });
   const drops = plants.filter((_, i) => i % 3 === 0).slice(0, 18).map((p, i) => {
     const d = mesh(new THREE.OctahedronGeometry(0.06, 0), dropMat);
@@ -264,10 +286,20 @@ function addGreenhouseLife(g: THREE.Group, plants: THREE.Object3D[], trees: THRE
   });
   addAnimator(g, (t) => {
     const age = pokeAge(g, t);
+    const dead = g.userData.dead === true;
+    const health = dead ? 0 : ((g.userData.health as number | undefined) ?? 1);
+    const lights = (g.userData.lights as number | undefined) ?? 100;
+    const sick = 1 - health;
+    plantMat.color.copy(dead ? DEAD : HEALTHY).lerp(WILTED, dead ? 0 : sick);
+    plantLightMat.color.copy(dead ? DEAD : HEALTHY_LIGHT).lerp(WILTED, dead ? 0 : sick);
+    ledMat.emissiveIntensity = (lights / 100) * (0.6 + 0.8 * getNight()) * (0.92 + 0.08 * Math.sin(t * 1.3));
+    ledMat.color.setHex(lights > 2 ? 0xd98ac9 : 0x5a4a58);
     plants.forEach((p, i) => {
       const wiggle = age < 1.4 ? Math.sin(age * 25 + i) * 0.25 * (1 - age / 1.4) : 0;
-      p.rotation.z = Math.sin(t * 1.3 + i * 0.7) * 0.06 + wiggle;
-      p.rotation.x = Math.cos(t * 1.1 + i * 0.5) * 0.04;
+      // Healthy plants sway; stressed ones droop; dead ones lie over.
+      const droop = dead ? 1.1 : sick * 0.55;
+      p.rotation.z = Math.sin(t * 1.3 + i * 0.7) * 0.06 * health + wiggle;
+      p.rotation.x = Math.cos(t * 1.1 + i * 0.5) * 0.04 * health + droop * (i % 2 ? 1 : -1);
     });
     trees.forEach((tr, i) => (tr.rotation.z = Math.sin(t * 0.6 + i) * 0.025));
     for (const { d, p, offset } of drops) {

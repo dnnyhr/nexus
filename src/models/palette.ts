@@ -77,6 +77,11 @@ export const BAND: Record<BandKind, THREE.Material> = {
 
 let night = 0;
 
+/** Current night level (0 day, 1 night), for models that light themselves. */
+export function getNight(): number {
+  return night;
+}
+
 // Every beacon has its own material with its own rhythm, so the base never blinks in
 // unison. Weak references let materials of discarded models be garbage-collected.
 interface BeaconEntry { ref: WeakRef<THREE.MeshLambertMaterial>; phase: number; period: number }
