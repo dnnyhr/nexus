@@ -26,8 +26,8 @@ export function solarMast(): THREE.Group {
   const cy = 3.9;
   tracker.add(box(w + 0.1, h + 0.1, 0.06, MAT.darkMetal, { pos: [0, cy, 0.2] }));
   tracker.add(box(w, h, 0.07, MAT.solarCell, { pos: [0, cy, 0.24] }));
-  for (let i = 1; i < 6; i++) tracker.add(box(w, 0.035, 0.08, MAT.structure, { pos: [0, cy - h / 2 + (i * h) / 6, 0.25] }));
-  tracker.add(box(0.035, h, 0.08, MAT.structure, { pos: [0, cy, 0.25] }));
+  for (let i = 1; i < 6; i++) tracker.add(box(w - 0.04, 0.035, 0.08, MAT.structure, { pos: [0, cy - h / 2 + (i * h) / 6, 0.25] }));
+  tracker.add(box(0.035, h - 0.04, 0.085, MAT.structure, { pos: [0, cy, 0.256] }));
   for (const y of [cy - 1.5, cy + 1.5]) tracker.add(box(0.12, 0.12, 0.22, MAT.darkMetal, { pos: [0, y, 0.08] }));
   g.add(tracker);
 
