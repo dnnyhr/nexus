@@ -6,6 +6,8 @@ import type { BuildingKind } from './game/config';
 import { damageOf, impact, impactChance, repair, repairCost } from './game/damage';
 import { activeShower } from './game/meteors';
 import { protection, stepStorm } from './game/storm';
+import { stepRescue } from './game/rescue';
+import { RESCUE } from './game/config';
 import { loadSpaceWeather, radiationScale, snapshotWeather, SOURCES, type SpaceWeather } from './data/spaceweather';
 import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
@@ -14,7 +16,7 @@ import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
-import { createMarker, Effects, Flashes } from './scene/fx';
+import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
 import { Hud } from './ui/hud';
 import { getLang, t, type StringKey } from './ui/i18n';
 import type { PanelKind } from './ui/panels';
@@ -77,6 +79,13 @@ const marker = createMarker();
 scene.add(marker);
 const flashes = new Flashes();
 scene.add(flashes.group);
+// Emergency cargo pods land next to the lander.
+const drops = new CargoDrops((at) => {
+  fx.dust(at);
+  flashes.flash(at.clone().setY(0.5));
+  hud.float(at.clone().setY(3), t('rescueLanded', { mat: RESCUE.materials }));
+});
+scene.add(drops.group);
 
 const clock = new THREE.Clock();
 const hud = new Hud({
@@ -494,6 +503,10 @@ renderer.setAnimationLoop(() => {
     checkMissions();
     maybeImpact();
     stormStep();
+    if (stepRescue(state, SIM_STEP)) {
+      hud.radioText(t('rescueNews', { mat: RESCUE.materials }));
+      drops.drop(new THREE.Vector3(-14, 0, 15.5));
+    }
   }
   // Day and night fade smoothly; the Sun moves along the horizon.
   const { isDay } = cyclePhase(state.time);
@@ -518,6 +531,7 @@ renderer.setAnimationLoop(() => {
   animateSharedMaterials(clock.elapsedTime);
   fx.update(dt);
   flashes.update(dt);
+  drops.update(dt);
   hud.setStorm(state.storm.phase === 'none' ? null : {
     phase: state.storm.phase,
     seconds: state.storm.timeLeft,
