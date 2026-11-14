@@ -3,7 +3,7 @@ import { addAnimator, joint, pokeAge } from './anim';
 import { BAND, MAT } from './palette';
 import { asModel, beacon, box, cyl, dish, mesh, pad, sphere, strut, windowPane } from './kit';
 
-// Comms antenna and the lander the commander arrived in.
+// Comms antenna and the lander the astronaut arrived in.
 
 /** Comms antenna: dish aimed low at Earth, which sits near the horizon from the south pole. 1 × 1 tile. */
 export function antenna(): THREE.Group {

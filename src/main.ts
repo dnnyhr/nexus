@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CYCLE } from './game/config';
 import { collectByHand, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
-import { findModel, poke } from './models/anim';
+import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { Effects } from './scene/fx';
 import { Hud } from './ui/hud';
@@ -128,7 +128,7 @@ canvas.addEventListener('pointerup', (e) => {
   if (!model) return hud.close();
   poke(model, clock.elapsedTime);
   const kind = panelKind(model);
-  // The commander has to walk up to a structure to use it.
+  // The astronaut has to walk up to a structure to use it.
   const near = base.nearest(player.position, REACH, colliders.filter((c) => c.obj === model)) === model;
   if (kind && near) hud.open(kind, model);
   else {
@@ -152,7 +152,7 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
-// ---- Keyboard (desktop): WASD / arrows move the commander, Q / E turn the camera,
+// ---- Keyboard (desktop): WASD / arrows move the astronaut, Q / E turn the camera,
 // Space / F is the action button.
 const keys = new Set<string>();
 window.addEventListener('keydown', (e) => {
@@ -204,9 +204,10 @@ renderer.setAnimationLoop(() => {
   light.sun.position.set(Math.cos(az) * 40, 4 + (1 - night) * 3, Math.sin(az) * 40);
 
   cameraTurn(dt);
-  // The commander moves; the camera follows (keeping the angle the player chose).
+  // The astronaut moves; the camera follows (keeping the angle the player chose).
   colliders = base.colliders();
   player.update(dt, moveInput(), colliders, state.sheltered);
+  animateModel(player.obj, clock.elapsedTime, dt);
   const follow = new THREE.Vector3(player.position.x, 0.8, player.position.z).sub(controls.target).multiplyScalar(Math.min(1, dt * 4));
   controls.target.add(follow);
   camera.position.add(follow);
