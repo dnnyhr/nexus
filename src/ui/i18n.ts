@@ -172,6 +172,11 @@ const STRINGS = {
   lunarDay: { es: 'Día lunar', en: 'Lunar day' },
   lunarNight: { es: 'Noche lunar', en: 'Lunar night' },
   ok: { es: 'Entendido', en: 'Got it' },
+  rescueNews: {
+    es: 'Aquí Rivera. La base está en emergencia y la tripulación corre peligro: te enviamos una cápsula de carga con oxígeno, agua, comida, energía y {mat} materiales. Consejo: repara primero lo que da energía, guarda batería para la noche y entra al refugio en las tormentas.',
+    en: 'Rivera here. The base is in an emergency and the crew is in danger: we are sending a cargo pod with oxygen, water, food, power and {mat} materials. Tip: repair what makes power first, keep battery for the night and get in the shelter during storms.',
+  },
+  rescueLanded: { es: 'Cápsula de emergencia · +{mat} materiales', en: 'Emergency pod · +{mat} materials' },
   welcomeBack: {
     es: 'Bienvenido de vuelta. Estuviste fuera {time}. Mientras tanto la base produjo {mat} materiales y {o2} de oxígeno{harvest}.{plant}',
     en: 'Welcome back. You were away {time}. Meanwhile the base made {mat} materials and {o2} oxygen{harvest}.{plant}',
