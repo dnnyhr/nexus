@@ -80,6 +80,13 @@ export class Hud {
   private clockLabel = el('span.label');
   private clockValue = el('span.big');
   private showerTag = el('div.shower');
+  private stormBox = el('div', { id: 'storm', class: 'hidden' });
+  private stormTitle = el('span.title');
+  private stormTime = el('span.big');
+  private stormInfo = el('span.label');
+  private vignette = el('div', { id: 'vignette' });
+  private dataBtn: HTMLButtonElement;
+  dataPanel: (() => HTMLElement) | null = null;
   private showerName: string | null = null;
   private rail = el('div.rail');
   private railDone = el('div.done-line');
@@ -129,6 +136,8 @@ export class Hud {
     markLang();
 
     // Radio.
+    this.stormBox.append(this.stormTitle, this.stormTime, this.stormInfo);
+    this.dataBtn = el('button.t-btn', { onclick: () => this.toggleData() }, el('span', { 'data-label': 'nasaData' }, t('nasaData')));
     this.radioBox.append(
       el('div.from', {}, el('span.dot'), this.radioFrom),
       this.radioMsg,
@@ -136,7 +145,7 @@ export class Hud {
     );
 
     this.prompt.addEventListener('click', () => deps.action());
-    this.root.append(band, el('div', { id: 'topright' }, this.powerBtn, this.shelterBtn, langBox), this.radioBox, this.prompt, this.hint, this.arrow, this.showerTag);
+    this.root.append(this.vignette, band, el('div', { id: 'topright' }, this.dataBtn, this.powerBtn, this.shelterBtn, langBox), this.stormBox, this.radioBox, this.prompt, this.hint, this.arrow, this.showerTag);
     document.body.append(this.root);
     this.joystick = new Joystick(this.root);
     // Touch buttons: hop (hold to keep hopping) and dig.
@@ -203,6 +212,28 @@ export class Hud {
     this.show(makePanel(kind, this.context(anchor)), anchor, kind);
   }
 
+  private toggleData(): void {
+    if (this.panel?.kind === 'data') return this.close();
+    if (!this.dataPanel) return;
+    const node = this.dataPanel();
+    const head = el('div.head', {}, el('h3', {}, t('nasaData')), el('button.close', { onclick: () => this.close() }, '✕'));
+    const panelEl = el('div.panel.interactive', {}, head, node);
+    this.show({ el: panelEl, update: () => {} }, null, 'data');
+  }
+
+  /** Solar storm alert: countdown, dose, and a red pulse when caught outside. */
+  setStorm(info: { phase: 'none' | 'warning' | 'active'; seconds: number; label: string; dose: number; exposed: boolean } | null, time: number): void {
+    const on = !!info && info.phase !== 'none';
+    this.stormBox.classList.toggle('hidden', !on);
+    this.vignette.style.opacity = on && info!.phase === 'active' && info!.exposed ? String(0.55 + 0.45 * Math.sin(time * 5)) : '0';
+    if (!on) return;
+    const sec = Math.max(0, Math.ceil(info!.seconds));
+    const mmss = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+    setText(this.stormTitle, `${t('stormTitle')} · ${info!.label}`);
+    setText(this.stormTime, info!.phase === 'warning' ? t('stormArrives', { t: mmss }) : t('stormActive', { t: mmss }));
+    setText(this.stormInfo, t('stormDose', { d: info!.dose.toFixed(1) }));
+  }
+
   private toggleMenu(): void {
     if (this.panel?.kind === 'power') return this.close();
     this.show(makePowerPanel(this.context(null)), null, 'power');
@@ -212,6 +243,7 @@ export class Hud {
     const p = this.panel!;
     this.close();
     if (p.kind === 'power') this.toggleMenu();
+    else if (p.kind === 'data') this.toggleData();
     else if (p.anchor) this.open(p.kind as PanelKind, p.anchor);
   }
 
