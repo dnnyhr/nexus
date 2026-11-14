@@ -1,9 +1,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { CYCLE } from './game/config';
-import { tick, type PowerReport } from './game/sim';
+import { collectByHand, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
+import { findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
+import { Effects } from './scene/fx';
+import { Hud } from './ui/hud';
+import { t } from './ui/i18n';
+import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
 import { createLighting } from './scene/lighting';
 import { createSky } from './scene/sky';
@@ -45,6 +50,50 @@ scene.add(base.group);
 base.sync(state);
 
 let power: PowerReport = tick(state, 0);
+const fx = new Effects();
+scene.add(fx.group);
+
+const clock = new THREE.Clock();
+const hud = new Hud({
+  s: state,
+  camera,
+  power: () => power,
+  changed: () => base.sync(state),
+  poke: (o) => { if (o) poke(o, clock.elapsedTime); },
+});
+
+// ---- Tapping the world -------------------------------------------------------------------
+// A tap is a press and release without dragging the camera. Tapping a structure opens its
+// panel; tapping the ground digs regolith by hand.
+
+const PANEL_BY_ID: [string, PanelKind][] = [
+  ['station', 'station'], ['greenhouse', 'greenhouse'], ['processor', 'processor'], ['solar-mast', 'solarMast'],
+  ['battery', 'battery'], ['antenna', 'antenna'], ['lander', 'lander'], ['rover', 'rover'],
+  ['collector-robot', 'robots'], ['harvester-robot', 'robots'], ['commander', 'station'],
+];
+const raycaster = new THREE.Raycaster();
+let downAt: { x: number; y: number } | null = null;
+canvas.addEventListener('pointerdown', (e) => (downAt = { x: e.clientX, y: e.clientY }));
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 8) return;
+  const ndc = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const hit = raycaster.intersectObject(base.group, true)[0];
+  const model = findModel(hit?.object ?? null);
+  if (model) {
+    const id = model.userData.id as string;
+    const kind = PANEL_BY_ID.find(([prefix]) => id.startsWith(prefix))?.[1];
+    poke(model, clock.elapsedTime);
+    if (kind) hud.open(kind, model);
+    return;
+  }
+  if (hud.isOpen()) return hud.close();
+  const ground = raycaster.intersectObject(terrain, true).find((h) => h.object.name === 'ground');
+  if (!ground) return;
+  const got = collectByHand(state);
+  fx.dust(ground.point);
+  hud.float(ground.point.clone().add(new THREE.Vector3(0, 0.6, 0)), got > 0 ? t('regolithGain', { n: got }) : t('storageFull'), got === 0);
+});
 let night = cyclePhase(state.time).isDay ? 0 : 1;
 
 /** At the lunar south pole the Sun circles the horizon once per lunar day. */
@@ -61,7 +110,6 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
-const clock = new THREE.Clock();
 let acc = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -88,6 +136,8 @@ renderer.setAnimationLoop(() => {
 
   base.update(state, clock.elapsedTime, dt, Math.atan2(Math.cos(az), Math.sin(az)), power);
   animateSharedMaterials(clock.elapsedTime);
+  fx.update(dt);
+  hud.update(dt);
   controls.update();
   renderer.render(scene, camera);
 });
