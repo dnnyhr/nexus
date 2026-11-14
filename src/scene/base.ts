@@ -9,7 +9,6 @@ import { battery, solarMast } from '../models/power';
 import { processor } from '../models/processor';
 import { greenhouse, type GreenhouseLevel } from '../models/greenhouse';
 import { collectorRobot, harvesterRobot, rover } from '../models/vehicles';
-import { commander } from '../models/commander';
 import type { StationLevel } from '../models/habitat';
 import { heightAt } from './terrain';
 
@@ -55,14 +54,38 @@ export class BaseView {
     this.place('antenna', antenna(), SLOTS.antenna, Math.atan2(-30, -136));
     this.place('lander', lander(), SLOTS.lander, 0.4);
     this.place('rover', rover(), SLOTS.rover, -0.6);
-    const cmd = commander();
-    cmd.position.copy(SLOTS.station).add(new THREE.Vector3(-1.4, 0, 4.2));
-    this.group.add(cmd);
-    this.agents.push({
-      obj: cmd,
-      targets: [new THREE.Vector3(-7.4, 0, 0.8), new THREE.Vector3(2, 0, 7.2), new THREE.Vector3(11.5, 0, 0)],
-      index: 0, speed: 1.4, workSeconds: 6, workLeft: 0, moveMode: 'walk',
-    });
+  }
+
+  /** Footprints of every building on the ground (XZ boxes), for player collisions. */
+  colliders(): { obj: THREE.Object3D; box: THREE.Box2 }[] {
+    const out: { obj: THREE.Object3D; box: THREE.Box2 }[] = [];
+    for (const obj of this.buildings.keys()) {
+      // Each module is its own box so the player can walk between modules of a big station.
+      const parts = obj.userData.id?.startsWith('station') || obj.userData.id?.startsWith('greenhouse') ? obj.children : [obj];
+      for (const part of parts) {
+        const b3 = new THREE.Box3().setFromObject(part);
+        if (b3.isEmpty() || b3.max.y < 0.5) continue;
+        const box = new THREE.Box2(new THREE.Vector2(b3.min.x, b3.min.z), new THREE.Vector2(b3.max.x, b3.max.z));
+        // Thin parts (struts, masts) are easy to walk around; skip the tiny ones.
+        const size = box.getSize(new THREE.Vector2());
+        if (size.x < 0.3 && size.y < 0.3) continue;
+        box.expandByScalar(-Math.min(size.x, size.y) * 0.08);
+        out.push({ obj, box });
+      }
+    }
+    return out;
+  }
+
+  /** The building closest to a point, if its footprint is within `range` meters. */
+  nearest(pos: THREE.Vector3, range: number, colliders = this.colliders()): THREE.Object3D | null {
+    let best: THREE.Object3D | null = null;
+    let bestD = range;
+    const p = new THREE.Vector2(pos.x, pos.z);
+    for (const c of colliders) {
+      const d = c.box.distanceToPoint(p);
+      if (d < bestD) { bestD = d; best = c.obj; }
+    }
+    return best;
   }
 
   private place(id: string, obj: THREE.Object3D, at: THREE.Vector3, rotY = 0, slot?: Slot): void {

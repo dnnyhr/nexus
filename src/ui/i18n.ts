@@ -68,7 +68,11 @@ const STRINGS = {
   off: { es: 'Apagado', en: 'Off' },
   shortage: { es: 'Falta energía: se apagaron sistemas', en: 'Not enough power: systems shut down' },
 
-  tapGround: { es: 'Toca el suelo para juntar regolito', en: 'Tap the ground to collect regolith' },
+  tapGround: { es: 'Muévete con el joystick o WASD. Pulsa Acción para excavar regolito.', en: 'Move with the joystick or WASD. Press Action to dig regolith.' },
+  dig: { es: 'Excavar', en: 'Dig' },
+  use: { es: 'Usar: {x}', en: 'Use: {x}' },
+  getCloser: { es: 'Acércate para usarlo', en: 'Walk closer to use it' },
+  busy: { es: 'Trabajando…', en: 'Working…' },
   sender: { es: 'De: Dra. Rivera, directora de vuelo', en: 'From: Dr. Rivera, flight director' },
   menuBuild: { es: 'Construir', en: 'Build' },
   menuPower: { es: 'Energía', en: 'Power' },

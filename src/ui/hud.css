@@ -149,3 +149,43 @@ input[type='range'].hw-range { width: 100%; accent-color: #e8e4da; }
   .panel { width: 250px; }
   button.hw { min-height: 40px; padding: 7px 11px; }
 }
+
+/* ---- Joystick and action button ---- */
+#joystick {
+  position: absolute;
+  left: max(18px, env(safe-area-inset-left));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  width: 128px;
+  height: 128px;
+  border-radius: 50%;
+  background: rgba(92, 94, 96, 0.35);
+  border: 2px solid rgba(62, 64, 66, 0.9);
+  touch-action: none;
+  pointer-events: auto;
+}
+#joystick .knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-bottom-width: 3px;
+}
+@media (pointer: fine) { #joystick { display: none; } }
+
+#action {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  min-width: 150px;
+  min-height: 64px;
+  font-size: 16px;
+}
+#action.idle { color: #c9c6be; }
+#shelter { bottom: auto; top: max(54px, calc(env(safe-area-inset-top) + 44px)); }
+#actions { left: auto; bottom: auto; right: max(10px, env(safe-area-inset-right)); top: max(104px, calc(env(safe-area-inset-top) + 94px)); flex-direction: column; align-items: flex-end; }
+@media (pointer: fine) { #actions { } }
