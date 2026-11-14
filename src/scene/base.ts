@@ -13,6 +13,7 @@ import { collectorRobot, harvesterRobot, rover } from '../models/vehicles';
 import { setDamage } from '../models/damage';
 import type { StationLevel } from '../models/habitat';
 import { heightAt } from './terrain';
+import { mergeStatic } from './optimize';
 
 // The base as a 3D scene, built from the game state. Each building sits in a fixed slot
 // sized for its level-5 footprint, and is rebuilt only when its level changes.
@@ -108,6 +109,9 @@ export class BaseView {
       if (kind === 'processor') ghost.rotation.y = -Math.PI / 2;
       ghost.userData.site = kind;
       this.group.add(ghost);
+      ghost.updateMatrixWorld(true);
+      ghost.userData.box = new THREE.Box3().setFromObject(ghost);
+      mergeStatic(ghost);
       this.sites.set(key, { kind, obj: ghost });
     }
   }
@@ -136,7 +140,7 @@ export class BaseView {
     let best: { kind: BuildingKind; obj: THREE.Object3D } | null = null;
     let bestD = range;
     for (const site of this.sites.values()) {
-      const box = new THREE.Box3().setFromObject(site.obj);
+      const box = site.obj.userData.box as THREE.Box3;
       const d = new THREE.Box2(new THREE.Vector2(box.min.x, box.min.z), new THREE.Vector2(box.max.x, box.max.z)).distanceToPoint(new THREE.Vector2(pos.x, pos.z));
       if (d < bestD) { bestD = d; best = site; }
     }
@@ -145,20 +149,31 @@ export class BaseView {
 
   /** Footprints of every building on the ground (XZ boxes), for player collisions. */
   colliders(): { obj: THREE.Object3D; box: THREE.Box2 }[] {
-    const out: { obj: THREE.Object3D; box: THREE.Box2 }[] = [];
-    for (const obj of this.buildings.keys()) {
-      // Each module is its own box so the player can walk between modules of a big station.
-      const parts = obj.userData.id?.startsWith('station') || obj.userData.id?.startsWith('greenhouse') ? obj.children : [obj];
-      for (const part of parts) {
-        const b3 = new THREE.Box3().setFromObject(part);
-        if (b3.isEmpty() || b3.max.y < 0.5) continue;
-        const box = new THREE.Box2(new THREE.Vector2(b3.min.x, b3.min.z), new THREE.Vector2(b3.max.x, b3.max.z));
-        // Thin parts (struts, masts) are easy to walk around; skip the tiny ones.
-        const size = box.getSize(new THREE.Vector2());
-        if (size.x < 0.3 && size.y < 0.3) continue;
-        box.expandByScalar(-Math.min(size.x, size.y) * 0.08);
-        out.push({ obj, box });
+    if (!this.colliderCache) {
+      this.colliderCache = [];
+      for (const obj of this.buildings.keys()) {
+        for (const box of obj.userData.footprints as THREE.Box2[]) this.colliderCache.push({ obj, box });
       }
+    }
+    return this.colliderCache;
+  }
+
+  private colliderCache: { obj: THREE.Object3D; box: THREE.Box2 }[] | null = null;
+
+  /** Ground footprints of a placed building, one per module so the player can walk between them. */
+  private footprints(obj: THREE.Object3D): THREE.Box2[] {
+    obj.updateMatrixWorld(true);
+    const out: THREE.Box2[] = [];
+    const parts = obj.userData.id?.startsWith('station') || obj.userData.id?.startsWith('greenhouse') ? obj.children : [obj];
+    for (const part of parts) {
+      const b3 = new THREE.Box3().setFromObject(part);
+      if (b3.isEmpty() || b3.max.y < 0.5) continue;
+      const box = new THREE.Box2(new THREE.Vector2(b3.min.x, b3.min.z), new THREE.Vector2(b3.max.x, b3.max.z));
+      // Thin parts (struts, masts) are easy to walk around; skip the tiny ones.
+      const size = box.getSize(new THREE.Vector2());
+      if (size.x < 0.3 && size.y < 0.3) continue;
+      box.expandByScalar(-Math.min(size.x, size.y) * 0.08);
+      out.push(box);
     }
     return out;
   }
@@ -195,8 +210,13 @@ export class BaseView {
     obj.position.set(at.x, heightAt(at.x, at.z), at.z);
     obj.rotation.y = rotY;
     this.group.add(obj);
+    // Measure once (footprints, bounding box), then bake the static parts into few meshes.
+    obj.userData.footprints = this.footprints(obj);
+    obj.userData.box = new THREE.Box3().setFromObject(obj);
+    mergeStatic(obj);
     this.built.set(id, { key: '', obj });
     this.buildings.set(obj, slot ?? (id.split(':')[0] as Slot));
+    this.colliderCache = null;
   }
 
   /** Make the scene match the state: add, upgrade or remove buildings and robots. */
@@ -219,6 +239,7 @@ export class BaseView {
       this.group.remove(prev.obj);
       this.buildings.delete(prev.obj);
       this.built.delete(id);
+      this.colliderCache = null;
     }
     if (!key) return;
     this.place(id, build(), at, rotY);
@@ -240,6 +261,7 @@ export class BaseView {
     this.agents = this.agents.filter((a) => a.obj.userData.id === 'astronaut');
     want.forEach((kind, i) => {
       const obj = kind === 'collector' ? collectorRobot() : harvesterRobot();
+      mergeStatic(obj);
       this.group.add(obj);
       const targets = kind === 'collector'
         ? [DIG_SITES[i % DIG_SITES.length], UNLOAD]

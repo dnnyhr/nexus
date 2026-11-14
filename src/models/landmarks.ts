@@ -17,6 +17,7 @@ export function antenna(): THREE.Group {
   g.add(cyl(0.1, 0.1, 0.3, MAT.darkMetal, { pos: [0, 2.0, 0] }));
 
   const yaw = new THREE.Group();
+  yaw.userData.dynamic = true; // tracks Earth
   yaw.position.set(0, 2.15, 0);
   g.add(yaw);
   const head = dish(1.0, 0.55);

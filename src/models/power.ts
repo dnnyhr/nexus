@@ -21,6 +21,7 @@ export function solarMast(): THREE.Group {
 
   // Tracker: panel that rotates around the mast.
   const tracker = new THREE.Group();
+  tracker.userData.dynamic = true; // turns to follow the Sun
   tracker.position.y = base + 0.7;
   const w = 1.7;
   const h = 4.6;
