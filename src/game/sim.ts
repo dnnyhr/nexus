@@ -1,5 +1,5 @@
-import { COLLECT, CREW, PROCESSOR, STORAGE } from './config';
-import type { GameState } from './state';
+import { COLLECT, CREW, ENERGY, PROCESSOR, STORAGE } from './config';
+import { cyclePhase, type GameState } from './state';
 
 // Simulation step. Mutates the state in place; `dt` is in game seconds.
 // Order matters: energy is resolved first, because what has power decides what runs.
@@ -76,4 +76,54 @@ export function collectByHand(s: GameState): number {
   s.res.regolith += got;
   s.stats.regolithCollected += got;
   return got;
+}
+
+// ---------------------------------------------------------------------------------------
+// Energy: solar masts produce only during the lunar day; the battery carries the night.
+// When the battery runs dry, systems are shed in order: grow lights, robots, processor,
+// heating. Life support is always last. This is the night trade-off the player manages.
+
+export interface PowerReport {
+  generation: number;
+  demand: number;
+  running: Running;
+  /** True when something the player turned on had to be shut off for lack of energy. */
+  shortage: boolean;
+  lifeSupportPowered: boolean;
+}
+
+export function resolvePower(s: GameState, dt: number, isDay: boolean): PowerReport {
+  const generation = isDay ? s.counts.solarMast * ENERGY.solarPerMast : 0;
+  const robotsCount = s.levels.collectorRobot + s.levels.harvesterRobot;
+  const want = {
+    lights: (s.power.growLights / 100) * ENERGY.growLightsMaxDraw * Math.min(1, s.levels.greenhouse),
+    robots: s.power.robots && !s.sheltered && robotsCount > 0 ? ENERGY.robotDraw * robotsCount : 0,
+    processor: s.power.processor && !s.sheltered ? ENERGY.processorDraw : 0,
+    heating: s.power.heating && !isDay ? ENERGY.heatingDraw : 0,
+  };
+  let budget = s.res.energy / dt + generation - ENERGY.lifeSupportDraw;
+  const lifeSupportPowered = budget >= 0;
+  const on = { lights: 0, robots: false, processor: false, heating: false };
+  // Grant in reverse shedding order: heating first, lights last.
+  if (want.heating > 0 && budget >= want.heating) { on.heating = true; budget -= want.heating; }
+  if (want.processor > 0 && budget >= want.processor) { on.processor = true; budget -= want.processor; }
+  if (want.robots > 0 && budget >= want.robots) { on.robots = true; budget -= want.robots; }
+  if (want.lights > 0 && budget > 0) on.lights = s.power.growLights * Math.min(1, budget / want.lights);
+
+  const demand = ENERGY.lifeSupportDraw + (on.heating ? want.heating : 0) + (on.processor ? want.processor : 0) +
+    (on.robots ? want.robots : 0) + (want.lights > 0 ? want.lights * (on.lights / Math.max(1, s.power.growLights)) : 0);
+  const shortage = (want.heating > 0 && !on.heating) || (want.processor > 0 && !on.processor) ||
+    (want.robots > 0 && !on.robots) || on.lights < s.power.growLights - 0.5;
+
+  s.res.energy = clamp(s.res.energy + (generation - demand) * dt, 0, capacity(s).energy);
+  return { generation, demand, running: { ...on }, shortage, lifeSupportPowered };
+}
+
+/** One full game update: time of day, power, resources. Returns the power report for the HUD. */
+export function tick(s: GameState, dt: number): PowerReport {
+  const { isDay } = cyclePhase(s.time);
+  const report = resolvePower(s, dt, isDay);
+  step(s, dt, report.running);
+  if (!report.lifeSupportPowered) s.crewHealth = clamp(s.crewHealth - 0.3 * dt, 0, 100);
+  return report;
 }
