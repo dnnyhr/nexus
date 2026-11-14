@@ -102,7 +102,8 @@ export function astronaut(): THREE.Group {
   let crouch = 0;
   let walkBlend = 0;
   let tuck = 0;
-  setModes(g, ['idle', 'walk', 'work', 'jump']);
+  let absorb = 0;
+  setModes(g, ['idle', 'walk', 'work', 'jump', 'land']);
   addAnimator(g, (t, dt, mode) => {
     walkBlend = approach(walkBlend, mode === 'walk' ? 1 : 0, 6, dt);
     const load = (g.userData.load as number | undefined) ?? 0;
@@ -110,18 +111,20 @@ export function astronaut(): THREE.Group {
     sack.scale.setScalar(0.45 + 0.55 * load);
     crouch = approach(crouch, mode === 'work' ? 1 : 0, 4, dt);
     tuck = approach(tuck, mode === 'jump' ? 1 : 0, 9, dt);
+    // Landing: knees bend fast to absorb the impact, then straighten.
+    absorb = approach(absorb, mode === 'land' ? 1 : 0, mode === 'land' ? 22 : 8, dt);
     const p = t * 5.2; // lope cadence
     const w = walkBlend;
 
     // Lunar lope: both legs push together, the body floats up between steps.
-    pelvis.position.y = hipY + w * Math.abs(Math.sin(p)) * 0.09 - crouch * 0.32;
-    torso.rotation.x = w * 0.12 + crouch * 0.35 + tuck * 0.1 + Math.sin(t * 1.6) * 0.015 * (1 - w);
+    pelvis.position.y = hipY + w * Math.abs(Math.sin(p)) * 0.09 - crouch * 0.32 - absorb * 0.14;
+    torso.rotation.x = w * 0.12 + crouch * 0.35 + tuck * 0.1 + absorb * 0.18 + Math.sin(t * 1.6) * 0.015 * (1 - w);
     legs.forEach(({ hip, knee, ankle }, i) => {
       const s = i === 0 ? 1 : -1;
       const swing = Math.sin(p + (i === 0 ? 0 : 0.6)) * 0.45 * w;
       // In a hop both legs tuck together, one slightly ahead.
-      hip.rotation.x = (-swing * s * 0.7 - w * 0.12) * (1 - tuck) - crouch * 1.0 - tuck * (0.35 + (i === 0 ? 0.15 : 0));
-      knee.rotation.x = w * (0.18 + Math.max(0, Math.sin(p + 1.2)) * 0.45) * (1 - tuck) + crouch * 1.55 + tuck * 0.55;
+      hip.rotation.x = (-swing * s * 0.7 - w * 0.12) * (1 - tuck) - crouch * 1.0 - tuck * (0.35 + (i === 0 ? 0.15 : 0)) - absorb * 0.5;
+      knee.rotation.x = w * (0.18 + Math.max(0, Math.sin(p + 1.2)) * 0.45) * (1 - tuck) + crouch * 1.55 + tuck * 0.55 + absorb * 0.9;
       // Keep the boot level with the ground whatever the leg does.
       ankle.rotation.x = -(hip.rotation.x + knee.rotation.x);
     });

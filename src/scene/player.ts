@@ -13,6 +13,9 @@ const HOP = 3.5; // m/s while airborne: a bit faster than walking, not flying
 // A low bunny hop like the Apollo astronauts': ~0.25 m high, ~1.1 s in the air.
 const HOP_SPEED_UP = 0.9; // initial vertical speed of a hop, m/s
 const MOON_G = 1.62; // m/s², lunar gravity
+/** After landing, the knees absorb the impact before the next push-off. */
+const LANDING_RECOVERY = 0.35; // s
+const LANDING_SPEED = 0.45; // fraction of walking speed while absorbing the landing
 const RADIUS = 0.35;
 const WORLD_LIMIT = 60;
 
@@ -24,6 +27,7 @@ export class Player {
   private onDone: (() => void) | null = null;
   private height = 0;
   private vy = 0;
+  private landing = 0;
 
   constructor(start: THREE.Vector3) {
     this.obj.position.copy(start);
@@ -49,8 +53,9 @@ export class Player {
     return this.busy > 0;
   }
 
+  /** Push off for a hop: only from the ground and once the last landing is absorbed. */
   jump(): void {
-    if (this.busy > 0 || this.airborne) return;
+    if (this.busy > 0 || this.airborne || this.landing > 0) return;
     this.vy = HOP_SPEED_UP;
   }
 
@@ -92,8 +97,12 @@ export class Player {
       if (this.height <= 0) {
         this.height = 0;
         this.vy = 0;
-        if (holdJump) this.jump();
+        this.landing = LANDING_RECOVERY;
       }
+    } else if (this.landing > 0) {
+      this.landing -= dt;
+      // Holding the jump key hops again as soon as the landing is absorbed.
+      if (this.landing <= 0 && holdJump) this.jump();
     }
 
     const len = Math.min(1, input.length());
@@ -102,7 +111,8 @@ export class Player {
       let turn = heading - this.obj.rotation.y;
       turn = Math.atan2(Math.sin(turn), Math.cos(turn));
       this.obj.rotation.y += turn * Math.min(1, dt * 10);
-      const step = (this.airborne ? HOP : WALK) * len * dt;
+      const speed = this.airborne ? HOP : this.landing > 0 ? WALK * LANDING_SPEED : WALK;
+      const step = speed * len * dt;
       const dir = input.clone().normalize();
       const nx = this.position.x + dir.x * step;
       const nz = this.position.z + dir.y * step;
@@ -120,6 +130,6 @@ export class Player {
       }
     }
     this.position.y = heightAt(this.position.x, this.position.z) + this.height;
-    setMode(this.obj, this.airborne ? 'jump' : len >= 0.08 ? 'walk' : 'idle');
+    setMode(this.obj, this.airborne ? 'jump' : this.landing > 0 ? 'land' : len >= 0.08 ? 'walk' : 'idle');
   }
 }
