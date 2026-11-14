@@ -60,11 +60,29 @@ export function astronaut(): THREE.Group {
     torso.add(strut([s * 0.21, 0.2, 0.05], [s * 0.12, 0.27, 0.19], 0.022, MAT.darkMetal));
   }
 
-  // Regolith sample bag on the hip; its size shows the load (userData.load, 0-1).
-  const sack = joint(torso, -0.27, 0.12, -0.08);
-  sack.add(box(0.2, 0.24, 0.24, MAT.regolithPiled, { pos: [0, -0.12, 0] }));
-  sack.add(box(0.21, 0.04, 0.25, MAT.darkMetal, { pos: [0, -0.035, 0] }));
-  sack.visible = false;
+  // Regolith sample bag hanging at the left side, out past the swinging arm so it is easy to
+  // see filling up, hung from a strap across the chest. It is always
+  // carried; regolith rises inside it with the load (userData.load 0-1) and the bag itself
+  // is bigger at higher bag levels (userData.bagLevel 1-3).
+  const bag = joint(torso, -0.44, 0.02, -0.1);
+  const bagBody = joint(bag, 0, 0, 0);
+  bagBody.add(mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.26, 8), MAT.hullShade, { pos: [0, -0.14, 0], scale: [0.8, 1, 1] }));
+  bagBody.add(mesh(new THREE.CylinderGeometry(0.135, 0.135, 0.05, 8), BAND.industry, { pos: [0, -0.06, 0], scale: [0.8, 1, 1] }));
+  bagBody.add(mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.03, 8), MAT.darkMetal, { pos: [0, -0.265, 0], scale: [0.8, 1, 1] }));
+  // Regolith inside: a faceted heap that rises out of the open top as the bag fills.
+  const fill = joint(bagBody, 0, -0.02, 0);
+  fill.add(mesh(new THREE.IcosahedronGeometry(0.1, 0), MAT.regolithPiled, { scale: [0.85, 0.55, 1] }));
+  fill.add(mesh(new THREE.DodecahedronGeometry(0.05, 0), MAT.regolithDark, { pos: [0.03, 0.04, 0.03] }));
+  // Flap hinged at the back of the opening; it lifts as the heap grows.
+  const flap = joint(bagBody, 0, -0.01, -0.11);
+  flap.add(box(0.2, 0.02, 0.2, MAT.hullShade, { pos: [0, 0, 0.1] }));
+  flap.add(box(0.05, 0.03, 0.04, MAT.darkMetal, { pos: [0, -0.014, 0.19] }));
+  flap.rotation.x = -0.15;
+  // Strap across the chest, from the bag to the right shoulder, with a buckle.
+  // Strap: from the bag up the side to the right shoulder, across the chest, with a buckle.
+  bag.add(strut([0.07, -0.02, 0.06], [0.2, 0.44, 0.24], 0.018, MAT.darkMetal));
+  bag.add(strut([0.2, 0.44, 0.24], [0.68, 0.5, 0.27], 0.018, MAT.darkMetal));
+  bag.add(box(0.05, 0.05, 0.02, MAT.structure, { pos: [0.44, 0.47, 0.28], rot: [0, 0, 0.1] }));
 
   // ---- Arms -------------------------------------------------------------------------
   const arms = [-1, 1].map((s) => {
@@ -107,8 +125,12 @@ export function astronaut(): THREE.Group {
   addAnimator(g, (t, dt, mode) => {
     walkBlend = approach(walkBlend, mode === 'walk' ? 1 : 0, 6, dt);
     const load = (g.userData.load as number | undefined) ?? 0;
-    sack.visible = load > 0.01;
-    sack.scale.setScalar(0.45 + 0.55 * load);
+    const bagLevel = (g.userData.bagLevel as number | undefined) ?? 1;
+    bagBody.scale.setScalar(1 + (bagLevel - 1) * 0.18);
+    fill.visible = load > 0.01;
+    fill.position.y = -0.2 + 0.25 * load;
+    fill.scale.setScalar(0.6 + 0.6 * load);
+    flap.rotation.x = -0.15 - load * 0.9;
     crouch = approach(crouch, mode === 'work' ? 1 : 0, 4, dt);
     tuck = approach(tuck, mode === 'jump' ? 1 : 0, 9, dt);
     // Landing: knees bend fast to absorb the impact, then straighten.
