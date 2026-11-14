@@ -7,6 +7,7 @@ import { greenhouse, type GreenhouseLevel } from './greenhouse';
 import { collectorRobot, harvesterRobot, rover } from './vehicles';
 import { antenna, lander } from './landmarks';
 import { astronaut } from './astronaut';
+import { setDamage } from './damage';
 
 export interface ModelEntry {
   id: string;
@@ -89,5 +90,21 @@ export const MODELS: ModelEntry[] = [
   { id: 'antenna', name: 'Antena de comunicaciones', build: antenna },
   { id: 'lander', name: 'Módulo de aterrizaje', build: lander },
   { id: 'astronaut', name: 'Astronauta', build: astronaut },
+  ...([
+    ['processor', 'Procesador', processor],
+    ['solar-mast', 'Mástil solar', solarMast],
+    ['station-3', 'Estación nivel 3', () => station(3)],
+    ['greenhouse-3', 'Invernadero nivel 3', () => greenhouse(3)],
+    ['antenna', 'Antena', antenna],
+    ['battery', 'Batería', battery],
+  ] as [string, string, () => THREE.Group][]).map(([id, name, build]) => ({
+    id: `damaged-${id}`,
+    name: `${name} · dañado por micrometeoritos`,
+    build: () => {
+      const m = build();
+      setDamage(m, 1);
+      return m;
+    },
+  })),
   { id: 'kit', name: 'Piezas compartidas', build: kitSample },
 ];

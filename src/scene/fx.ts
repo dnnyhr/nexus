@@ -51,3 +51,32 @@ export function createMarker(): THREE.Group {
   g.userData.chevron = chevron;
   return g;
 }
+
+/** Impact flash: a bright burst that fades in a fraction of a second. */
+export class Flashes {
+  readonly group = new THREE.Group();
+  private items: { mesh: THREE.Mesh; age: number }[] = [];
+
+  flash(at: THREE.Vector3): void {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xfff1c8, transparent: true, opacity: 1, depthWrite: false });
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4, 1), mat);
+    m.position.copy(at);
+    this.group.add(m);
+    this.items.push({ mesh: m, age: 0 });
+  }
+
+  update(dt: number): void {
+    for (const f of this.items) {
+      f.age += dt;
+      f.mesh.scale.setScalar(1 + f.age * 6);
+      (f.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - f.age / 0.45);
+    }
+    this.items = this.items.filter((f) => {
+      if (f.age < 0.45) return true;
+      this.group.remove(f.mesh);
+      f.mesh.geometry.dispose();
+      (f.mesh.material as THREE.Material).dispose();
+      return false;
+    });
+  }
+}
