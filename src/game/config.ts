@@ -83,6 +83,24 @@ export const SHIELD = {
   shelterBonus: 45,
 };
 
+/** Micrometeoroid damage. Damage per building goes from 0 (fine) to 1 (badly hit). */
+export const DAMAGE = {
+  /** Mean seconds between impacts on the base on a quiet day; showers make them more frequent. */
+  meanInterval: 240,
+  showerBoost: 4,
+  hitMin: 0.35,
+  hitMax: 0.6,
+  /** How much a fully damaged building loses: solar output, processing speed, battery size. */
+  solarLoss: 0.7,
+  processorLoss: 0.7,
+  batteryLoss: 0.5,
+  /** A punctured greenhouse loses water faster; a punctured habitat leaks oxygen. */
+  greenhouseLeak: 2,
+  stationO2Leak: 0.06,
+  repairBase: 6,
+  repairPerDamage: 18,
+};
+
 export const OFFLINE = {
   maxSeconds: 8 * 3600,
 };

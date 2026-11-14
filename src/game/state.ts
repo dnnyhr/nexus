@@ -56,6 +56,8 @@ export interface GameState {
   };
   power: PowerSettings;
   plant: Plant;
+  /** Micrometeoroid damage per building key ('processor', 'solarMast:0', ...), 0-1. */
+  damage: Record<string, number>;
   /** Regolith in the astronaut's bag, not yet delivered to the processor. */
   carried: number;
   crewHealth: number;
@@ -82,6 +84,7 @@ export function newGame(now = Date.now()): GameState {
     counts: { solarMast: 0, battery: 0 },
     power: { heating: true, processor: true, robots: true, growLights: 60 },
     plant: { water: 50, light: 50, temp: 50, growth: 0, stress: 0, maxStressTime: 0, dead: false },
+    damage: {},
     carried: 0,
     crewHealth: 100,
     sheltered: false,
