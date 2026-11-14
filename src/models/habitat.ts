@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { addAnimator, joint, pokeAge } from './anim';
 import { BAND, MAT } from './palette';
-import { asModel, beacon, berm, box, dome, foot, hullBand, mesh, ringBand, rock, strut, windowPane } from './kit';
+import { asModel, beacon, berm, box, dish, dome, foot, hullBand, mesh, ringBand, rock, strut, windowPane } from './kit';
 
 // The station grows in 5 levels around a central node, like a real modular outpost:
 //   1. Core module with airlock (the first habitat that lands).
@@ -228,7 +228,7 @@ function floodlight(): THREE.Group {
   const g = new THREE.Group();
   g.add(mesh(new THREE.CylinderGeometry(0.06, 0.09, 3.6, 8), MAT.structure, { pos: [0, 1.8, 0] }));
   g.add(box(0.7, 0.12, 0.12, MAT.darkMetal, { pos: [0, 3.55, 0] }));
-  for (const x of [-0.25, 0.25]) g.add(box(0.22, 0.16, 0.14, MAT.beacon, { pos: [x, 3.45, 0.08], rot: [0.4, 0, 0] }));
+  for (const x of [-0.25, 0.25]) g.add(box(0.22, 0.16, 0.14, MAT.lamp, { pos: [x, 3.45, 0.08], rot: [0.4, 0, 0] }));
   g.add(mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.08, 8), MAT.darkMetal, { pos: [0, 0.04, 0] }));
   return g;
 }
@@ -238,8 +238,13 @@ function commsMast(): THREE.Group {
   const g = new THREE.Group();
   for (const a of [0, (Math.PI * 2) / 3, (Math.PI * 4) / 3]) g.add(strut([Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5], [0, 5.2, 0], 0.04));
   for (const y of [1.6, 3.2]) g.add(ringBand(0.33 - y * 0.05, 0.05, y, MAT.structure));
+  // Dish mounted on a short arm off the mast.
   const dishYaw = joint(g, 0, 4.6, 0);
-  dishYaw.add(mesh(new THREE.SphereGeometry(0.55, 12, 3, 0, Math.PI * 2, 0, 0.6), MAT.hullDouble, { pos: [0, 0, 0.2], rot: [-1.25, 0, 0] }));
+  dishYaw.add(strut([0, 0, 0], [0, 0, 0.3], 0.035));
+  const d = dish(0.55);
+  d.position.z = 0.3;
+  d.rotation.x = 1.25;
+  dishYaw.add(d);
   g.userData.dish = dishYaw;
   g.add(strut([0, 5.45, 0], [0, 6.4, 0], 0.02));
   const b = beacon(0.15);

@@ -104,3 +104,38 @@ describe('open surfaces are double-sided (no see-through backs)', () => {
     });
   }
 });
+
+// Floating parts: every mesh must be connected to the ground through a chain of touching
+// parts. Two parts "touch" when their world bounding boxes overlap or are within 2 cm.
+// Rotated parts get loose boxes, so this can miss a gap but never invents one.
+function floatingParts(root: THREE.Object3D): string[] {
+  root.updateMatrixWorld(true);
+  const parts: { name: string; box: THREE.Box3 }[] = [];
+  root.traverse((o) => {
+    if (o instanceof THREE.Mesh && o.visible) {
+      const b = new THREE.Box3().setFromObject(o);
+      const c = b.getCenter(new THREE.Vector3());
+      parts.push({ name: `${o.geometry.type}@${c.toArray().map((v) => v.toFixed(2)).join(',')}`, box: b.expandByScalar(0.02) });
+    }
+  });
+  const grounded = new Set<number>();
+  const queue: number[] = [];
+  parts.forEach((p, i) => {
+    if (p.box.min.y <= 0.03) { grounded.add(i); queue.push(i); }
+  });
+  while (queue.length) {
+    const i = queue.pop()!;
+    parts.forEach((p, j) => {
+      if (!grounded.has(j) && p.box.intersectsBox(parts[i].box)) { grounded.add(j); queue.push(j); }
+    });
+  }
+  return parts.filter((_, i) => !grounded.has(i)).map((p) => p.name);
+}
+
+describe('no floating parts (everything connects to the ground)', () => {
+  for (const entry of MODELS.filter((m) => !m.id.endsWith('progression') && m.id !== 'lineup' && m.id !== 'kit')) {
+    it(entry.id, () => {
+      expect(floatingParts(entry.build())).toEqual([]);
+    });
+  }
+});
