@@ -89,10 +89,13 @@ export const SHIELD = {
 /** Micrometeoroid damage. Damage per building goes from 0 (fine) to 1 (badly hit). */
 export const DAMAGE = {
   /** Mean seconds between impacts on the base on a quiet day; showers make them more frequent. */
-  meanInterval: 240,
-  showerBoost: 4,
-  hitMin: 0.35,
-  hitMax: 0.6,
+  meanInterval: 420,
+  showerBoost: 2.5,
+  hitMin: 0.25,
+  hitMax: 0.45,
+  /** No new impacts while this many buildings are already badly damaged (time to repair). */
+  maxBadlyDamaged: 2,
+  badlyDamaged: 0.5,
   /** How much a fully damaged building loses: solar output, processing speed, battery size. */
   solarLoss: 0.7,
   processorLoss: 0.7,
@@ -122,6 +125,16 @@ export const STORM = {
   landerProtection: 0.6,
   /** Crew health lost per mSv received. */
   healthPerMsv: 0.35,
+};
+
+/** Emergency supply drop from Earth when the crew is in danger, so a base never gets stuck. */
+export const RESCUE = {
+  healthThreshold: 25,
+  cooldown: 180,
+  /** Fraction of storage refilled for O2, water, food and energy. */
+  refill: 0.45,
+  materials: 30,
+  healthAfter: 45,
 };
 
 export const OFFLINE = {

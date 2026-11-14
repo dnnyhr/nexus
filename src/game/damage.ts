@@ -26,10 +26,15 @@ export function impactChance(dt: number, shower: number): number {
   return 1 - Math.exp((-dt * (1 + DAMAGE.showerBoost * shower)) / DAMAGE.meanInterval);
 }
 
+/** Impacts pause while several buildings are already badly damaged, to leave time to repair. */
+export function canImpact(s: GameState): boolean {
+  return builtKeys(s).filter((k) => damageOf(s, k) >= DAMAGE.badlyDamaged).length < DAMAGE.maxBadlyDamaged;
+}
+
 /** Hit a random built structure. Returns its key, or null when nothing is built yet. */
 export function impact(s: GameState, rand: () => number = Math.random): string | null {
   const keys = builtKeys(s);
-  if (!keys.length) return null;
+  if (!keys.length || !canImpact(s)) return null;
   const key = keys[Math.floor(rand() * keys.length)];
   const hit = DAMAGE.hitMin + rand() * (DAMAGE.hitMax - DAMAGE.hitMin);
   s.damage[key] = Math.min(1, damageOf(s, key) + hit);

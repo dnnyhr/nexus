@@ -80,3 +80,41 @@ export class Flashes {
     });
   }
 }
+
+/** Emergency cargo pod: falls from the sky, lands with dust, stays a while, then is gone. */
+export class CargoDrops {
+  readonly group = new THREE.Group();
+  private pods: { obj: THREE.Group; age: number; at: THREE.Vector3; landed: boolean }[] = [];
+  constructor(private onLand: (at: THREE.Vector3) => void) {}
+
+  drop(at: THREE.Vector3): void {
+    const pod = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.8, 1.6, 8), MAT.hull);
+    body.position.y = 0.8;
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.7, 0.7, 8), MAT.hullShade);
+    cap.position.y = 1.95;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.72, 0.2, 8), MAT.bandHabitat);
+    band.position.y = 1.1;
+    for (const m of [body, cap, band]) { m.castShadow = true; pod.add(m); }
+    pod.position.set(at.x, 40, at.z);
+    this.group.add(pod);
+    this.pods.push({ obj: pod, age: 0, at: at.clone(), landed: false });
+  }
+
+  update(dt: number): void {
+    for (const p of this.pods) {
+      p.age += dt;
+      const k = Math.min(1, p.age / 2.5);
+      p.obj.position.y = p.at.y + 40 * (1 - k * k);
+      if (k >= 1 && !p.landed) {
+        p.landed = true;
+        this.onLand(p.at);
+      }
+    }
+    this.pods = this.pods.filter((p) => {
+      if (p.age < 40) return true;
+      this.group.remove(p.obj);
+      return false;
+    });
+  }
+}
