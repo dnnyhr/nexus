@@ -110,6 +110,32 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
+// ---- Keyboard camera (desktop): WASD / arrows pan, Q / E rotate ------------------------
+const keys = new Set<string>();
+window.addEventListener('keydown', (e) => {
+  if ((e.target as HTMLElement).tagName === 'INPUT') return;
+  keys.add(e.key.toLowerCase());
+});
+window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+window.addEventListener('blur', () => keys.clear());
+
+function keyboardCamera(dt: number): void {
+  const fwd = (keys.has('w') || keys.has('arrowup') ? 1 : 0) - (keys.has('s') || keys.has('arrowdown') ? 1 : 0);
+  const side = (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0);
+  const turn = (keys.has('e') ? 1 : 0) - (keys.has('q') ? 1 : 0);
+  if (!fwd && !side && !turn) return;
+  const dir = new THREE.Vector3().subVectors(controls.target, camera.position).setY(0).normalize();
+  const right = new THREE.Vector3(-dir.z, 0, dir.x);
+  const speed = 0.6 * camera.position.distanceTo(controls.target) * dt;
+  const move = dir.multiplyScalar(fwd * speed).addScaledVector(right, side * speed);
+  controls.target.add(move);
+  camera.position.add(move);
+  if (turn) {
+    const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), -turn * dt * 1.2);
+    camera.position.copy(controls.target).add(offset);
+  }
+}
+
 let acc = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
@@ -128,6 +154,7 @@ renderer.setAnimationLoop(() => {
   const az = sunAzimuth(state.time);
   light.sun.position.set(Math.cos(az) * 40, 4 + (1 - night) * 3, Math.sin(az) * 40);
 
+  keyboardCamera(dt);
   // Keep the camera over the base.
   const t = controls.target;
   const r = Math.hypot(t.x, t.z);
