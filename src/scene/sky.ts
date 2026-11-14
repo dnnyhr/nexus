@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeStatic } from './optimize';
 
 // Black sky with stars, a ring of distant mountains, and Earth sitting low on the horizon,
 // as seen from the lunar south pole.
@@ -52,6 +53,8 @@ export function createSky(radius = 160): THREE.Group {
   const earth = new THREE.Mesh(earthGeo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: 0x0d1626 }));
   earth.position.set(-30, 34, -radius * 0.85);
   earth.name = 'earth';
+  earth.userData.dynamic = true; // keep its vertex colors out of merging
   g.add(earth);
+  mergeStatic(g);
   return g;
 }

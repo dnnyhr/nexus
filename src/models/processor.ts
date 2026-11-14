@@ -92,6 +92,7 @@ export function processor(): THREE.Group {
   const puffs = [0, 1, 2].map((i) => {
     const p = mesh(new THREE.IcosahedronGeometry(0.18 + i * 0.05, 0), puffMat);
     p.visible = false;
+    p.userData.dynamic = true;
     reactor.add(p);
     return p;
   });

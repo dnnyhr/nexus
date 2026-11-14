@@ -115,6 +115,7 @@ export function collectorRobot(): THREE.Group {
   for (const s of [-1, 1]) bucket.add(box(0.04, 0.27, 0.38, MAT.structure, { pos: [s * 0.4, -0.04, 0.14] }));
   for (let i = 0; i < 5; i++) bucket.add(box(0.05, 0.03, 0.08, MAT.darkMetal, { pos: [-0.3 + i * 0.15, -0.17, 0.33] }));
   const load = new THREE.Group();
+  load.userData.dynamic = true;
   for (let i = 0; i < 3; i++) {
     const k = rock(0.1, i + 70, MAT.regolithPiled);
     k.position.set(-0.2 + i * 0.2, -0.1, 0.12);
@@ -157,6 +158,7 @@ export function harvesterRobot(): THREE.Group {
     for (const z of [-0.33, 0.33]) g.add(mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.17, 8), MAT.darkMetal, { pos: [s * 0.32, 0.12, z], rot: [0, 0, Math.PI / 2] }));
     for (const z of [-0.2, 0, 0.2]) {
       const r = mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.17, 8), MAT.hullShade, { pos: [s * 0.32, 0.1, z], rot: [0, 0, Math.PI / 2] });
+      r.userData.dynamic = true;
       g.add(r);
       rollers.push(r);
     }
