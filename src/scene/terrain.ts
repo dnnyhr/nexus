@@ -6,7 +6,7 @@ import { rock } from '../models/kit';
 // center, and one large permanently shadowed crater with water ice on its floor.
 // Deterministic: the same terrain every time.
 
-export const BUILD_RADIUS = 16;
+export const BUILD_RADIUS = 26;
 export const ICE_CRATER = { x: 34, z: -30, r: 11 };
 
 const CRATERS = [
