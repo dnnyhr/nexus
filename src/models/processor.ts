@@ -97,11 +97,17 @@ export function processor(): THREE.Group {
   });
 
   const travel = rampLen - 0.4;
+  // userData.active (set by the game): false when switched off or without power.
+  let belt = 0;
+  let fanSpeed = 9;
   addAnimator(g, (t, dt) => {
-    fan.rotation.y += dt * 9;
+    const active = g.userData.active !== false;
+    fanSpeed += ((active ? 9 : 0) - fanSpeed) * Math.min(1, dt * 1.5);
+    fan.rotation.y += dt * fanSpeed;
+    belt += dt * 0.12 * (fanSpeed / 9);
     // Cleats run up the belt (towards local -Z, the hopper end).
     cleats.forEach((c, i) => {
-      const u = (i / cleats.length + t * 0.12) % 1;
+      const u = (i / cleats.length + belt) % 1;
       c.position.z = travel / 2 - u * travel;
       c.visible = u > 0.03 && u < 0.97;
     });
