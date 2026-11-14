@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { setMode } from '../models/anim';
 import { astronaut } from '../models/astronaut';
 import { heightAt } from './terrain';
+import { mergeStatic } from './optimize';
 
 // The astronaut, driven by the player. Movement comes as a 2D input already turned to
 // world directions. The body turns where it walks, slides along building footprints, and
@@ -31,6 +32,7 @@ export class Player {
 
   constructor(start: THREE.Vector3) {
     this.obj.position.copy(start);
+    mergeStatic(this.obj);
   }
 
   get position(): THREE.Vector3 {
