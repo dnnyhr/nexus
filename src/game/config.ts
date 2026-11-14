@@ -97,12 +97,13 @@ export const COSTS: Record<BuildingKind, number[]> = {
   shield: [0, 50, 90, 140],
 };
 
+/** Maximum level for upgradable buildings, or maximum count for repeatable ones. */
 export const MAX_LEVEL: Record<BuildingKind, number> = {
   station: 5,
   greenhouse: 5,
   processor: 3,
-  solarMast: 1,
-  battery: 1,
+  solarMast: 6,
+  battery: 4,
   collectorRobot: 3,
   harvesterRobot: 1,
   shield: 3,
