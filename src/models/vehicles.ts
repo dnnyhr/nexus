@@ -225,6 +225,9 @@ export function harvesterRobot(): THREE.Group {
 // ---------------------------------------------------------------------------------------
 // Expedition rover
 
+/** Where the astronaut model's origin goes when driving, in rover coordinates (right seat). */
+export const DRIVER_SEAT = new THREE.Vector3(0.34, 0.1, 0.1);
+
 /** Expedition rover: open two-seat terrain vehicle with independent suspension. 2 × 1 tiles. */
 export function rover(): THREE.Group {
   const g = new THREE.Group();
@@ -273,23 +276,24 @@ export function rover(): THREE.Group {
   }
   headlights(body, 0.45, 0.6, 1.68);
 
-  // Seats with frames and harness straps.
+  // Seats with frames and harness straps. Deep enough for a suited astronaut with a
+  // backpack; the driver sits on the right (DRIVER_SEAT).
   for (const x of [-0.34, 0.34]) {
-    body.add(strut([x - 0.18, 0.72, 0.1], [x - 0.18, 0.9, 0.1], 0.025));
-    body.add(strut([x + 0.18, 0.72, 0.1], [x + 0.18, 0.9, 0.1], 0.025));
-    body.add(box(0.48, 0.08, 0.46, MAT.hullShade, { pos: [x, 0.94, 0.1] }));
-    const back = joint(body, x, 0.98, -0.12);
+    body.add(strut([x - 0.18, 0.72, -0.04], [x - 0.18, 0.9, -0.04], 0.025));
+    body.add(strut([x + 0.18, 0.72, -0.04], [x + 0.18, 0.9, -0.04], 0.025));
+    body.add(box(0.48, 0.08, 0.56, MAT.hullShade, { pos: [x, 0.94, -0.04] }));
+    const back = joint(body, x, 0.98, -0.3);
     back.rotation.x = -0.18;
     back.add(box(0.48, 0.55, 0.07, MAT.hullShade, { pos: [0, 0.27, 0] }));
     back.add(box(0.06, 0.5, 0.02, BAND.industry, { pos: [-0.12, 0.25, 0.05] }));
     back.add(box(0.06, 0.5, 0.02, BAND.industry, { pos: [0.12, 0.25, 0.05] }));
   }
-  // Console with screen and hand controller.
-  const con = joint(body, 0, 1.0, 0.72);
+  // Console with screen, high and forward so the driver's legs fit under it.
+  const con = joint(body, 0, 1.1, 0.95);
   con.rotation.x = 0.5;
   con.add(box(0.9, 0.34, 0.16, MAT.hull));
   con.add(box(0.46, 0.18, 0.02, MAT.glass, { pos: [0, 0.03, 0.09] }));
-  body.add(strut([0, 0.72, 0.62], [0, 0.95, 0.66], 0.04));
+  body.add(strut([0, 0.72, 0.8], [0, 0.97, 0.87], 0.04));
   // Hand controller on a pedestal between the seats.
   body.add(box(0.16, 0.28, 0.24, MAT.hullShade, { pos: [0, 0.86, 0.42] }));
   body.add(strut([0, 1.0, 0.45], [0, 1.12, 0.47], 0.018, MAT.darkMetal));

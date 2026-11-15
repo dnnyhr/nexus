@@ -78,9 +78,24 @@ export class Player {
     this.position.z = p.y;
   }
 
+  /** Ride in a vehicle: sit at `seat` (vehicle coordinates), moving and tilting with it. */
+  sitAt(vehicle: THREE.Object3D, seat: THREE.Vector3): void {
+    this.obj.visible = true;
+    this.busy = 0;
+    this.height = 0;
+    this.vy = 0;
+    this.landing = 0;
+    vehicle.updateMatrixWorld();
+    this.position.copy(seat).applyMatrix4(vehicle.matrixWorld);
+    vehicle.getWorldQuaternion(this.obj.quaternion);
+    setMode(this.obj, 'sit');
+  }
+
   update(dt: number, input: THREE.Vector2, colliders: Footprint[], hidden: boolean, holdJump: boolean): void {
     this.obj.visible = !hidden;
     if (hidden) return;
+    this.obj.rotation.x = 0;
+    this.obj.rotation.z = 0;
     if (this.busy > 0) {
       this.busy -= dt;
       setMode(this.obj, 'work');

@@ -121,7 +121,8 @@ export function astronaut(): THREE.Group {
   let walkBlend = 0;
   let tuck = 0;
   let absorb = 0;
-  setModes(g, ['idle', 'walk', 'work', 'jump', 'land']);
+  let sit = 0;
+  setModes(g, ['idle', 'walk', 'work', 'jump', 'land', 'sit']);
   addAnimator(g, (t, dt, mode) => {
     walkBlend = approach(walkBlend, mode === 'walk' ? 1 : 0, 6, dt);
     const load = (g.userData.load as number | undefined) ?? 0;
@@ -135,18 +136,23 @@ export function astronaut(): THREE.Group {
     tuck = approach(tuck, mode === 'jump' ? 1 : 0, 9, dt);
     // Landing: knees bend fast to absorb the impact, then straighten.
     absorb = approach(absorb, mode === 'land' ? 1 : 0, mode === 'land' ? 22 : 8, dt);
+    // Seated in the rover: thighs level, shins forward to the footrest, inner hand on the
+    // controller. Snaps in fast so boarding does not show a half-standing pose.
+    sit = approach(sit, mode === 'sit' ? 1 : 0, 14, dt);
     const p = t * 5.2; // lope cadence
     const w = walkBlend;
 
     // Lunar lope: both legs push together, the body floats up between steps.
     pelvis.position.y = hipY + w * Math.abs(Math.sin(p)) * 0.09 - crouch * 0.32 - absorb * 0.14;
-    torso.rotation.x = w * 0.12 + crouch * 0.35 + tuck * 0.1 + absorb * 0.18 + Math.sin(t * 1.6) * 0.015 * (1 - w);
+    torso.rotation.x = w * 0.12 + crouch * 0.35 + tuck * 0.1 + absorb * 0.18 + Math.sin(t * 1.6) * 0.015 * (1 - w) - sit * 0.12;
     legs.forEach(({ hip, knee, ankle }, i) => {
       const s = i === 0 ? 1 : -1;
       const swing = Math.sin(p + (i === 0 ? 0 : 0.6)) * 0.45 * w;
       // In a hop both legs tuck together, one slightly ahead.
       hip.rotation.x = (-swing * s * 0.7 - w * 0.12) * (1 - tuck) - crouch * 1.0 - tuck * (0.35 + (i === 0 ? 0.15 : 0)) - absorb * 0.5;
       knee.rotation.x = w * (0.18 + Math.max(0, Math.sin(p + 1.2)) * 0.45) * (1 - tuck) + crouch * 1.55 + tuck * 0.55 + absorb * 0.9;
+      hip.rotation.x = hip.rotation.x * (1 - sit) - sit * 1.7;
+      knee.rotation.x = knee.rotation.x * (1 - sit) + sit * 0.85;
       // Keep the boot level with the ground whatever the leg does.
       ankle.rotation.x = -(hip.rotation.x + knee.rotation.x);
     });
@@ -155,8 +161,11 @@ export function astronaut(): THREE.Group {
       const work = Math.sin(t * 6 + i * Math.PI) * 0.25;
       shoulder.rotation.x = (1 - crouch) * (1 - tuck) * (Math.sin(p) * 0.35 * s * w + Math.sin(t * 1.2 + i) * 0.03 * (1 - w)) - crouch * (1.1 + work) - tuck * 0.45;
       elbow.rotation.x = -0.25 - w * 0.25 - crouch * (0.6 - work);
+      // Seated (driver's seat is on the right): the inner hand holds the controller, the other rests on the thigh.
+      shoulder.rotation.x = shoulder.rotation.x * (1 - sit) - sit * (i === 0 ? 0.6 : 0.45);
+      elbow.rotation.x = elbow.rotation.x * (1 - sit) - sit * (i === 0 ? 0.5 : 0.7);
     });
-    neck.rotation.y = (1 - w) * (1 - crouch) * Math.sin(t * 0.45) * 0.45;
+    neck.rotation.y = (1 - w) * (1 - crouch) * (1 - sit * 0.7) * Math.sin(t * 0.45) * 0.45;
     neck.rotation.x = crouch * 0.35;
   });
   return asModel(g, 'astronaut', 1, 1);
