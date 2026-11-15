@@ -144,6 +144,16 @@ export const RESCUE = {
   healthAfter: 45,
 };
 
+/** Expedition rover. Ice from the permanently shadowed crater becomes water at the base. */
+export const ROVER = {
+  maxSpeed: 6,
+  accel: 4,
+  iceCargoMax: 30,
+  icePerScoop: 15,
+  /** Water gained per unit of ice delivered (melted and filtered). */
+  waterPerIce: 1,
+};
+
 export const OFFLINE = {
   maxSeconds: 8 * 3600,
 };
