@@ -108,3 +108,26 @@ body.nx-mission #hud > #radio { display: none; }
   .nx-camera-host { bottom: auto; top: max(150px, calc(env(safe-area-inset-top) + 140px)); }
   .nx-intro p { font-size: 15px; }
 }
+
+/* Mission columns: radio on the right under the buttons, systems on the left between the
+   ribbon and the counters, so nothing overlaps at 1280×720 or larger. */
+body.nx-mission .x-radio {
+  left: auto;
+  right: max(12px, env(safe-area-inset-right));
+  top: max(146px, calc(env(safe-area-inset-top) + 136px));
+  width: min(380px, calc(100vw - 24px));
+}
+body.nx-mission .x-sys {
+  top: max(96px, calc(env(safe-area-inset-top) + 86px));
+  bottom: calc(110px + env(safe-area-inset-bottom));
+  max-height: none;
+  overflow-y: auto;
+  width: min(300px, calc(100vw - 24px));
+}
+body.nx-mission .x-sys.is-collapsed { bottom: auto; }
+body.nx-mission .x-sys__priority-row { padding-top: 1px; padding-bottom: 1px; }
+body.nx-mission .x-sys__priority-move { min-width: 30px; min-height: 28px; }
+.nx-camera-host .nx-camera button { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+@media (max-width: 900px), (max-height: 520px) {
+  body.nx-mission .x-radio { top: auto; bottom: calc(150px + env(safe-area-inset-bottom)); }
+}

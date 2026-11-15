@@ -695,7 +695,11 @@ export async function loadTelemetry(
     fetcher.json(donkiUrl(now, windowDays)),
     fetcher.json(DATA_SOURCES.goes.api),
     fetcher.json(DATA_SOURCES.solarWind.api),
-    fetcher.text(DATA_SOURCES.solarWindRtsw.api, { headers: { Range: 'bytes=-16384' } }),
+    // NOAA does not allow the Range header cross-origin and the full RTSW file is ~3 MB: in a
+    // browser the 1-minute summary above is the solar-wind source.
+    fetcher === defaultTelemetryFetcher && typeof window !== 'undefined'
+      ? Promise.reject(new Error('RTSW tail not available cross-origin'))
+      : fetcher.text(DATA_SOURCES.solarWindRtsw.api, { headers: { Range: 'bytes=-16384' } }),
   ]);
   return telemetryFromLive(
     {
