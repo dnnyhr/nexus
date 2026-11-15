@@ -18,7 +18,8 @@ import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
 import { Hud } from './ui/hud';
-import { getLang, t, type StringKey } from './ui/i18n';
+import { getLang, setPlayerName, t, type StringKey } from './ui/i18n';
+import { loadProfile } from './game/profile';
 import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
 import { createLighting } from './scene/lighting';
@@ -70,6 +71,9 @@ scene.add(createSky(), terrain);
 
 // Resume the saved game (simulating the time away), or start a new one.
 const loaded = loadGame();
+// The astronaut's name (kept apart from the save, so a new game keeps it).
+const profile = loadProfile();
+if (profile) setPlayerName(profile.name);
 export const state: GameState = loaded ?? newGame();
 const away = loaded ? simulateOffline(state, (Date.now() - loaded.savedAt) / 1000) : null;
 const base = new BaseView();
@@ -102,6 +106,8 @@ const hud = new Hud({
   jump: () => player.jump(),
   dig: () => dig(),
 });
+// First time here: ask the astronaut's name (it can be changed any time in Profile).
+if (!profile) hud.openProfile();
 
 /** Buildings and build sites follow the state (and what the missions have unlocked). */
 // Collector robots deliver one bucket per trip to the processor.
