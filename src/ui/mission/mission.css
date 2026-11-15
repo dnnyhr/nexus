@@ -1,0 +1,95 @@
+.m-menu, .m-prepare, .m-bar {
+  color: #fff;
+  background: var(--glass, #101114);
+  font-family: 'Barlow Semi Condensed', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  pointer-events: auto;
+  font-variant-numeric: tabular-nums;
+  scrollbar-color: var(--line, #ddd) #101114;
+}
+.m-menu *, .m-prepare *, .m-bar * { box-sizing: border-box; }
+.m-menu, .m-prepare {
+  width: min(100%, 880px);
+  max-height: 100dvh;
+  overflow-y: auto;
+  padding: 24px max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background: #101114;
+  margin-inline: auto;
+}
+.m-menu h2, .m-prepare h2 { font-size: 30px; line-height: 1.15; margin: 0 0 20px; text-wrap: balance; }
+.m-menu p, .m-prepare p { max-width: 70ch; }
+.m-objective { margin-bottom: 28px; }
+.m-free { margin-top: 24px; }
+.m-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--faint, #65666a);
+  border-radius: 2px;
+  color: inherit;
+  background: #17191d;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.m-btn:hover:not(:disabled) { border-color: var(--line, #fff); }
+.m-btn:active:not(:disabled) { background: #35383d; }
+.m-btn:disabled { color: #aeb0b5; cursor: not-allowed; border-style: dashed; }
+.m-primary, .m-btn[aria-pressed='true'] { color: #101114; background: #fff; font-weight: 600; }
+.m-primary:disabled { background: #35383d; }
+.m-btn:focus-visible, .m-prepare h2:focus-visible { outline: 3px solid var(--warn, #f2b54a); outline-offset: 3px; }
+.m-menu ::selection, .m-prepare ::selection, .m-bar ::selection { background: #fff; color: #101114; }
+.m-hidden { display: none; }
+.m-budget { font-size: 22px; }
+.m-reasons, .m-shortage { color: var(--danger, #e8604a); }
+.m-reasons span { display: block; }
+.m-reasons:empty, .m-shortage:empty { display: none; }
+.m-group { margin-top: 32px; }
+.m-group h3, .m-prev h3 { font-size: 22px; margin: 0 0 12px; }
+.m-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 20px;
+  padding: 16px 0;
+  border-top: 1px solid var(--faint, #65666a);
+}
+.m-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.m-price, .m-note, .m-hint, .m-effect { color: #c6c9cf; }
+.m-effect { margin: 0; grid-column: 1; }
+.m-stepper { grid-column: 2; grid-row: 1 / 3; display: flex; align-items: center; gap: 12px; }
+.m-step { padding: 8px; font-size: 22px; }
+.m-qty { min-width: 2ch; text-align: center; }
+.m-note { grid-column: 1 / -1; }
+.m-estimate { padding-block: 12px; border-block: 1px solid var(--faint, #65666a); }
+.m-prev { margin-top: 32px; }
+.m-actions, .m-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.m-actions { margin-top: 24px; }
+.m-bar { padding: 12px max(12px, env(safe-area-inset-right)) 12px max(12px, env(safe-area-inset-left)); width: 100%; }
+.m-status, .m-clock, .m-exposure { white-space: nowrap; }
+.m-paused .m-status { color: var(--warn, #f2b54a); }
+.m-next { margin: 10px 0 6px; }
+.m-timeline { position: relative; height: 18px; border-block: 1px solid var(--faint, #65666a); }
+.m-window { position: absolute; height: 100%; background: #777d87; }
+.m-storm { background: var(--warn, #f2b54a); }
+.m-cursor { position: absolute; top: -3px; bottom: -3px; width: 2px; background: #fff; }
+.m-windows { display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: 14px; margin-top: 6px; }
+.m-power { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; margin-top: 10px; }
+.m-power label { display: flex; align-items: center; gap: 8px; }
+.m-meter { width: 110px; height: 18px; accent-color: var(--plant, #8fae6e); }
+.m-power-text, .m-shortage { margin: 0; }
+@media (max-width: 520px) {
+  .m-menu, .m-prepare { padding-top: 16px; }
+  .m-row { column-gap: 10px; }
+  .m-stepper { gap: 6px; }
+  .m-effect { grid-column: 1 / -1; }
+  .m-stepper { grid-row: 1; }
+  .m-controls { gap: 8px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .m-menu, .m-prepare { padding-block: 12px; }
+  .m-bar { padding-block: 6px; }
+  .m-controls { gap: 6px 12px; }
+  .m-power { margin-top: 4px; }
+  .m-next { margin-top: 4px; }
+}
