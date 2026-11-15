@@ -4,6 +4,7 @@ import { currentMission, MISSIONS, type Mission } from '../game/missions';
 import { capacity, carryMax, lifeSupportPercent, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
+import type { Command, CommandResult } from '../engine/types';
 import { cleanName, NAME_MAX, saveProfile } from '../game/profile';
 import { getLang, getPlayerName, onLangChange, setLang, setPlayerName, t, type StringKey } from './i18n';
 import { Joystick } from './joystick';
@@ -26,6 +27,10 @@ interface HudDeps {
   dig(): void;
   exportGame(): void;
   importGame(): void;
+  /** Mission mode: run a player action through the mission engine; null in free mode. */
+  command(cmd: Command): CommandResult | null;
+  /** True while a mission runs (no building, no saves). */
+  inMission(): boolean;
 }
 
 interface Floater { node: HTMLElement; world: THREE.Vector3; age: number }
@@ -183,7 +188,13 @@ export class Hud {
 
     // Top right: power and shelter appear when they matter; language switch.
     this.powerBtn = el('button.t-btn', { onclick: () => this.toggleMenu() }, el('span', { 'data-label': 'menuPower' }, t('menuPower')));
-    this.shelterBtn = el('button.t-btn.danger', { onclick: () => { deps.s.sheltered = !deps.s.sheltered; this.refresh(); } });
+    this.shelterBtn = el('button.t-btn.danger', {
+      onclick: () => {
+        const r = deps.command({ type: deps.s.sheltered ? 'leaveShelter' : 'enterShelter' });
+        if (!r) deps.s.sheltered = !deps.s.sheltered;
+        this.refresh();
+      },
+    });
     const langBox = el('div', { id: 'lang', class: 'interactive' });
     const langButtons = (['es', 'en'] as const).map((l) => el('button.t-btn', { onclick: () => setLang(l) }, l.toUpperCase()));
     langBox.append(...langButtons);
@@ -273,6 +284,8 @@ export class Hud {
       newGame: () => this.deps.newGame(),
       exportGame: () => this.deps.exportGame(),
       importGame: () => this.deps.importGame(),
+      command: (cmd) => this.deps.command(cmd),
+      mission: this.deps.inMission(),
     };
   }
 
