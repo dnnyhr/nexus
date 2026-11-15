@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 
-// Relative base so the build works on GitHub Pages under /nexus/.
+// Relative base so the build works at any path (Netlify, a subdomain or GitHub Pages).
 // Two pages: the game (index.html) and the model viewer (viewer.html).
 export default defineConfig({
   base: './',
