@@ -1,280 +1,121 @@
-import type { Circuit, Command, Design, Failure, Horizon, Summary } from '../../engine/types';
+import { getLang } from '../i18n';
 
-export type Rating = 'optimal' | 'adequate' | 'critical';
+// Texts of the lunar commander (pause and project), the mission report and the mission
+// radio, in Spanish and English.
 
-export const ratingLabels: Record<Rating, string> = {
-  optimal: 'Sólido',
-  adequate: 'Ajustado',
-  critical: 'Crítico',
-};
+type Entry = { es: string; en: string };
 
-export const commanderTexts = {
-  title: 'Comandante lunar',
-  lede: 'La simulación está en pausa. Ajustá la configuración, compará las dos proyecciones y confirmá solo si querés despachar los comandos.',
-  close: 'Cerrar el comandante',
-  situation: 'Situación actual',
-  time: (t: number) => `Tiempo de misión: ${Math.round(t)} s`,
-  life: (v: number) => `Soporte vital: ${Math.round(v)} % del recurso más bajo`,
-  energy: (v: number) => `Energía: ${Math.round(v)} % de capacidad`,
-  exposure: (v: number, limit: number) => `Exposición: ${v.toFixed(1)} u de ${limit} u`,
-  crop: (v: number) => `Cultivo: ${Math.round(v)} % de crecimiento`,
-  sheltered: (value: boolean) => (value ? 'En refugio' : 'Fuera del refugio'),
-  controls: 'Borrador de comandos',
-  controlsHint: 'Nada se despacha hasta confirmar. Cancelar deja la misión como está.',
-  lights: 'Luces de cultivo',
-  lightsValue: (value: number) => `${Math.round(value)} %`,
-  heating: 'Calefacción',
-  processor: 'Procesador',
-  robots: 'Robots',
-  shelter: 'Refugio',
-  enterShelter: 'Entrar al refugio',
-  leaveShelter: 'Salir del refugio',
-  on: 'Activo',
-  off: 'Apagado',
-  horizon: 'Horizonte',
-  horizonAria: 'Elegir horizonte de proyección',
-  columns: { current: 'Sigo así', plan: 'Si cambio', delta: 'Diferencia' },
-  rows: {
-    minLife: 'Mínimo soporte vital',
-    energy: 'Energía final',
-    exposure: 'Exposición final',
-    harvests: 'Cosechas futuras',
-    outcome: 'Resultado',
+const TEXTS = {
+  cmdTitle: { es: '¿Qué hago ahora?', en: 'What should I do now?' },
+  cmdPaused: { es: 'El tiempo está en pausa (segundo {t}). Mira qué pasaría con cada idea antes de decidir.', en: 'Time is paused (second {t}). See what each idea would lead to before you decide.' },
+  cmdAssume: {
+    es: 'Cada respuesta imagina que haces solo eso y nada más después. Se calcula con las mismas reglas del juego.',
+    en: 'Each answer imagines you do only that and nothing else afterwards. It uses the same rules as the game.',
   },
-  rowsHelp: {
-    minLife: 'Mínimo de O₂, agua y alimentos en las muestras del intervalo.',
-    energy: 'Energía al final del horizonte, en % de capacidad.',
-    exposure: 'Exposición acumulada en unidades didácticas (u).',
-    harvests: 'Cosechas registradas por la proyección dentro del horizonte.',
-    outcome: 'Fallo, o instante alcanzado si la proyección termina antes.',
-  },
-  policy: 'Mantiene configuración; no supone riegos, ajustes ni cosechas manuales futuros.',
-  comparison: 'Comparación de proyecciones',
-  difference: 'Diferencia entre proyecciones',
-  noDifference: 'Sin diferencia medible en las muestras del horizonte.',
-  differenceParts: {
-    minLife: (delta: string) => `mínimo vital ${delta} %`,
-    energy: (delta: string) => `energía final ${delta} %`,
-    exposure: (delta: string) => `exposición ${delta} u`,
-    harvests: (delta: string) => `cosechas ${delta}`,
-  },
-  noSamples: 'Sin muestras en el intervalo.',
-  noFailure: (until: number) => `Sin fallo hasta ${Math.round(until)} s`,
-  failureLine: (failure: Failure) => `${failure.title} · t=${Math.round(failure.t)} s`,
-  reached: (got: number, target: number) => `Alcanzó ${Math.round(got)} s de ${Math.round(target)} s proyectados`,
-  rejectedTitle: 'Comandos rechazados por el motor',
-  noRejections: 'Sin rechazos en este borrador.',
-  emptyPlan: 'No cambiaste ningún control. Confirmar mantiene la configuración actual.',
-  confirm: 'Confirmar plan',
-  cancel: 'Cancelar sin cambios',
-  projectionError: 'La proyección falló; no se muestran cifras estimadas.',
-  chartAria: 'Proyección de recursos y exposición para la configuración actual y para el plan.',
-  chartGhostNote: 'Líneas tenues discontinuas: proyección con el plan.',
-  units: { percent: '%', exposure: 'u' },
-};
+  cmdHorizon: { es: 'Mirar hasta', en: 'Look ahead to' },
+  cmdToDark: { es: 'que vuelva el Sol', en: 'when the Sun comes back' },
+  cmdToEnd: { es: 'el final', en: 'the end' },
+  cmdNoDark: { es: 'El Sol ya volvió: miramos hasta el final.', en: 'The Sun is back: looking ahead to the end.' },
+  planKeep: { es: '¿Y si sigo igual?', en: 'What if I keep going like this?' },
+  planLightsOff: { es: '¿Y si apago las luces del invernadero?', en: 'What if I turn off the greenhouse lights?' },
+  planLightsOn: { es: '¿Y si enciendo las luces del invernadero?', en: 'What if I turn on the greenhouse lights?' },
+  planHeatOff: { es: '¿Y si apago la calefacción?', en: 'What if I turn off the heating?' },
+  planHeatOn: { es: '¿Y si enciendo la calefacción?', en: 'What if I turn on the heating?' },
+  planSaveAll: { es: '¿Y si apago luces y calefacción para ahorrar?', en: 'What if I turn off lights and heating to save power?' },
+  planShelter: { es: '¿Y si entro al refugio?', en: 'What if I go into the shelter?' },
+  planLeave: { es: '¿Y si salgo del refugio?', en: 'What if I leave the shelter?' },
+  resOk: { es: 'Llegas bien al segundo {t}.', en: 'You reach second {t} fine.' },
+  resWin: { es: 'Llegas al final: ¡ganas!', en: 'You make it to the end: you win!' },
+  resFail: { es: 'Pierdes en el segundo {t}: {why}.', en: 'You lose at second {t}: {why}.' },
+  resRejected: { es: 'Ahora no se puede.', en: 'Not possible right now.' },
+  resLowest: { es: 'Lo que más baja: {what} ({v} %).', en: 'What drops the most: {what} ({v} %).' },
+  resRadiation: { es: 'Radiación: {x} de {limit}.', en: 'Radiation: {x} of {limit}.' },
+  cmdApply: { es: 'Hacerlo', en: 'Do it' },
+  cmdResume: { es: 'Seguir jugando', en: 'Keep playing' },
+  cmdCurrent: { es: 'Así vas ahora', en: 'This is how you are going' },
 
-export const horizonLabels: Record<Horizon['kind'], string> = {
-  seconds: '60 s',
-  endOfDarkness: 'Fin de la oscuridad',
-  endOfMission: 'Fin de la misión',
-};
+  fail_o2_depleted: { es: 'se acabó el aire', en: 'the air ran out' },
+  fail_water_depleted: { es: 'se acabó el agua', en: 'the water ran out' },
+  fail_food_depleted: { es: 'se acabó la comida', en: 'the food ran out' },
+  fail_crew_lost: { es: 'la tripulación no aguantó', en: 'the crew did not make it' },
+  fail_exposure_exceeded: { es: 'demasiada radiación', en: 'too much radiation' },
 
-export function horizonLabel(horizon: Horizon): string {
-  if (horizon.kind === 'seconds') return `${Math.round(horizon.value)} s`;
-  return horizonLabels[horizon.kind];
+  repWin: { es: '¡Misión cumplida!', en: 'Mission accomplished!' },
+  repFail: { es: 'La misión falló', en: 'The mission failed' },
+  repWhy: { es: 'Qué pasó: {why} en el segundo {t}.', en: 'What happened: {why} at second {t}.' },
+  repDuration: { es: 'Llegaste al segundo', en: 'You reached second' },
+  repHarvests: { es: 'Cosechas', en: 'Harvests' },
+  repExposure: { es: 'Radiación', en: 'Radiation' },
+  repMinLife: { es: 'Lo más bajo de aire, agua o comida', en: 'Lowest air, water or food' },
+  repSheltered: { es: 'Segundos en el refugio', en: 'Seconds in the shelter' },
+  repShortage: { es: 'Segundos sin energía suficiente', en: 'Seconds without enough power' },
+  repLearned: { es: 'Lo que aprendiste', en: 'What you learned' },
+  repNext: { es: 'Para la próxima', en: 'Next time' },
+  repTradeoffs: { es: 'Tu partida en números', en: 'Your game in numbers' },
+  repTimeline: { es: 'Lo que pasó, segundo a segundo', en: 'What happened, second by second' },
+  repChart: { es: 'Cómo cambiaron tus recursos', en: 'How your supplies changed' },
+  repTable: { es: 'Ver los números en una tabla', en: 'See the numbers in a table' },
+  repDesign: { es: 'Lo que llevaste', en: 'What you brought' },
+  repRetry: { es: 'Probar otra vez', en: 'Try again' },
+  repMenu: { es: 'Volver al menú', en: 'Back to the menu' },
+  repTime: { es: 'Segundo', en: 'Second' },
+  serO2: { es: 'Aire', en: 'Air' },
+  serWater: { es: 'Agua', en: 'Water' },
+  serFood: { es: 'Comida', en: 'Food' },
+  serEnergy: { es: 'Batería', en: 'Battery' },
+  serExposure: { es: 'Radiación', en: 'Radiation' },
+  shadeDark: { es: 'Gris: oscuridad · amarillo: tormenta', en: 'Grey: darkness · yellow: storm' },
+
+  learnDarkShort: { es: 'Sin Sol, los paneles solares no dan energía. Las baterías guardan la energía del día para la noche: con pocas, se apagan cosas.', en: 'With no Sun, solar panels make no power. Batteries store the day’s power for the night: with too few, things switch off.' },
+  learnDarkOk: { es: 'Tu energía alcanzó en la oscuridad. Las baterías guardan la energía del Sol para cuando no hay luz.', en: 'Your power lasted through the dark. Batteries store the Sun’s power for when there is no light.' },
+  learnLifeSupport: { es: 'El soporte vital da aire y calor a la tripulación y necesita energía siempre. Apagar a tiempo lo que no es vital, como las luces, lo salva.', en: 'Life support gives the crew air and warmth and always needs power. Turning off what is not vital in time, like the lights, saves it.' },
+  learnShelterOk: { es: 'El refugio te protegió de la tormenta: la tierra lunar frena la radiación. Por eso las bases de verdad se cubren con ella.', en: 'The shelter protected you from the storm: Moon soil stops radiation. That is why real bases get covered with it.' },
+  learnRadiation: { es: 'La Luna no tiene aire ni campo magnético que frenen la radiación del Sol. En una tormenta solar hay que ir al refugio.', en: 'The Moon has no air or magnetic field to stop the Sun’s radiation. In a solar storm you must go to the shelter.' },
+  learnShelterCost: { es: 'Dentro del refugio no puedes cuidar las plantas: protegerte también cuesta algo.', en: 'Inside the shelter you cannot tend the plants: staying safe also costs something.' },
+  learnHarvest: { es: 'Tu invernadero dio comida. Las plantas necesitan agua, luz y temperatura justas: ni mucho ni poco.', en: 'Your greenhouse made food. Plants need just the right water, light and temperature: not too much, not too little.' },
+  learnFood: { es: 'Una base lejos de la Tierra no puede pedir comida cada día: tiene que cultivarla o llevar reservas.', en: 'A base far from Earth cannot get food every day: it has to grow it or bring a supply.' },
+  learnPlantDead: { es: 'La planta murió de estrés. El frío de la oscuridad lunar la dañó: la calefacción y el cuidado importan.', en: 'The plant died of stress. The cold of the lunar dark hurt it: heating and care matter.' },
+  learnWater: { es: 'El agua sirve para beber y para regar. En la Luna es tan valiosa que se busca hielo en los cráteres oscuros.', en: 'Water is for drinking and for plants. On the Moon it is so precious that people look for ice in dark craters.' },
+  learnAir: { es: 'La tripulación respira todo el tiempo. Llevar tanques o sacar oxígeno de las rocas lunares mantiene el aire.', en: 'The crew breathes all the time. Bringing tanks or getting oxygen from Moon rocks keeps the air going.' },
+  tipBatteries: { es: 'Prueba con una o dos baterías, o apaga las luces del invernadero cuando oscurezca.', en: 'Try one or two batteries, or turn off the greenhouse lights when it gets dark.' },
+  tipShelter: { es: 'Cuando te avisen de la tormenta, entra al refugio antes de que empiece.', en: 'When you are warned about the storm, get into the shelter before it starts.' },
+  tipFood: { es: 'Cuida el invernadero y cosecha cuando la planta esté lista, o lleva cajas de comida.', en: 'Take care of the greenhouse and harvest when the plant is ready, or bring food boxes.' },
+  tipWater: { es: 'Lleva un tanque de agua y riega solo cuando haga falta.', en: 'Bring a water tank and water the plants only when needed.' },
+  tipAir: { es: 'Lleva tanques de aire o la fábrica de oxígeno.', en: 'Bring air tanks or the oxygen maker.' },
+  tipWin: { es: 'Prueba a ganar de otra forma: con otras cosas en tu lista.', en: 'Try to win another way: with different things on your list.' },
+
+  ev_darkness_warning: { es: 'Aviso: viene la oscuridad', en: 'Warning: darkness is coming' },
+  ev_darkness_start: { es: 'Se fue el Sol', en: 'The Sun went away' },
+  ev_darkness_end: { es: 'Volvió el Sol', en: 'The Sun came back' },
+  ev_storm_warning: { es: 'Aviso: viene una tormenta solar', en: 'Warning: a solar storm is coming' },
+  ev_storm_start: { es: 'Empezó la tormenta', en: 'The storm began' },
+  ev_storm_end: { es: 'Terminó la tormenta', en: 'The storm ended' },
+  ev_harvest: { es: 'Cosechaste', en: 'You harvested' },
+  ev_plant_dead: { es: 'La planta murió', en: 'The plant died' },
+  ev_power_shortage: { es: 'No alcanzó la energía: se apagaron cosas', en: 'Not enough power: things switched off' },
+  ev_power_restored: { es: 'La energía alcanza otra vez', en: 'There is enough power again' },
+  ev_life_support_unpowered: { es: 'El soporte vital se quedó sin energía', en: 'Life support lost power' },
+  ev_shelter_enter: { es: 'Entraste al refugio', en: 'You went into the shelter' },
+  ev_shelter_leave: { es: 'Saliste del refugio', en: 'You left the shelter' },
+  ev_victory: { es: '¡Llegaste al final!', en: 'You made it to the end!' },
+  ev_failure: { es: 'La misión falló', en: 'The mission failed' },
+
+  radio_darkness_warning: { es: 'Atención: en {s} segundos se va el Sol, durante {d} segundos. Sin Sol, los paneles no dan energía. ¿Qué vas a dejar encendido?', en: 'Heads up: in {s} seconds the Sun goes away, for {d} seconds. With no Sun, the panels make no power. What will you leave on?' },
+  radio_darkness_start: { es: 'Se fue el Sol. Ahora solo tienes la energía guardada en la batería.', en: 'The Sun is gone. Now you only have the power stored in the battery.' },
+  radio_darkness_end: { es: '¡Volvió el Sol! Los paneles cargan la batería otra vez.', en: 'The Sun is back! The panels charge the battery again.' },
+  radio_storm_warning: { es: '¡Tormenta solar en {s} segundos! Es como la fulguración {cls} que la NASA registró el {date}. Ve al refugio antes de que llegue.', en: 'Solar storm in {s} seconds! It is like the {cls} flare NASA recorded on {date}. Go to the shelter before it arrives.' },
+  radio_storm_start: { es: 'Llegó la tormenta. Fuera del refugio la radiación sube muy rápido.', en: 'The storm is here. Outside the shelter, radiation climbs very fast.' },
+  radio_storm_end: { es: 'Terminó la tormenta. Ya puedes salir del refugio.', en: 'The storm is over. You can leave the shelter now.' },
+  radio_life_support_unpowered: { es: '¡El soporte vital no tiene energía! Apaga lo que no sea vital, como las luces del invernadero.', en: 'Life support has no power! Turn off what is not vital, like the greenhouse lights.' },
+  radio_plant_dead: { es: 'La planta murió. Puedes plantar otra en el invernadero.', en: 'The plant died. You can plant another one in the greenhouse.' },
+  missionStart: { es: '¡Empieza la misión! Dura {d} segundos. Si dudas, pausa con P y toca «¿Qué hago?».', en: 'The mission begins! It lasts {d} seconds. If in doubt, pause with P and tap “What should I do?”.' },
+  cmdRefused: { es: 'No se puede: {why}', en: 'Not possible right now' },
+  pausedNoActions: { es: 'Estás en pausa', en: 'You are paused' },
+  menuBack: { es: 'Menú', en: 'Menu' },
+} as const satisfies Record<string, Entry>;
+
+export type CommanderKey = keyof typeof TEXTS;
+
+export function cx(key: CommanderKey, vars: Record<string, string | number> = {}): string {
+  return TEXTS[key][getLang()].replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
 }
-
-export const powerLabels: Record<'heating' | 'processor' | 'robots' | 'greenhouse', string> = {
-  heating: 'Calefacción',
-  processor: 'Procesador',
-  robots: 'Robots',
-  greenhouse: 'Invernadero',
-};
-
-export const circuitLabels: Record<Circuit, string> = {
-  lifeSupport: 'Soporte vital',
-  heating: 'Calefacción',
-  processor: 'Procesador',
-  robots: 'Robots',
-  greenhouse: 'Invernadero',
-};
-
-export function commandText(cmd: Command): string {
-  switch (cmd.type) {
-    case 'setGrowLights':
-      return `Luces de cultivo al ${Math.round(cmd.value)} %`;
-    case 'setPower':
-      return `${powerLabels[cmd.system]} ${cmd.on ? 'encendido' : 'apagado'}`;
-    case 'setPriority':
-      return `Prioridad eléctrica: ${cmd.order.map((c) => circuitLabels[c]).join(' › ')}`;
-    case 'irrigate':
-      return 'Regar el cultivo';
-    case 'adjustClimate':
-      return `Ajustar clima ${cmd.dir > 0 ? '+1' : '−1'}`;
-    case 'harvest':
-      return 'Cosechar';
-    case 'replant':
-      return 'Replantar';
-    case 'enterShelter':
-      return 'Entrar al refugio';
-    case 'leaveShelter':
-      return 'Salir del refugio';
-    case 'collectRegolith':
-      return 'Recoger regolito';
-    case 'deliverRegolith':
-      return 'Entregar regolito';
-  }
-}
-
-export function designLabel(design: Design): string {
-  return [
-    `Mástiles +${design.solarMasts}`,
-    `Baterías +${design.batteries}`,
-    `Invernadero +${design.greenhouse}`,
-    design.processor ? 'Procesador' : 'Sin procesador',
-    `Berma +${design.shield}`,
-    `Reservas O₂ ${design.reserves.o2} · agua ${design.reserves.water} · alimento ${design.reserves.food}`,
-  ].join(' · ');
-}
-
-export const designItemLabels = {
-  solarMasts: 'Mástiles solares extra',
-  batteries: 'Baterías',
-  greenhouse: 'Niveles extra de invernadero',
-  processor: 'Procesador de regolito',
-  shield: 'Berma de regolito',
-  reserveO2: 'Reservas de O₂ (+10 % de capacidad)',
-  reserveWater: 'Reservas de agua (+10 % de capacidad)',
-  reserveFood: 'Reservas de alimento (+10 % de capacidad)',
-} as const;
-
-export const chartTexts = {
-  title: 'Recursos de la misión y exposición acumulada',
-  ariaLabel: 'Gráfico de recursos en % de capacidad y exposición en unidades didácticas',
-  description: (until: number, exposureMax: number) =>
-    `Recursos en % de capacidad y exposición en u, hasta ${Math.round(until)} s. Escala de exposición 0 a ${exposureMax} u. Bandas rayadas: oscuridad y tormenta del escenario.`,
-  empty: 'Sin muestras para graficar.',
-  unitPercent: '% de capacidad',
-  unitExposure: 'Exposición (u)',
-  darkness: 'Oscuridad',
-  storm: 'Tormenta',
-  warning: 'Aviso',
-  timeAxis: (t: number) => `${Math.round(t)} s`,
-  ghostNote: 'Líneas tenues discontinuas: proyección con el plan.',
-};
-
-export const reportTexts = {
-  victoryKicker: 'Misión cumplida',
-  failureKicker: 'Misión fallida',
-  victoryHeadline: 'Primera oscuridad superada',
-  victoryLede: (duration: number, harvests: number) =>
-    `La base alcanzó ${Math.round(duration)} s con la tripulación a bordo y ${harvests} cosecha${harvests === 1 ? '' : 's'} registrada${harvests === 1 ? '' : 's'}.`,
-  failureLede: (explanation: string) => explanation,
-  duration: (seconds: number) => `${Math.round(seconds)} s de misión`,
-  tradeoffsTitle: 'Qué sostuviste y qué sacrificaste',
-  energyTitle: '¿A dónde fue la energía?',
-  energyNote:
-    'Barras por causa, según el registro del motor. No se estiman desde muestras: si el motor no expone el registro, la sección no aparece.',
-  energyCauses: { darkness: 'Oscuridad', storm: 'Tormenta' } as const,
-  energyValue: (value: number) => `${value.toFixed(1)} u`,
-  chartTitle: 'Evolución de la misión',
-  chartHint: 'Deslizá horizontalmente para recorrer el gráfico. Los valores exactos están en la tabla.',
-  chartTable: 'Ver valores de las muestras',
-  columns: { time: 't (s)', o2: 'O₂', water: 'Agua', food: 'Alim.', energy: 'Energía', exposure: 'Exposición' },
-  timelineTitle: 'Línea de tiempo',
-  timelineHint: 'Decisiones propias y eventos del escenario, en orden de simulación.',
-  timelineAll: 'Todo',
-  timelineOwn: 'Solo mis decisiones',
-  timelineCommand: 'Mi decisión',
-  timelineEvent: 'Evento',
-  rejected: 'Rechazado',
-  rejectedNoReason: 'El motor rechazó el comando y no registró un motivo legible.',
-  timelineEmpty: 'Sin entradas registradas.',
-  comparisonTitle: 'Comparación con el intento anterior',
-  comparisonPrevious: 'Intento anterior',
-  comparisonCurrent: 'Este intento',
-  comparisonEmpty: 'Primer intento registrado: la tabla comparativa aparecerá en el próximo informe.',
-  comparisonRows: {
-    result: 'Resultado',
-    exposure: 'Exposición',
-    harvests: 'Cosechas',
-    minLifeSupport: 'Mínimo soporte vital',
-    lights: 'Segundos con luces reducidas',
-    design: 'Diseño',
-  },
-  resultVictory: 'Cumplida',
-  resultFailed: (failure: Failure | null) => (failure ? `Fallida · ${failure.title}` : 'Fallida'),
-  designTitle: 'Diseño y coste',
-  designBudget: (spent: number, budget: number, credits: number) =>
-    `Coste ${spent} de ${budget} créditos. Saldo sin usar: ${credits}.`,
-  designBase: 'Solo equipo base incluido: nada extra comprado.',
-  shieldNote:
-    'La berma nivel 2 ya alcanza el tope de protección del kernel; el nivel 3 no garantiza una mejora adicional.',
-  assessmentsTitle: 'Evaluaciones',
-  sourcePrefix: 'Fuente:',
-  retry: 'Reintentar con este diseño',
-  menu: 'Volver al menú',
-  disclaimer: 'Cifras didácticas en u: no son sieverts ni otra medida clínica, ni suponen afiliación a NASA.',
-  noFoodSamples: 'Sin muestras de alimento para calcular el mínimo.',
-  ratingTitles: {
-    lifeSupport: 'Soporte vital',
-    food: 'Alimentos',
-    protection: 'Protección',
-  },
-};
-
-export function signed(value: number, digits = 1): string {
-  const rounded = Number.isFinite(value) ? value : 0;
-  const fixed = Math.abs(rounded) < 0.05 ? 0 : rounded;
-  const text = fixed.toFixed(digits);
-  return fixed > 0 ? `+${text}` : text;
-}
-
-export function lifeSupportFinding(min: number, shortage: number, grace: number): string {
-  if (!Number.isFinite(min)) return reportTexts.noFoodSamples;
-  const graceLine = grace > 0 ? ` y el margen de gracia es de ${Math.round(grace)} s` : '';
-  return `El recurso vital más débil tocó ${Math.round(min)} % de capacidad y la carencia acumulada llegó a ${Math.round(shortage)} s${graceLine}.`;
-}
-
-export function foodFinding(harvests: number, min: number, final: number): string {
-  if (!Number.isFinite(min)) return `${harvests} cosecha(s) registrada(s). ${reportTexts.noFoodSamples}`;
-  return `Se registraron ${harvests} cosecha(s). El alimento tocó ${Math.round(min)} % y cerró en ${Math.round(final)} % de capacidad.`;
-}
-
-export function protectionFinding(exposure: number, limit: number, sheltered: number, shield: number): string {
-  const used = limit > 0 ? Math.round((exposure / limit) * 100) : 0;
-  return `La exposición acumulada fue ${exposure.toFixed(1)} u (${used} % del límite de ${limit} u). Pasaste ${Math.round(sheltered)} s en refugio y la berma quedó en nivel ${shield}.`;
-}
-
-export function summaryTradeoffHeader(summary: Summary): string {
-  return summary.phase === 'victory' ? reportTexts.victoryHeadline : 'Cierre de la misión';
-}
-
-export const assessmentScience = {
-  lifeSupport:
-    'Un sistema de soporte vital cerrado recicla agua y genera oxígeno; cuanto menor es el margen, menos tiempo queda para corregir antes de que el recurso más débil llegue a cero. Los números salen de las muestras y de los segundos acumulados por el motor.',
-  food:
-    'En un invernadero lunar el cultivo depende de luz, agua y temperatura, y compite por la misma energía que la calefacción. Las cifras miden cosechas registradas, no rendimiento agronómico real.',
-  protection:
-    'La exposición se lleva en unidades didácticas (u), no en sieverts ni en otra medida clínica. El refugio y la berma reducen la fracción de radiación recibida, pero no eliminan la radiación de fondo; la protección del kernel ya incluye el traje, por lo que no se descuenta dos veces.',
-};
-
-export const NASA_SOURCES = {
-  eclss: {
-    title: 'NASA — Environmental Control and Life Support Systems (ECLSS)',
-    url: 'https://www.nasa.gov/reference/environmental-control-and-life-support-systems-eclss/',
-    topic: 'Reciclaje de agua, electrólisis de oxígeno e interdependencia de sistemas.',
-  },
-  plants: {
-    title: 'NASA — Growing Plants in Space',
-    url: 'https://www.nasa.gov/exploration-research-and-technology/growing-plants-in-space/',
-    topic: 'Cultivos en ambientes controlados, consumo hídrico y producción diferida.',
-  },
-  shielding: {
-    title: 'NASA Langley — Radiation Analysis and Shielding Design',
-    url: 'https://ddtrb.larc.nasa.gov/radiation/',
-    topic: 'Blindaje físico, refugios y mitigación parcial de exposición.',
-  },
-} as const;
-
-export type { Summary };

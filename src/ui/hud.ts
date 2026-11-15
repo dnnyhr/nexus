@@ -78,10 +78,19 @@ function roundGauge(label: StringKey) {
 type FullscreenDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => Promise<void>; webkitFullscreenEnabled?: boolean };
 type FullscreenEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
 
-/** Full-screen toggle (hidden where the browser cannot do it, like Safari on iPhone). */
-function fullscreenButton(): HTMLButtonElement | null {
+/** Already running as an app from the home screen (it is full screen there). */
+function installedApp(): boolean {
+  return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+/**
+ * Full-screen toggle. Where the browser cannot put a page in full screen (Safari on
+ * iPhone), the button explains how to add the game to the home screen instead.
+ */
+function fullscreenButton(onUnsupported: () => void): HTMLButtonElement | null {
   const doc = document as FullscreenDoc;
-  if (!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled)) return null;
+  const supported = !!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+  if (!supported && installedApp()) return null;
   const enter = '<path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5" fill="none" stroke="currentColor" stroke-width="1.6"/>';
   const exit = '<path d="M6 1v5H1M15 6h-5V1M10 15v-5h5M1 10h5v5" fill="none" stroke="currentColor" stroke-width="1.6"/>';
   const btn = el('button.t-btn', { id: 'fullscreen-btn' });
@@ -92,6 +101,7 @@ function fullscreenButton(): HTMLButtonElement | null {
     btn.title = t(isFull() ? 'exitFullscreen' : 'fullscreen');
   };
   btn.addEventListener('click', async () => {
+    if (!supported) return onUnsupported();
     try {
       if (isFull()) {
         await (doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.());
@@ -99,7 +109,8 @@ function fullscreenButton(): HTMLButtonElement | null {
         const root = document.documentElement as FullscreenEl;
         await (root.requestFullscreen?.({ navigationUI: 'hide' }) ?? root.webkitRequestFullscreen?.());
         // Phones: keep it landscape while in full screen (ignored where not supported).
-        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape').catch(() => {});
+        const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+        await orientation.lock?.('landscape')?.catch(() => {});
       }
     } catch {
       // The browser said no (for example, not from a user gesture): nothing to do.
@@ -131,7 +142,7 @@ export class Hud {
   private dataBtn: HTMLButtonElement;
   private profileBtn: HTMLButtonElement;
   dataPanel: (() => HTMLElement) | null = null;
-  private showerName: string | null = null;
+  private showerName: { es: string; en: string } | null = null;
   private rail = el('div.rail');
   private timelineEl: HTMLElement;
   private mode: 'free' | 'mission' = 'free';
@@ -144,8 +155,10 @@ export class Hud {
   private radioBox = el('div', { id: 'radio', class: 'hidden interactive' });
   private radioFrom = el('span.label');
   private radioMsg = el('div.msg');
-  private radioQueue: { from: string; text: string; delay: number }[] = [];
-  private radioTyping: { text: string; shown: number } | null = null;
+  // Radio texts are kept as functions, so a language switch retranslates the message on
+  // screen and the ones still waiting.
+  private radioQueue: { fromLander: boolean; text: () => string; delay: number }[] = [];
+  private radioTyping: { fromLander: boolean; text: () => string; shown: number } | null = null;
   private prompt = el('button', { id: 'prompt', class: 'hidden' });
   private promptAnchor: THREE.Vector3 | null = null;
   private hint = el('div.hint');
@@ -185,7 +198,7 @@ export class Hud {
     this.stormBox.append(this.stormTitle, this.stormTime, this.stormInfo);
     this.dataBtn = el('button.t-btn', { onclick: () => this.toggleData() }, el('span', { 'data-label': 'nasaData' }, t('nasaData')));
     this.profileBtn = el('button.t-btn', { id: 'profile-btn', onclick: () => this.toggleProfile() });
-    const fullBtn = fullscreenButton();
+    const fullBtn = fullscreenButton(() => this.toggleFullscreenHelp());
     this.radioBox.append(
       el('div.from', {}, el('span.dot'), this.radioFrom),
       this.radioMsg,
@@ -205,6 +218,7 @@ export class Hud {
 
     onLangChange(() => {
       markLang();
+      this.drawRadio();
       this.root.querySelectorAll<HTMLElement>('[data-label]').forEach((n) => setText(n, t(n.dataset.label as StringKey)));
       if (this.panel) this.reopen();
       this.refresh();
@@ -222,7 +236,8 @@ export class Hud {
   /** Mission mode hides the free-mode timeline (the mission bar replaces it) and routes actions. */
   setMode(mode: 'free' | 'mission'): void {
     this.mode = mode;
-    this.timelineEl.style.display = mode === 'mission' ? 'none' : '';
+    // Hidden but kept in the grid, so the counters stay in their column on the right.
+    this.timelineEl.style.visibility = mode === 'mission' ? 'hidden' : '';
     this.root.classList.toggle('mode-mission', mode === 'mission');
     this.close();
     this.refresh();
@@ -239,16 +254,17 @@ export class Hud {
 
   /** Queue a transmission. Radio messages arrive with the Earth-Moon delay (1.3 s). */
   radio(mission: Mission): void {
-    this.radioText(t(`m_${mission.id}_text` as StringKey), mission.from === 'lander');
+    this.radioText(() => t(`m_${mission.id}_text` as StringKey), mission.from === 'lander');
   }
 
-  radioText(text: string, fromLander = false): void {
-    this.radioQueue.push({ from: fromLander ? t('landerComputer') : t('radioFrom'), text, delay: fromLander ? 0.3 : 1.3 });
+  /** Pass a function (() => t(...)) so the message follows the language switch. */
+  radioText(text: string | (() => string), fromLander = false): void {
+    this.radioQueue.push({ fromLander, text: typeof text === 'string' ? () => text : text, delay: fromLander ? 0.3 : 1.3 });
     if (!this.radioTyping && this.radioBox.classList.contains('hidden')) this.nextRadio();
   }
 
   /** Active meteor shower shown under the lunar clock (null when none). */
-  setShower(name: string | null): void {
+  setShower(name: { es: string; en: string } | null): void {
     this.showerName = name;
   }
 
@@ -260,9 +276,16 @@ export class Hud {
       return;
     }
     this.radioBox.classList.remove('hidden');
-    setText(this.radioFrom, next.from);
-    setText(this.radioMsg, t('receiving'));
-    this.radioTyping = { text: next.text, shown: -next.delay * 60 };
+    this.radioTyping = { fromLander: next.fromLander, text: next.text, shown: -next.delay * 60 };
+    this.drawRadio();
+  }
+
+  /** Sender and message in the current language (also after a language switch). */
+  private drawRadio(): void {
+    const r = this.radioTyping;
+    if (!r) return;
+    setText(this.radioFrom, r.fromLander ? t('landerComputer') : t('radioFrom'));
+    setText(this.radioMsg, r.shown < 0 ? t('receiving') : r.text().slice(0, Math.floor(r.shown)));
   }
 
   // ---- Panels -------------------------------------------------------------------------
@@ -276,7 +299,7 @@ export class Hud {
       poke: () => this.deps.poke(anchor),
       close: () => this.close(),
       newGame: () => this.deps.newGame(),
-        saveArchive: () => this.deps.saveArchive(),
+      saveArchive: () => this.deps.saveArchive(),
       dispatch: this.deps.dispatch,
       mission: this.mode === 'mission',
     };
@@ -294,6 +317,14 @@ export class Hud {
     const head = el('div.head', {}, el('h3', {}, t('nasaData')), el('button.close', { onclick: () => this.close() }, '✕'));
     const panelEl = el('div.panel.interactive', {}, head, node);
     this.show({ el: panelEl, update: () => {} }, null, 'data');
+  }
+
+  /** Safari on iPhone: full screen only works for a game added to the home screen. */
+  private toggleFullscreenHelp(): void {
+    if (this.panel?.kind === 'fullscreen') return this.close();
+    const head = el('div.head', {}, el('h3', {}, t('fullscreen')), el('button.close', { onclick: () => this.close() }, '✕'));
+    const panelEl = el('div.panel.interactive', {}, head, el('p', {}, t('fullscreenIos')));
+    this.show({ el: panelEl, update: () => {} }, null, 'fullscreen');
   }
 
   /** Profile: the astronaut's name, used on the radio. Kept when starting a new game. */
@@ -329,7 +360,8 @@ export class Hud {
     if (name === getPlayerName()) return;
     saveProfile({ name });
     setPlayerName(name);
-    this.radioText(this.deps.s.levels.antenna ? t('nameAckRadio') : t('nameAckLander'), !this.deps.s.levels.antenna);
+    const radio = !!this.deps.s.levels.antenna;
+    this.radioText(() => t(radio ? 'nameAckRadio' : 'nameAckLander'), !radio);
   }
 
   /** Solar storm alert: countdown, dose, and a red pulse when caught outside. */
@@ -356,6 +388,7 @@ export class Hud {
     if (p.kind === 'power') this.toggleMenu();
     else if (p.kind === 'data') this.toggleData();
     else if (p.kind === 'profile') this.toggleProfile();
+    else if (p.kind === 'fullscreen') this.toggleFullscreenHelp();
     else if (p.anchor) this.open(p.kind as PanelKind, p.anchor);
   }
 
@@ -503,7 +536,7 @@ export class Hud {
     setText(this.clockLabel, ph.isDay ? t('lunarDay') : t('lunarNight'));
     const sec = Math.ceil(ph.secondsLeft);
     setText(this.clockValue, `T−${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`);
-    setText(this.showerTag, this.showerName ? `${t('shower')} · ${this.showerName}` : '');
+    setText(this.showerTag, this.showerName ? `${t('shower')} · ${this.showerName[getLang()]}` : '');
     this.showerTag.style.display = this.showerName ? '' : 'none';
     setText(this.counts.mat, String(Math.floor(s.res.materials)));
     setText(this.counts.reg, String(Math.floor(s.res.regolith)));
@@ -525,7 +558,7 @@ export class Hud {
     // Radio typewriter.
     if (this.radioTyping) {
       this.radioTyping.shown += dt * 60;
-      if (this.radioTyping.shown >= 0) setText(this.radioMsg, this.radioTyping.text.slice(0, Math.floor(this.radioTyping.shown)));
+      if (this.radioTyping.shown >= 0) this.drawRadio();
     }
     if (this.promptAnchor && !this.prompt.classList.contains('hidden')) {
       const sp = this.toScreen(this.promptAnchor);
