@@ -214,7 +214,7 @@ export const reportTexts = {
   sourcePrefix: 'Fuente:',
   retry: 'Reintentar con este diseño',
   menu: 'Volver al menú',
-  disclaimer: 'Cifras didácticas: no son dosis médicas ni suponen afiliación a NASA.',
+  disclaimer: 'Cifras didácticas en u: no son sieverts ni otra medida clínica, ni suponen afiliación a NASA.',
   noFoodSamples: 'Sin muestras de alimento para calcular el mínimo.',
   ratingTitles: {
     lifeSupport: 'Soporte vital',
@@ -256,7 +256,7 @@ export const assessmentScience = {
   food:
     'En un invernadero lunar el cultivo depende de luz, agua y temperatura, y compite por la misma energía que la calefacción. Las cifras miden cosechas registradas, no rendimiento agronómico real.',
   protection:
-    'La exposición se lleva en unidades didácticas (u), no en dosis médicas. El refugio y la berma reducen la fracción de radiación recibida, pero no eliminan la radiación de fondo; la protección del kernel ya incluye el traje, por lo que no se descuenta dos veces.',
+    'La exposición se lleva en unidades didácticas (u), no en sieverts ni en otra medida clínica. El refugio y la berma reducen la fracción de radiación recibida, pero no eliminan la radiación de fondo; la protección del kernel ya incluye el traje, por lo que no se descuenta dos veces.',
 };
 
 export const NASA_SOURCES = {
