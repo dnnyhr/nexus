@@ -184,6 +184,8 @@ const STRINGS = {
   lunarNight: { es: 'Oscuridad', en: 'Darkness' },
   ok: { es: 'Entendido', en: 'Got it' },
   profile: { es: 'Perfil', en: 'Profile' },
+  fullscreen: { es: 'Pantalla completa', en: 'Full screen' },
+  exitFullscreen: { es: 'Salir de pantalla completa', en: 'Exit full screen' },
   profileName: { es: 'Tu nombre de astronauta', en: 'Your astronaut name' },
   profileHint: { es: 'Así te llamarán por radio desde la Tierra.', en: 'This is what Earth will call you on the radio.' },
   defaultName: { es: 'Astronauta', en: 'Astronaut' },
