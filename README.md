@@ -5,7 +5,7 @@ A 3D lunar-base tycoon that trains junior astronauts to make real mission trade-
 Built by team **LifePlants** (Managua local event) for the **NASA Space Apps Challenge 2026**, challenge
 [*Build a Junior Astronaut Mission Trainer*](https://www.spaceappschallenge.org/2026/challenges/junior-astronaut-mission-trainer/).
 
-[Español más abajo](#español)
+**Play it:** https://nexus.xinocore.com · [Español más abajo](#español)
 
 > **Status:** early development. This README describes what we are building; features are added in small steps.
 
@@ -13,9 +13,9 @@ Built by team **LifePlants** (Managua local event) for the **NASA Space Apps Cha
 
 In 2039, Earth is going through a severe environmental and energy crisis. Project Nexus is launched to build a
 scientific base on the Moon's south pole, where people can live and work, and to prepare the way to Mars. You are the
-commander: you explore the surface, keep the systems running, repair what space weather breaks, and grow the food.
-Flight controllers on Earth send you real measurements and advice, but they are 1.3 light-seconds away, and the
-decisions are yours.
+astronaut on the surface: you explore, build, keep the systems running, repair what space weather breaks, and grow the
+food. Commander Rivera, on Earth, sends you orders and real measurements by radio, but she is 1.3 light-seconds away,
+and the decisions are yours.
 
 ## What the player learns
 
@@ -33,8 +33,7 @@ Every choice costs something, just like in real mission planning:
 |---|---|
 | [NASA DONKI](https://ccmc.gsfc.nasa.gov/tools/DONKI/) (solar flares and CMEs) | Each in-game solar storm recreates a real recent flare; its class (C, M, X) sets strength and warning time |
 | [NOAA GOES proton flux](https://www.swpc.noaa.gov/products/goes-proton-flux) (live) | Background radiation level reported by Mission Control |
-| [NASA RadLab / OSDR](https://visualization.osdr.nasa.gov/radlab/gui/data-api/) (ISS dosimetry) | Realistic dose inside and outside the shelter |
-| [CSA: Food production on the Moon](https://www.asc-csa.gc.ca/eng/youth-educators/toolkits/food-production/) | Greenhouse parameters (water, light, temperature) |
+| [IMO meteor shower calendar](https://www.imo.net/resources/calendar/) | More micrometeoroid impacts on the base while a real shower is active |
 
 Every number is attributed inside the game, on the "NASA Data" screen. When the device is offline, the game uses a dated
 snapshot and says so: static data is never shown as live.
@@ -70,8 +69,9 @@ reales de misión, con datos de clima espacial en vivo. Lo hace el equipo **Life
 
 En el año 2039, la Tierra atraviesa una grave crisis ambiental y energética. Se pone en marcha el Proyecto Nexus para
 construir una base científica en el polo sur de la Luna, donde vivir y trabajar, y para preparar el camino a Marte. Tú
-eres el comandante: exploras la superficie, mantienes los sistemas, reparas lo que daña el clima espacial y cultivas la
-comida. Desde la Tierra, los controladores de vuelo te envían mediciones reales y consejos, pero las decisiones son tuyas.
+eres el astronauta en la superficie: exploras, construyes, mantienes los sistemas, reparas lo que daña el clima espacial
+y cultivas la comida. Desde la Tierra, la comandante Rivera te envía órdenes y mediciones reales por radio, pero las
+decisiones son tuyas.
 
 ### Lo que se aprende
 
@@ -84,8 +84,8 @@ comida. Desde la Tierra, los controladores de vuelo te envían mediciones reales
 ### Datos reales
 
 Las tormentas recrean fulguraciones reales registradas en NASA DONKI. La radiación de fondo viene de los satélites
-GOES de NOAA, y las dosis de referencia de NASA RadLab (ISS). Cada dato se cita dentro del juego, en la pantalla
-"Datos NASA".
+GOES de NOAA, y los impactos de micrometeoritos aumentan durante las lluvias de meteoros reales del calendario de la
+IMO. Cada dato se cita dentro del juego, en la pantalla "Datos NASA".
 
 ### Tecnología
 
