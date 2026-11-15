@@ -17,6 +17,7 @@ export const LANDING_TEXT = {
   lede: { es: 'Construye una base en la Luna, sobrevive a la oscuridad y a tormentas solares reales registradas por la NASA. Aprende cómo vivirían los astronautas de Artemis, jugando.', en: 'Build a base on the Moon and survive the darkness and real solar storms recorded by NASA. Learn how Artemis astronauts would live, by playing.' },
   howTo: { es: 'Cómo se juega', en: 'How to play' },
   playNow: { es: 'Jugar ahora', en: 'Play now' },
+  repo: { es: 'Ver repositorio', en: 'View repository' },
   fine: { es: 'Gratis · en el navegador · sin descargas ni cuentas · español e inglés', en: 'Free · in the browser · no downloads or accounts · Spanish and English' },
   tFlare: { es: 'Última fulguración · NASA DONKI', en: 'Latest flare · NASA DONKI' },
   tProtons: { es: 'Radiación · NOAA GOES', en: 'Radiation · NOAA GOES' },
