@@ -5,7 +5,7 @@ import { movePriority, priorityOf } from '../game/power';
 import { adjustClimate, capacity, carryMax, digYield, harvest, inRange, irrigate, replant, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
-import { getLang, t, type StringKey } from './i18n';
+import { t, type StringKey } from './i18n';
 
 // Panels that open next to a 3D object when the player taps it. Each panel shows the real
 // state of that object and the actions that make sense for it. Panels keep stable DOM and
@@ -30,13 +30,6 @@ export interface PanelContext {
   /** Mission mode: nothing is built, upgraded or reset during operation. */
   mission?: boolean;
 }
-
-// Power-priority wording, local until the UI lane moves it into i18n.ts.
-const POWER_TEXT = {
-  es: { priority: 'Prioridad eléctrica', priorityHint: 'Si falta potencia, se alimenta de arriba abajo. Soporte vital no se desconecta.', shed: 'cortado', critical: 'crítico', available: 'Potencia disponible', up: 'Subir', down: 'Bajar' },
-  en: { priority: 'Power priority', priorityHint: 'When power is short, circuits are fed top to bottom. Life support cannot be switched off.', shed: 'shed', critical: 'critical', available: 'Available power', up: 'Move up', down: 'Move down' },
-};
-const pt = (k: keyof typeof POWER_TEXT.es) => POWER_TEXT[getLang() === 'en' ? 'en' : 'es'][k];
 
 const CIRCUIT_LABEL: Record<Circuit, StringKey> = {
   lifeSupport: 'lifeSupport', heating: 'heating', processor: 'processor', robots: 'robots', greenhouse: 'greenhouse',
@@ -327,7 +320,7 @@ function priorityList(ctx: PanelContext, ups: Updater[]): HTMLElement {
   };
   const title = el('p.label');
   const hint = el('p.fact');
-  ups.push(() => { setText(title, pt('priority')); setText(hint, pt('priorityHint')); });
+  ups.push(() => { setText(title, t('sysPriority')); setText(hint, t('sysPriorityHint')); });
   const rows = POWER.circuits.map((_, i) => {
     const name = el('span');
     const up = el('button.t-btn', { onclick: () => setOrder(movePriority(priorityOf(s), priorityOf(s)[i], -1)) }, '▲');
@@ -336,13 +329,13 @@ function priorityList(ctx: PanelContext, ups: Updater[]): HTMLElement {
     ups.push(() => {
       const c = priorityOf(s)[i];
       const shed = ctx.power().shed?.includes(c) ?? false;
-      const tag = c === 'lifeSupport' ? ` · ${pt('critical')}` : '';
-      setText(name, `${i + 1}. ${t(CIRCUIT_LABEL[c])}${tag}${shed ? ` · ${pt('shed')}` : ''}`);
+      const tag = c === 'lifeSupport' ? ` · ${t('sysCritical')}` : '';
+      setText(name, `${i + 1}. ${t(CIRCUIT_LABEL[c])}${tag}${shed ? ` · ${t('sysShed')}` : ''}`);
       row.classList.toggle('off', shed);
       up.disabled = i === 0;
       down.disabled = i === POWER.circuits.length - 1;
-      up.setAttribute('aria-label', `${pt('up')}: ${t(CIRCUIT_LABEL[c])}`);
-      down.setAttribute('aria-label', `${pt('down')}: ${t(CIRCUIT_LABEL[c])}`);
+      up.setAttribute('aria-label', t('sysUp', { x: t(CIRCUIT_LABEL[c]) }));
+      down.setAttribute('aria-label', t('sysDown', { x: t(CIRCUIT_LABEL[c]) }));
     });
     return row;
   });
@@ -372,7 +365,7 @@ export function makePowerPanel(ctx: PanelContext): Panel {
     header(() => t('powerTitle'), () => '', ctx, ups),
     para(() => t('powerHint'), ups),
     para(() => `${t('generation')}: ${ctx.power().generation.toFixed(1)}/s · ${t('demand')}: ${ctx.power().demand.toFixed(1)}/s`, ups),
-    ...(ctx.mission ? [para(() => `${pt('available')}: ${(ctx.power().available ?? 0).toFixed(1)}/s`, ups)] : []),
+    ...(ctx.mission ? [para(() => `${t('sysAvailable')}: ${(ctx.power().available ?? 0).toFixed(1)}/s`, ups)] : []),
     toggle('heating', () => s.power.heating, (v) => setSystem(ctx, 'heating', v), ups),
     toggle('processor', () => s.power.processor, (v) => setSystem(ctx, 'processor', v), ups),
     toggle('robots', () => s.power.robots, (v) => setSystem(ctx, 'robots', v), ups),
