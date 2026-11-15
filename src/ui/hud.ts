@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Command, CommandResult } from '../engine/types';
 import { SHIELD } from '../game/config';
 import { currentMission, MISSIONS, type Mission } from '../game/missions';
 import { capacity, carryMax, lifeSupportPercent, type PowerReport } from '../game/sim';
@@ -24,6 +25,8 @@ interface HudDeps {
   newGame(): void;
   jump(): void;
   dig(): void;
+  /** Mission mode: every economic action goes through here instead of mutating the state. */
+  dispatch?(cmd: Command): CommandResult;
 }
 
 interface Floater { node: HTMLElement; world: THREE.Vector3; age: number }
@@ -129,6 +132,8 @@ export class Hud {
   dataPanel: (() => HTMLElement) | null = null;
   private showerName: string | null = null;
   private rail = el('div.rail');
+  private timelineEl: HTMLElement;
+  private mode: 'free' | 'mission' = 'free';
   private railDone = el('div.done-line');
   private nodes: HTMLElement[] = [];
   private counts = { mat: el('div.big'), reg: el('div.big'), bag: el('div.big') };
@@ -157,7 +162,7 @@ export class Hud {
       this.nodes.push(n);
       this.rail.append(n);
     });
-    const timeline = el('div.timeline', {},
+    const timeline = this.timelineEl = el('div.timeline', {},
       el('div.now', {}, el('div', {}, this.missionTag, this.goal), el('div.clock', {}, this.clockLabel, this.clockValue)),
       this.rail);
     const counts = el('div.counts', {},
@@ -168,7 +173,7 @@ export class Hud {
 
     // Top right: power and shelter appear when they matter; language switch.
     this.powerBtn = el('button.t-btn', { onclick: () => this.toggleMenu() }, el('span', { 'data-label': 'menuPower' }, t('menuPower')));
-    this.shelterBtn = el('button.t-btn.danger', { onclick: () => { deps.s.sheltered = !deps.s.sheltered; this.refresh(); } });
+    this.shelterBtn = el('button.t-btn.danger', { onclick: () => { this.toggleShelter(); this.refresh(); } });
     const langBox = el('div', { id: 'lang', class: 'interactive' });
     const langButtons = (['es', 'en'] as const).map((l) => el('button.t-btn', { onclick: () => setLang(l) }, l.toUpperCase()));
     langBox.append(...langButtons);
@@ -204,6 +209,29 @@ export class Hud {
       this.refresh();
     });
     this.refresh();
+  }
+
+  /** Show another game state (mission start or retry). Panels are closed: they hold the old one. */
+  setState(s: GameState): void {
+    this.deps.s = s;
+    this.close();
+    this.refresh();
+  }
+
+  /** Mission mode hides the free-mode timeline (the mission bar replaces it) and routes actions. */
+  setMode(mode: 'free' | 'mission'): void {
+    this.mode = mode;
+    this.timelineEl.style.display = mode === 'mission' ? 'none' : '';
+    this.root.classList.toggle('mode-mission', mode === 'mission');
+    this.close();
+    this.refresh();
+  }
+
+  private toggleShelter(): void {
+    const s = this.deps.s;
+    if (!this.deps.dispatch) { s.sheltered = !s.sheltered; return; }
+    const r = this.deps.dispatch({ type: s.sheltered ? 'leaveShelter' : 'enterShelter' });
+    if (!r.ok && r.reason) this.radioText(r.reason, true);
   }
 
   // ---- Radio --------------------------------------------------------------------------
@@ -247,6 +275,8 @@ export class Hud {
       poke: () => this.deps.poke(anchor),
       close: () => this.close(),
       newGame: () => this.deps.newGame(),
+      dispatch: this.deps.dispatch,
+      mission: this.mode === 'mission',
     };
   }
 
@@ -448,7 +478,7 @@ export class Hud {
     // Show systems only once they exist: one less thing to read at the start.
     this.gauges.energy.node.style.display = s.levels.processor || s.counts.solarMast ? '' : 'none';
     this.gauges.shield.node.style.display = s.levels.station ? '' : 'none';
-    this.powerBtn.style.display = s.counts.battery || s.mission >= MISSIONS.findIndex((m) => m.id === 'battery') ? '' : 'none';
+    this.powerBtn.style.display = this.mode === 'mission' || s.counts.battery || s.mission >= MISSIONS.findIndex((m) => m.id === 'battery') ? '' : 'none';
     this.shelterBtn.style.display = s.levels.station ? '' : 'none';
     setText(this.shelterBtn, s.sheltered ? t('leaveShelter') : t('goShelter'));
 

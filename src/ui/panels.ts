@@ -1,9 +1,11 @@
+import type { Command, CommandResult } from '../engine/types';
 import { build, checkBuild, currentLevel, nextCost } from '../game/build';
-import { ENERGY, PROCESSOR, type BuildingKind } from '../game/config';
+import { ENERGY, POWER, PROCESSOR, type BuildingKind, type Circuit } from '../game/config';
+import { movePriority, priorityOf } from '../game/power';
 import { adjustClimate, capacity, carryMax, digYield, harvest, inRange, irrigate, replant, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
-import { t, type StringKey } from './i18n';
+import { getLang, t, type StringKey } from './i18n';
 
 // Panels that open next to a 3D object when the player taps it. Each panel shows the real
 // state of that object and the actions that make sense for it. Panels keep stable DOM and
@@ -23,6 +25,42 @@ export interface PanelContext {
   close(): void;
   /** Erase the save and start over (only the lander panel offers it). */
   newGame?(): void;
+  /** Mission mode: actions become commands; without it, free mode mutates the state as always. */
+  dispatch?(cmd: Command): CommandResult;
+  /** Mission mode: nothing is built, upgraded or reset during operation. */
+  mission?: boolean;
+}
+
+// Power-priority wording, local until the UI lane moves it into i18n.ts.
+const POWER_TEXT = {
+  es: { priority: 'Prioridad eléctrica', priorityHint: 'Si falta potencia, se alimenta de arriba abajo. Soporte vital no se desconecta.', shed: 'cortado', critical: 'crítico', available: 'Potencia disponible', up: 'Subir', down: 'Bajar' },
+  en: { priority: 'Power priority', priorityHint: 'When power is short, circuits are fed top to bottom. Life support cannot be switched off.', shed: 'shed', critical: 'critical', available: 'Available power', up: 'Move up', down: 'Move down' },
+};
+const pt = (k: keyof typeof POWER_TEXT.es) => POWER_TEXT[getLang() === 'en' ? 'en' : 'es'][k];
+
+const CIRCUIT_LABEL: Record<Circuit, StringKey> = {
+  lifeSupport: 'lifeSupport', heating: 'heating', processor: 'processor', robots: 'robots', greenhouse: 'greenhouse',
+};
+
+/** Run an action: as a command in mission mode, as before in free mode. Says why when it fails. */
+function act(ctx: PanelContext, cmd: Command, free: () => boolean, fail: string): boolean {
+  if (ctx.dispatch) {
+    const r = ctx.dispatch(cmd);
+    if (!r.ok) ctx.say(r.reason ?? fail, true);
+    return r.ok;
+  }
+  const ok = free();
+  if (!ok) ctx.say(fail, true);
+  return ok;
+}
+
+function setSystem(ctx: PanelContext, system: 'heating' | 'processor' | 'robots' | 'greenhouse', on: boolean): void {
+  if (ctx.dispatch) {
+    const r = ctx.dispatch({ type: 'setPower', system, on });
+    if (!r.ok && r.reason) ctx.say(r.reason, true);
+  } else {
+    ctx.s.power[system] = on;
+  }
 }
 
 export interface Panel {
@@ -49,6 +87,11 @@ function reasonText(kind: BuildingKind, ctx: PanelContext): string {
 
 /** Upgrade / build button for a building kind, with the reason shown when it can't. */
 export function upgradeButton(kind: BuildingKind, ctx: PanelContext, ups: Updater[], label: StringKey = 'upgrade'): HTMLElement {
+  if (ctx.mission) {
+    const none = el('span');
+    none.hidden = true;
+    return none;
+  }
   const btn = el('button.t-btn', {
     onclick: () => {
       const before = currentLevel(ctx.s, kind);
@@ -139,16 +182,20 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
         gauge('growth', () => s.plant.growth, ups, { plant: true }),
         gauge('stress', () => s.plant.stress, ups),
         el('div.row', {},
-          actionButton('irrigate', () => { if (irrigate(s)) ctx.poke(); else ctx.say(t('noWater'), true); }, ups, () => '· 2'),
-          actionButton('heat', () => { if (!adjustClimate(s, 1)) ctx.say(t('noEnergy'), true); }, ups),
-          actionButton('cool', () => { if (!adjustClimate(s, -1)) ctx.say(t('noEnergy'), true); }, ups),
+          actionButton('irrigate', () => { if (act(ctx, { type: 'irrigate' }, () => irrigate(s), t('noWater'))) ctx.poke(); }, ups, () => '· 2'),
+          actionButton('heat', () => { act(ctx, { type: 'adjustClimate', dir: 1 }, () => adjustClimate(s, 1), t('noEnergy')); }, ups),
+          actionButton('cool', () => { act(ctx, { type: 'adjustClimate', dir: -1 }, () => adjustClimate(s, -1), t('noEnergy')); }, ups),
         ),
         el('div.row', {},
           actionButton('harvest', () => {
-            const food = harvest(s);
-            if (food > 0) { ctx.poke(); ctx.say(t('harvested', { n: food })); } else ctx.say(t('notReady'), true);
+            const before = s.res.food;
+            let food = 0;
+            if (act(ctx, { type: 'harvest' }, () => (food = harvest(s)) > 0, t('notReady'))) {
+              ctx.poke();
+              ctx.say(t('harvested', { n: ctx.dispatch ? Math.round(s.res.food - before) : food }));
+            }
           }, ups),
-          actionButton('replant', () => { if (!replant(s)) ctx.say(t('needMaterials', { n: 8 }), true); }, ups, () => '· 8'),
+          actionButton('replant', () => { act(ctx, { type: 'replant' }, () => replant(s), t('needMaterials', { n: 8 })); }, ups, () => '· 8'),
           upgradeButton('greenhouse', ctx, ups),
         ),
         para(() => t('factGreenhouse'), ups, 'fact'),
@@ -167,7 +214,7 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
           return t('procRunning');
         }, ups),
         para(() => `${t('regolith')}: ${Math.floor(s.res.regolith)} · ${t('perSecond', { n: (PROCESSOR.regolithPerSecond * (1 + 0.5 * (s.levels.processor - 1))).toFixed(2) })}`, ups),
-        toggle('processor', () => s.power.processor, (v) => (s.power.processor = v), ups),
+        toggle('processor', () => s.power.processor, (v) => setSystem(ctx, 'processor', v), ups),
         el('div.row', {}, upgradeButton('processor', ctx, ups)),
         para(() => t('factRegolith'), ups, 'fact'),
       );
@@ -213,7 +260,7 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
       node = el('div', {},
         header(() => t('robots'), () => '', ctx, ups),
         para(() => t('robotsInfo'), ups),
-        toggle('robots', () => s.power.robots, (v) => (s.power.robots = v), ups),
+        toggle('robots', () => s.power.robots, (v) => setSystem(ctx, 'robots', v), ups),
         para(() => `${t('collectorRobot')} · ${s.levels.collectorRobot ? t('level', { n: s.levels.collectorRobot }) : t('notBuilt')}`, ups),
         el('div.row', {}, upgradeButton('collectorRobot', ctx, ups)),
         para(() => `${t('harvesterRobot')} · ${s.levels.harvesterRobot ? t('level', { n: 1 }) : t('notBuilt')}`, ups),
@@ -233,7 +280,7 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
         para(() => t('landerInfo'), ups),
         para(() => t('bagInfo', { n: s.levels.bag, cap: carryMax(s), dig: digYield(s) }), ups),
         el('div.row', {}, upgradeButton('bag', ctx, ups, 'upgradeBag')),
-        el('div.row', {}, actionButton('newGame', () => { if (confirm(t('newGameConfirm'))) ctx.newGame?.(); }, ups)),
+        ...(ctx.mission ? [] : [el('div.row', {}, actionButton('newGame', () => { if (confirm(t('newGameConfirm'))) ctx.newGame?.(); }, ups))]),
       );
       break;
   }
@@ -267,12 +314,54 @@ export function makeBuildMenu(ctx: PanelContext): Panel {
   return { el: panel, update };
 }
 
+/** Ranked circuits with up/down buttons. Rows stay put; only their contents follow the order. */
+function priorityList(ctx: PanelContext, ups: Updater[]): HTMLElement {
+  const s = ctx.s;
+  const setOrder = (order: Circuit[]) => {
+    if (ctx.dispatch) {
+      const r = ctx.dispatch({ type: 'setPriority', order });
+      if (!r.ok && r.reason) ctx.say(r.reason, true);
+    } else {
+      s.power.priority = order;
+    }
+  };
+  const title = el('p.label');
+  const hint = el('p.fact');
+  ups.push(() => { setText(title, pt('priority')); setText(hint, pt('priorityHint')); });
+  const rows = POWER.circuits.map((_, i) => {
+    const name = el('span');
+    const up = el('button.t-btn', { onclick: () => setOrder(movePriority(priorityOf(s), priorityOf(s)[i], -1)) }, '▲');
+    const down = el('button.t-btn', { onclick: () => setOrder(movePriority(priorityOf(s), priorityOf(s)[i], 1)) }, '▼');
+    const row = el('div.toggle', {}, name, el('span', {}, up, ' ', down));
+    ups.push(() => {
+      const c = priorityOf(s)[i];
+      const shed = ctx.power().shed?.includes(c) ?? false;
+      const tag = c === 'lifeSupport' ? ` · ${pt('critical')}` : '';
+      setText(name, `${i + 1}. ${t(CIRCUIT_LABEL[c])}${tag}${shed ? ` · ${pt('shed')}` : ''}`);
+      row.classList.toggle('off', shed);
+      up.disabled = i === 0;
+      down.disabled = i === POWER.circuits.length - 1;
+      up.setAttribute('aria-label', `${pt('up')}: ${t(CIRCUIT_LABEL[c])}`);
+      down.setAttribute('aria-label', `${pt('down')}: ${t(CIRCUIT_LABEL[c])}`);
+    });
+    return row;
+  });
+  return el('div', {}, title, ...rows, hint);
+}
+
 /** Power panel: what stays on, especially at night when the battery must last. */
 export function makePowerPanel(ctx: PanelContext): Panel {
   const ups: Updater[] = [];
   const s = ctx.s;
   const slider = el('input.hw-range', { type: 'range', min: 0, max: 100, step: 5 }) as HTMLInputElement;
-  slider.addEventListener('input', () => (s.power.growLights = Number(slider.value)));
+  if (ctx.dispatch) {
+    slider.addEventListener('change', () => {
+      const r = ctx.dispatch!({ type: 'setGrowLights', value: Number(slider.value) });
+      if (!r.ok && r.reason) ctx.say(r.reason, true);
+    });
+  } else {
+    slider.addEventListener('input', () => (s.power.growLights = Number(slider.value)));
+  }
   const lightsVal = el('span.sub');
   ups.push(() => {
     if (document.activeElement !== slider) slider.value = String(s.power.growLights);
@@ -283,12 +372,15 @@ export function makePowerPanel(ctx: PanelContext): Panel {
     header(() => t('powerTitle'), () => '', ctx, ups),
     para(() => t('powerHint'), ups),
     para(() => `${t('generation')}: ${ctx.power().generation.toFixed(1)}/s · ${t('demand')}: ${ctx.power().demand.toFixed(1)}/s`, ups),
-    toggle('heating', () => s.power.heating, (v) => (s.power.heating = v), ups),
-    toggle('processor', () => s.power.processor, (v) => (s.power.processor = v), ups),
-    toggle('robots', () => s.power.robots, (v) => (s.power.robots = v), ups),
+    ...(ctx.mission ? [para(() => `${pt('available')}: ${(ctx.power().available ?? 0).toFixed(1)}/s`, ups)] : []),
+    toggle('heating', () => s.power.heating, (v) => setSystem(ctx, 'heating', v), ups),
+    toggle('processor', () => s.power.processor, (v) => setSystem(ctx, 'processor', v), ups),
+    toggle('robots', () => s.power.robots, (v) => setSystem(ctx, 'robots', v), ups),
+    toggle('greenhouse', () => s.power.greenhouse, (v) => setSystem(ctx, 'greenhouse', v), ups),
     el('div.toggle', {}, el('span', {}, t('growLights'), ' ', lightsVal)),
     slider,
     shortage,
+    priorityList(ctx, ups),
     para(() => t('factNight'), ups, 'fact'),
   );
   const panel = el('div.panel.interactive', {}, node);
