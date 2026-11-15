@@ -4,7 +4,7 @@
 - Rama: `test/mision-qa`
 - Worktree: `/home/sma/Documentos/Proyectos_Desarrollo/nexus/.worktrees/qa`
 - Base del carril: `04feeba` (`chore(mision): prepare shared agent baseline`)
-- Motor probado: `feat/mision-motor` en `9ccbc41` (`feat(engine): implement deterministic mission core`), ejecutado en un worktree temporal, sin fusionar
+- Motor probado: `feat/mision-motor` en `0c8379a` (`test(engine): record representative mission balance`), tras `9ccbc41` y `d096289`; ejecutado en un worktree temporal, sin fusionar
 - Entorno: Linux, Node 24.19.0, Vitest 5.1.0, TypeScript 7.0.2, Vite 8.3.8
 - Alcance editado: `tests/mission/**` y este informe. No se tocó motor, UI, integración ni tests de A.
 
@@ -18,11 +18,11 @@ No se acredita Misión 1 integrada: falta incorporar el motor a `feat/mision-1`,
 
 | Elemento | Estado |
 | --- | --- |
-| Motor | Commiteado en `feat/mision-motor@9ccbc41`; su worktree tiene además `docs/mision-1/balance.md`, `src/engine/balance.test.js` y un ajuste en `world.ts` **sin commitear** |
+| Motor | Commiteado en `feat/mision-motor@0c8379a`; worktree limpio, con balance y ajuste de `world.ts` ya commiteados |
 | Integración | `feat/mision-1` sigue en `04feeba`; el motor no está incorporado |
 | Runner | No existe; `src/main.ts` mantiene el bucle acoplado a `renderer.setAnimationLoop` |
 | UI de misión | `src/ui/mission/**` no existe |
-| Balance de A | Documento presente en el worktree de motor (sin commit); su verificador pasa |
+| Balance de A | Commiteado en `0c8379a`; su verificador pasa |
 | QA de producto | Bloqueada por integración y UI |
 
 ## Automatizado
@@ -40,14 +40,14 @@ Resultado local: **155 tests pasan, 55 omitidos, 210 total, 21 archivos**. Un te
 
 ### Contra el motor real de A (sandbox)
 
-Se creó un worktree temporal en `/tmp/opencode/nexus-qa-engine` sobre `9ccbc41`, se copiaron solo `tests/mission/**` y se enlazaron dependencias. **No se fusionó nada ni se modificó el worktree de A.**
+Se creó un worktree temporal en `/tmp/opencode/nexus-qa-engine` sobre el tip actual de A, `0c8379a`, se copiaron solo `tests/mission/**` y se enlazaron dependencias. **No se fusionó nada ni se modificó el worktree de A.**
 
 | Ejecución | Resultado |
 | --- | --- |
 | 58 tests de misión (55 de motor + 3 de textos) | **58/58 PASS** |
-| Repo completo del motor (baseline + tests de A + QA) | **217/217 PASS**, 23 archivos |
+| Repo completo del motor (baseline + tests de A + QA) | **238/238 PASS**, 25 archivos |
 | `tsc --noEmit` | PASS |
-| Verificador de `docs/mision-1/balance.md` de A | **1/1 PASS** contra motor commiteado y contra el `world.ts` sin commitear |
+| Verificador de `docs/mision-1/balance.md` de A | **1/1 PASS** contra `0c8379a` |
 | Verificador de balance + suite QA | **59/59 PASS** |
 
 La matriz de determinismo se ejecutó a nivel motor con 1, 4 y 40 pasos por frame a 1x/2x: estado, muestras, eventos, log y `summarize` idénticos. **No es prueba del runner real**, que todavía no existe.
@@ -96,10 +96,10 @@ Cuando exista el commit integrado, cubrir:
 
 ### H-01 — Bloqueo de integración: motor no incorporado
 
-- Ruta: `feat/mision-motor@9ccbc41`; `feat/mision-1` y `test/mision-qa` en `04feeba`.
+- Ruta: `feat/mision-motor@0c8379a`; `feat/mision-1` y `test/mision-qa` en `04feeba`.
 - Esperado: integrador incorpora el motor y comunica commit; B/C validan contra él.
-- Observado: motor compilable y con 217/217 tests en su repo, pero fuera de la rama de integración. Su worktree tiene además cambios sin commit (`world.ts`, `balance.md`, `balance.test.js`).
-- Sugerencia: A commitea su balance y el ajuste de `world.ts`; integrador fusiona A en `feat/mision-1` y comunica hash. D reejecuta en el árbol integrado.
+- Observado: motor compilable, worktree limpio y 238/238 tests en su repo, pero fuera de la rama de integración.
+- Sugerencia: integrador fusiona A (`0c8379a`) en `feat/mision-1` y comunica hash. D reejecuta en el árbol integrado.
 
 ### H-02 — Bloqueo: no hay runner de misión testeable
 
@@ -109,13 +109,12 @@ Cuando exista el commit integrado, cubrir:
 - Observado: bucle acoplado a `THREE`, cámara, colisiones y HUD.
 - Sugerencia al integrador: extraer **solo** el avance de simulación a `src/ui/mission/runner.ts` sin cambiar comportamiento; D cablea la matriz de determinismo contra esa función. Sin esto no se puede cerrar el punto 1 del encargo.
 
-### H-03 — El balance de A existe pero no está commiteado
+### H-03 — Resuelto: el balance de A ya está commiteado
 
-- Ruta: `.worktrees/motor/docs/mision-1/balance.md` y `src/engine/balance.test.js` (untracked).
-- Reproducción: `git -C .worktrees/motor status --short`.
-- Esperado: documento y verificador dentro del commit de A.
-- Observado: el verificador de A pasa **1/1** y reproduce el documento sin diferencias, tanto contra `9ccbc41` como contra el `world.ts` sin commitear. El contenido es reproducible; falta el commit.
-- Sugerencia: A commitea ambos archivos. No se copiaron a este carril porque pertenecen a su ownership.
+- Ruta: `docs/mision-1/balance.md` y `src/engine/balance.test.js` en `0c8379a`.
+- Estado previo: ambos estaban sin commitear en el worktree de A.
+- Observado ahora: worktree limpio; el verificador pasa **1/1** y reproduce el documento sin diferencias contra `0c8379a`.
+- Sugerencia: sin acción pendiente. No se copiaron a este carril porque pertenecen al ownership de A.
 
 ### H-04 — Riesgo de texto: cadenas de dosis del Modo libre
 
@@ -202,15 +201,14 @@ No ejecutada por falta de UI. Evidencia mínima requerida:
 
 ## Pendientes
 
-1. A: commitear `docs/mision-1/balance.md`, `balance.test.js` y el ajuste de `world.ts`; comunicar hash.
-2. Integrador: incorporar A a `feat/mision-1`, extraer el runner y conectar el flujo de misión.
-3. B/C: preparación, barra, comandante, informe, reintento y textos de misión.
-4. D: reejecutar la suite en el árbol integrado; QA de navegador escritorio, emulación móvil horizontal y teléfono real cuando haya dispositivo autorizado.
-5. D: accesibilidad, textos sobre UI real, save/perfil y ausencia de economía en pausa.
-6. Fuera de esta entrega: service worker/offline completo, guardado de misión, contrafactual y prueba con estudiantes. El manifest existente no acredita PWA.
+1. Integrador: incorporar `0c8379a` a `feat/mision-1`, extraer el runner y conectar el flujo de misión.
+2. B/C: preparación, barra, comandante, informe, reintento y textos de misión.
+3. D: reejecutar la suite en el árbol integrado; QA de navegador escritorio, emulación móvil horizontal y teléfono real cuando haya dispositivo autorizado.
+4. D: accesibilidad, textos sobre UI real, save/perfil y ausencia de economía en pausa.
+5. Fuera de esta entrega: service worker/offline completo, guardado de misión, contrafactual y prueba con estudiantes. El manifest existente no acredita PWA.
 
 ## Recomendación
 
-**Motor listo para integración; producto no listo para revisión.** Bloqueos concretos: motor no incorporado a `feat/mision-1` (H-01), runner inexistente (H-02), balance de A sin commit (H-03), UI de misión ausente (H-06) y QA de navegador/teléfono pendiente.
+**Motor listo para integración; producto no listo para revisión.** Bloqueos concretos: motor no incorporado a `feat/mision-1` (H-01), runner inexistente (H-02), UI de misión ausente (H-06) y QA de navegador/teléfono pendiente. El balance de A ya está commiteado (H-03 resuelto).
 
 El baseline de Modo libre sigue verde y el motor supera 58/58 pruebas de QA en aislamiento. Reanudar D cuando el integrador comunique un commit con motor, runner y UI reales. **No autorizar `main`, producción ni deploy.**
