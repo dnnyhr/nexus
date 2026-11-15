@@ -14,7 +14,7 @@ Refugio: procesador/robots/LED apagados; crecimiento suspendido. Agua, temperatu
 
 Métricas por paso de 0.25 s: minLifeSupport incluye inicio y comandos; secondsLightsReduced cuenta decisión de brillo <50 fuera del refugio, independiente de cortes; secondsShortage cuenta limitación energética; secondsSheltered cuenta permanencia. No inferidas de samples. lastPower es balance del último intervalo, no pronóstico del siguiente.
 
-Ledger aprobado: crew registra consumo vital y energía de soporte fuera de refugio; shelter registra esa misma energía mientras está dentro, sin ahorro ficticio. solar, lights, heating y processor registran flujos; irrigation, climate y harvest registran cambios reales por comando. storage recoge saturación/límite cero y residuo numérico. Cierre por intervalo: suma de diferencias de causas = recursos finales − iniciales. Las causas no incluyen salud, regolito ni materiales.
+Ledger: crew registra consumo vital y energía de soporte fuera de refugio; shelter registra esa misma energía mientras está dentro, sin ahorro ficticio. solar, lights, heating y processor registran flujos; irrigation, climate y harvest registran cambios reales por comando. storage recoge saturación/límite cero y residuo numérico. Cierre por intervalo: suma de diferencias de causas = recursos finales − iniciales. Las causas no incluyen salud, regolito ni materiales.
 
 ## Políticas
 
@@ -107,9 +107,9 @@ Diseño: S=solares extra, B=baterías, G=niveles agrícolas extra, P=procesador,
 
 HUD: ms.t, ms.phase, ms.game.res + capacity(ms.game), ms.lastPower, ms.exposure en u, ms.scenario, ms.events, ms.metrics y ms.ledger. No usar game.dose ni cyclePhase libres. lastPower.running distingue controles solicitados de sistemas realmente alimentados; demand incluye requisito vital aunque lifeSupportPowered sea false. Saturación de almacenamiento explica por qué generación − demanda no equivale siempre a variación de batería.
 
-MissionLedger es diferencia acumulada desde inicio, no saldo: ledger[recurso][causa]. Se actualiza también en comandos. Sin sumar causas con unidades distintas. El campo es obligatorio en MissionState; B/C/D deben incorporar este contrato aprobado, sin fixtures anteriores ni tipos duplicados.
+MissionLedger es diferencia acumulada desde inicio, no saldo: ledger[recurso][causa]. Se actualiza también en comandos. Sin sumar causas con unidades distintas. El campo es obligatorio en MissionState; consumidores deben usar el mismo tipo, sin definiciones duplicadas.
 
-El integrador bloquea dispatch durante pausa/overlay y no llama worldStep mientras está pausado. MissionState no contiene pausa: motor no puede conocerla. applyCommand comprueba cierre y restricciones de refugio, registra aceptación/rechazo. Entradas no finitas rechazadas se canonizan a null dentro del log para conservar JSON/replay.
+El runner bloquea dispatch durante pausa/overlay y no llama worldStep mientras está pausado. MissionState no contiene pausa: motor no puede conocerla. applyCommand comprueba cierre y restricciones de refugio, registra aceptación/rechazo. Entradas no finitas rechazadas se canonizan a null dentro del log para conservar JSON/replay.
 
 worldStep avanza 0.25 s. Para proyección, segundos finitos no negativos alineados a STEP; endOfDarkness usa siguiente final pendiente, o final de misión. Projection.until informa instante realmente alcanzado. project aplica plan ahora, incluye solo eventos nuevos y no presume acciones humanas futuras. replay valida tiempos alineados/orden/aceptación; procesa comandos al instante final solicitado.
 
@@ -121,4 +121,4 @@ A y B ganan con configuraciones y gestión energética distintas; C pierde con m
 
 Un solar extra mejora carga diurna; baterías sostienen oscuridad; cultivo aumenta rendimiento y demanda; procesador recupera O2 a cambio de energía y trabajo; berma reduce exposición solo bajo refugio. Reservas mejoran saldo inicial del recurso comprado. No hay bonificación invisible por diseño A/B.
 
-Pausa/1x/2x/agrupación de frames requieren runner real del integrador. Navegador, teléfono, guardado libre y flujo completo no verificados desde carril A.
+Pausa, velocidades y agrupación de frames se verifican con el runner real. Este barrido no acredita navegador, teléfono, guardado libre ni flujo completo.

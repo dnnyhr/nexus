@@ -92,13 +92,17 @@ IMO. Cada dato se cita dentro del juego, en la pantalla "Datos NASA".
 Three.js, TypeScript y Vite. Se juega en el navegador, en horizontal y en español o inglés.
 
 
-## Trabajo consolidado: Misión 1
+## Misión 1: Primera oscuridad
 
-NEXUS es repositorio de trabajo para integrar diseño de base, operación tycoon 3D y planificación de misión. Preparación disponible: [contrato y cinco agentes](docs/mision-1/README.md), [prompts para pegar](docs/mision-1/INICIO-5-AGENTES.txt) y [referencias educativas HailMary](docs/referencias/hailmary/README.md).
+El modo Cadete conecta briefing, diseño de base, operación 3D, decisiones con la comandante y revisión de vuelo. Puedes lanzar una base recomendada o personalizarla con 300 créditos, afrontar oscuridad y tormenta solar, revisar consecuencias y reintentar con otro diseño.
 
-Misión 1 todavía no está implementada. Se preparó contrato de tipos; motor, pantallas y conexión al juego se desarrollan en sus carriles. Modo libre sigue siendo experiencia ejecutable actual.
+La misión dura 600 segundos simulados. Incluye pausa, velocidades 1x/2x/4x y avance al siguiente evento. Las proyecciones y la partida comparten reglas; la exposición se expresa en unidades didácticas. La telemetría espacial aporta contexto con fuente y fecha, sin modificar la cronología fija de esta misión.
 
-El manifest existente no acredita funcionamiento offline completo; ese comportamiento requiere implementación y verificación separadas. Baseline de consolidación: 152 tests y build correctos en `01d79c6`; navegador y teléfono no verificados en esta preparación.
+Modo libre conserva construcción, exploración, progresión y partida local. Laboratorio Docente aparece como próximo. La interfaz incorpora menú cinematográfico, sistemas, radio, revisión de vuelo y música con control de reproducción.
+
+Consulta [requisitos de producto](docs/mision-1/PRD.md), [balance reproducible](docs/mision-1/balance.md) y [guía de modelos 3D](docs/guia-modelos.md). Las atribuciones visuales y de audio de las cinemáticas están en [SOURCES.md](public/cinematics/SOURCES.md).
+
+El manifest no acredita arranque offline completo. Teléfono físico, Safari/iOS, lector de pantalla y aprendizaje con estudiantes requieren validación específica.
 
 ### Desarrollo local
 
@@ -109,4 +113,4 @@ npm run dev
 npm run build
 ```
 
-No hace falta ejecutar ni instalar HailMary para trabajar en esta repo. Fuentes de referencia quedan fuera del runtime, con origen y hashes conservados. No se modificó main remoto ni producción.
+`npm test` verifica reglas y regresiones; `npm run build` comprueba tipos y genera la aplicación. Estas pruebas no sustituyen validación de navegador, dispositivo u offline.
