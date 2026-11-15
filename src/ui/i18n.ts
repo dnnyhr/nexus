@@ -3,6 +3,9 @@
 
 export type Lang = 'es' | 'en';
 
+/** Language used when the player has not chosen one: always Spanish, never the browser's. */
+export const DEFAULT_LANG: Lang = 'es';
+
 const STRINGS = {
   lifeSupport: { es: 'Soporte vital', en: 'Life support' },
   o2: { es: 'Oxígeno', en: 'Oxygen' },
@@ -251,6 +254,186 @@ const STRINGS = {
     es: 'Hoy la Luna cruza la lluvia de meteoros {name}: habrá más impactos. Dato real: la NASA ha filmado destellos de impactos en la Luna durante lluvias de meteoros.',
     en: 'Today the Moon is crossing the {name} meteor shower: expect more impacts. Real fact: NASA has filmed impact flashes on the Moon during meteor showers.',
   },
+
+  ccKicker: { es: 'NASA Space Apps · LifePlants', en: 'NASA Space Apps · LifePlants' },
+  ccTitle: { es: 'Centro de Control', en: 'Control Center' },
+  ccSubtitle: { es: 'Tres formas de entrenar. Una base lunar.', en: 'Three ways to train. One lunar base.' },
+  ccCadet: { es: 'Cadete', en: 'Cadet' },
+  ccCadetTitle: { es: 'Misión 1 · Primera oscuridad', en: 'Mission 1 · First Darkness' },
+  ccCadetDesc: { es: 'Misión guiada: prepara la base, opera 600 s y revisa el informe.', en: 'Guided mission: prepare the base, operate for 600 s and review the report.' },
+  ccCadetMeta: { es: 'Guiada · 600 s · 300 créditos', en: 'Guided · 600 s · 300 credits' },
+  ccSimulator: { es: 'Simulador', en: 'Simulator' },
+  ccSimulatorTitle: { es: 'Modo libre · tycoon actual', en: 'Free mode · current tycoon' },
+  ccSimulatorDesc: { es: 'Construye y mantén la base sin límite de misión.', en: 'Build and keep the base running with no mission limit.' },
+  ccSimulatorMeta: { es: 'Sin límite de tiempo', en: 'No time limit' },
+  ccLab: { es: 'Laboratorio Docente', en: 'Teacher Lab' },
+  ccLabTitle: { es: 'Crisis reproducibles · 5 min', en: 'Reproducible crises · 5 min' },
+  ccLabDesc: { es: 'Tres crisis fijas para comparar decisiones en clase.', en: 'Three fixed crises to compare decisions in class.' },
+  ccLabMeta: { es: '3 escenarios · 300 s cada uno', en: '3 scenarios · 300 s each' },
+  ccOpen: { es: 'Entrar', en: 'Enter' },
+  ccContinue: { es: 'Continuar', en: 'Continue' },
+  ccStart: { es: 'Empezar', en: 'Start' },
+  ccBack: { es: 'Volver', en: 'Back' },
+  ccClose: { es: 'Cerrar', en: 'Close' },
+  ccReady: { es: 'Disponible', en: 'Available' },
+  ccNotReady: { es: 'En preparación', en: 'In preparation' },
+  ccNotReadyHint: { es: 'Se habilita cuando el motor real esté conectado.', en: 'Enabled when the real engine is connected.' },
+  ccProgressTitle: { es: 'Progreso de la base', en: 'Base progress' },
+  ccMissionsCount: { es: '{n}/14 misiones', en: '{n}/14 missions' },
+  ccSaved: { es: 'Partida guardada', en: 'Saved game' },
+  ccNoSave: { es: 'Sin partida guardada', en: 'No saved game' },
+  ccControlsTitle: { es: 'Controles en 30 segundos', en: 'Controls in 30 seconds' },
+  ccControlsKeyboard: { es: 'WASD mover · Espacio saltar · F usar · clic derecho excavar', en: 'WASD move · Space hop · F use · right click dig' },
+  ccControlsTouch: { es: 'Joystick mover · botones Saltar/Excavar · toca el aviso para usar', en: 'Joystick move · Hop/Dig buttons · tap the prompt to use' },
+  ccShowGuide: { es: 'Ver guía visual', en: 'Show visual guide' },
+  ccLanguage: { es: 'Idioma', en: 'Language' },
+  ccProfile: { es: 'Astronauta', en: 'Astronaut' },
+  ccCertifications: { es: 'Certificaciones', en: 'Certifications' },
+  ccCertificationsHint: { es: 'Las 14 misiones del modo libre, agrupadas en tres certificaciones. El progreso se conserva.', en: 'The 14 free-mode missions, grouped into three certifications. Progress is kept.' },
+  ccLabIntro: { es: 'Escenarios fijos y reproducibles: mismas condiciones para todo el grupo.', en: 'Fixed, reproducible scenarios: the same conditions for the whole group.' },
+  ccLabGoal: { es: 'Objetivo', en: 'Goal' },
+  ccLabTeacher: { es: 'Para docentes: pausa, proyecta y compara informes al terminar.', en: 'For teachers: pause, project and compare reports afterwards.' },
+  ccLabLaunch: { es: 'Lanzar crisis', en: 'Launch crisis' },
+  ccLabLocked: { es: 'Conecta el motor real para lanzar esta crisis.', en: 'Connect the real engine to launch this crisis.' },
+  ccLabFixed: { es: 'Fijo · {s} s', en: 'Fixed · {s} s' },
+
+  certFoundations: { es: 'Cimientos', en: 'Foundations' },
+  certFoundationsDesc: { es: 'Antena, regolito, procesador y energía.', en: 'Antenna, regolith, processor and power.' },
+  certLife: { es: 'Ciclo vital', en: 'Life systems' },
+  certLifeDesc: { es: 'Hábitat, robots, cultivo, cosecha y batería.', en: 'Habitat, robots, crops, harvest and battery.' },
+  certColony: { es: 'Colonia', en: 'Colony' },
+  certColonyDesc: { es: 'Blindaje, crecimiento, hielo y colonia.', en: 'Shielding, growth, ice and colony.' },
+  certComplete: { es: 'Certificación completada', en: 'Certification complete' },
+  certCurrent: { es: 'En curso', en: 'In progress' },
+  certPending: { es: 'Pendiente', en: 'Pending' },
+  certMissions: { es: '{done}/{total} misiones', en: '{done}/{total} missions' },
+  certMissionDone: { es: 'Completada', en: 'Complete' },
+  certMissionCurrent: { es: 'Actual', en: 'Current' },
+  certMissionPending: { es: 'Pendiente', en: 'Pending' },
+  certNumber: { es: 'Certificación {n}', en: 'Certification {n}' },
+
+  telTitle: { es: 'Telemetría', en: 'Telemetry' },
+  telUpdated: { es: 'Actualizado {t}', en: 'Updated {t}' },
+  telStale: { es: 'Sin datos recientes', en: 'No recent data' },
+  telDirective: { es: 'Directriz táctica', en: 'Tactical directive' },
+  telRiskOk: { es: 'Nominal', en: 'Nominal' },
+  telRiskCaution: { es: 'Atención', en: 'Attention' },
+  telRiskCritical: { es: 'Crítico', en: 'Critical' },
+  telTrendRising: { es: 'sube', en: 'rising' },
+  telTrendFalling: { es: 'baja', en: 'falling' },
+  telTrendSteady: { es: 'estable', en: 'steady' },
+  telExposure: { es: 'Exposición', en: 'Exposure' },
+  telUnitU: { es: 'u', en: 'u' },
+  telOpenSystems: { es: 'Sistemas', en: 'Systems' },
+  telOpenCommander: { es: 'Comandante', en: 'Commander' },
+  telNoData: { es: '—', en: '—' },
+  telDarkChip: { es: 'Oscuridad', en: 'Darkness' },
+  telShelterChip: { es: 'Refugio', en: 'Shelter' },
+  telStormChip: { es: 'Tormenta', en: 'Storm' },
+
+  dirExposureLimit: { es: 'Límite de exposición alcanzado. Entra al refugio ahora.', en: 'Exposure limit reached. Enter the shelter now.' },
+  dirExposureHigh: { es: 'Exposición alta. El refugio reduce la dosis; no esperes al límite.', en: 'High exposure. The shelter cuts the dose; do not wait for the limit.' },
+  dirStormOutside: { es: 'Tormenta activa y tripulación expuesta. Corre al refugio.', en: 'Storm active and crew exposed. Run to the shelter.' },
+  dirStormSheltered: { es: 'Refugio activo durante la tormenta. Producción detenida: espera el fin.', en: 'Sheltered during the storm. Production stopped: wait it out.' },
+  dirEnergyCritical: { es: 'Energía crítica. Apaga robots y procesador; conserva soporte vital.', en: 'Critical power. Turn off robots and processor; keep life support.' },
+  dirEnergyLow: { es: 'Energía baja. Revisa los breakers antes de la próxima oscuridad.', en: 'Low power. Check the breakers before the next darkness.' },
+  dirO2Low: { es: 'Oxígeno bajo. Alimenta el procesador con regolito.', en: 'Low oxygen. Feed the processor with regolith.' },
+  dirWaterLow: { es: 'Agua baja. Riega solo lo necesario y recupera hielo.', en: 'Low water. Water only what is needed and recover ice.' },
+  dirFoodLow: { es: 'Comida baja. Prioriza una cosecha segura.', en: 'Low food. Prioritise a safe harvest.' },
+  dirDarkLowEnergy: { es: 'Oscuridad y batería baja. Reduce luces y calefacción.', en: 'Darkness and low battery. Reduce lights and heating.' },
+  dirDark: { es: 'Oscuridad: los paneles no producen. Guarda batería.', en: 'Darkness: the panels make no power. Save battery.' },
+  dirNetNegative: { es: 'El consumo supera la producción. Abre los breakers.', en: 'Demand is higher than generation. Open the breakers.' },
+  dirSheltered: { es: 'Refugio activo: protección arriba, producción detenida.', en: 'Shelter active: protection up, production stopped.' },
+  dirNominal: { es: 'Sistemas nominales. Aprovecha para llenar reservas.', en: 'Systems nominal. Use the time to fill reserves.' },
+  dirPowerGood: { es: 'Balance positivo. Recarga batería para la próxima oscuridad.', en: 'Positive balance. Charge the battery for the next darkness.' },
+
+  sysTitle: { es: 'Sistemas', en: 'Systems' },
+  sysEnergyAvailable: { es: 'Energía disponible', en: 'Available power' },
+  sysGeneration: { es: 'Producción', en: 'Generation' },
+  sysDemand: { es: 'Consumo', en: 'Demand' },
+  sysNet: { es: 'Balance', en: 'Net' },
+  sysBreakers: { es: 'Breakers', en: 'Breakers' },
+  sysExpand: { es: 'Abrir sistemas', en: 'Open systems' },
+  sysCollapse: { es: 'Contraer sistemas', en: 'Collapse systems' },
+  sysPaused: { es: 'Comandos bloqueados durante la pausa.', en: 'Commands are locked while paused.' },
+  sysCauseSheltered: { es: 'Refugio: procesador y robots detenidos.', en: 'Shelter: processor and robots stopped.' },
+  sysCauseDark: { es: 'Oscuridad: generación solar a cero.', en: 'Darkness: solar generation is zero.' },
+  sysCauseShortage: { es: 'Corte por falta de energía: revisa el orden de carga.', en: 'Power shortage: check the load order.' },
+  sysCauseLights: { es: 'Luces al {n} %: consumo aproximado {p}/s.', en: 'Lights at {n}%: about {p}/s draw.' },
+  sysCauseBalance: { es: 'Producción {g}/s · consumo {d}/s.', en: 'Generation {g}/s · demand {d}/s.' },
+  sysHint: { es: 'Al agotarse la batería se cortan primero las luces y al final el soporte vital.', en: 'When the battery runs out, lights shed first and life support last.' },
+  sysEnergyValue: { es: '{n} %', en: '{n}%' },
+  sysBalanceValue: { es: '{n}/s', en: '{n}/s' },
+
+  radioCallsign: { es: 'Comandante Rivera', en: 'Commander Rivera' },
+  radioPost: { es: 'Control Tierra · señal 1,3 s', en: 'Mission Control · 1.3 s signal' },
+  radioPriorityRoutine: { es: 'Rutina', en: 'Routine' },
+  radioPriorityWarning: { es: 'Atención', en: 'Attention' },
+  radioPriorityCritical: { es: 'Crítica', en: 'Critical' },
+  radioHintLabel: { es: 'Sugerencia táctica', en: 'Tactical hint' },
+  radioNew: { es: 'Nueva transmisión', en: 'New transmission' },
+
+  ctlTitle: { es: 'Cómo jugar', en: 'How to play' },
+  ctlIntro: { es: 'Todo lo que necesitas para tu primera decisión.', en: 'Everything you need for your first decision.' },
+  ctlKeyboard: { es: 'Teclado y ratón', en: 'Keyboard and mouse' },
+  ctlTouch: { es: 'Táctil', en: 'Touch' },
+  ctlMove: { es: 'Mover', en: 'Move' },
+  ctlLook: { es: 'Mirar', en: 'Look' },
+  ctlDrag: { es: 'Arrastrar', en: 'Drag' },
+  ctlRightClick: { es: 'Clic derecho o R', en: 'Right click or R' },
+  ctlWheel: { es: 'Rueda', en: 'Wheel' },
+  ctlZoom: { es: 'Zoom', en: 'Zoom' },
+  ctlTurn: { es: 'Girar cámara', en: 'Turn camera' },
+  ctlJoystick: { es: 'Joystick', en: 'Joystick' },
+  ctlUse: { es: 'Usar', en: 'Use' },
+  ctlPrompt: { es: 'Aviso blanco', en: 'White prompt' },
+  ctlTap: { es: 'Tocar', en: 'Tap' },
+  ctlDismiss: { es: 'Entendido, jugar', en: 'Got it, play' },
+  ctlReopen: { es: '¿Cómo jugar?', en: 'How to play?' },
+  ctlLandscape: { es: 'En móvil, gira el teléfono a horizontal.', en: 'On a phone, turn it to landscape.' },
+  ctlActionHint: { es: 'Acércate a un objeto: el aviso blanco te dice qué puedes hacer.', en: 'Walk up to an object: the white prompt shows what you can do.' },
+  ctlTouchPrompt: { es: 'Toca el aviso blanco para usar o construir.', en: 'Tap the white prompt to use or build.' },
+  ctlButtons: { es: 'Botones', en: 'Buttons' },
+  ctlPauseKey: { es: 'Pausa', en: 'Pause' },
+  ctlSpace: { es: 'Espacio', en: 'Space' },
+
+  sciTitle: { es: 'Por qué importa', en: 'Why it matters' },
+  sciNext: { es: 'Siguiente cápsula', en: 'Next capsule' },
+  sciPrev: { es: 'Cápsula anterior', en: 'Previous capsule' },
+  sciCapsuleOf: { es: 'Cápsula {n} de {total}', en: 'Capsule {n} of {total}' },
+  sciSource: { es: 'Fuente', en: 'Source' },
+  sciDisclaimer: { es: 'Cifras didácticas; no son dosis médicas ni datos de vuelo.', en: 'Educational figures; not medical doses or flight data.' },
+  sciClose: { es: 'Ocultar cápsula', en: 'Hide capsule' },
+  sciRegolithTitle: { es: 'Oxígeno en la roca', en: 'Oxygen in the rock' },
+  sciRegolithWhy: { es: 'Más del 40 % de la masa del regolito lunar es oxígeno atrapado en minerales. Procesarlo puede dar O₂ sin traerlo de la Tierra.', en: 'Over 40% of lunar regolith by mass is oxygen locked in minerals. Processing it can supply O₂ without bringing it from Earth.' },
+  sciSourceRegolith: { es: 'NASA · Regolito lunar', en: 'NASA · Lunar regolith' },
+  sciPolarTitle: { es: 'El Sol del polo', en: 'The polar Sun' },
+  sciPolarWhy: { es: 'En crestas del polo sur lunar, el Sol ilumina más del 80 % del año. Por eso los paneles son verticales y la oscuridad se planifica.', en: 'On ridges near the lunar south pole, the Sun shines more than 80% of the year. That is why panels stand upright and darkness is planned for.' },
+  sciSourcePolar: { es: 'NASA · Artemis, polo sur', en: 'NASA · Artemis, south pole' },
+  sciShieldTitle: { es: 'Blindaje de regolito', en: 'Regolith shielding' },
+  sciShieldWhy: { es: 'La Luna no tiene atmósfera ni campo magnético global. Una berma de regolito reduce la radiación y forma parte del diseño de la misión.', en: 'The Moon has no atmosphere or global magnetic field. A regolith berm reduces radiation and is part of mission design.' },
+  sciSourceShield: { es: 'NASA · Radiación espacial', en: 'NASA · Space radiation' },
+  sciPlantsTitle: { es: 'Comer en la Luna', en: 'Eating on the Moon' },
+  sciPlantsWhy: { es: 'En la Estación Espacial se cultivan plantas con luz LED y riego controlado. Cada cosecha compite por agua y energía con el soporte vital.', en: 'Plants are grown on the Space Station under LED light with controlled watering. Every harvest competes with life support for water and power.' },
+  sciSourcePlants: { es: 'NASA · Growing Plants in Space', en: 'NASA · Growing Plants in Space' },
+  sciStormTitle: { es: 'La tormenta no se ve', en: 'The storm you cannot see' },
+  sciStormWhy: { es: 'Una fulguración solar lanza partículas de alta energía. El refugio reduce la exposición, pero detiene la producción exterior.', en: 'A solar flare throws high-energy particles. The shelter cuts exposure but stops outside production.' },
+  sciSourceStorm: { es: 'NASA · Clima espacial', en: 'NASA · Space weather' },
+  sciIceTitle: { es: 'Hielo en sombra', en: 'Ice in shadow' },
+  sciIceWhy: { es: 'En cráteres del polo sur que nunca reciben luz solar directa hay hielo de agua. Recogerlo puede cerrar el ciclo del agua.', en: 'Craters at the south pole that never receive direct sunlight hold water ice. Collecting it can close the water cycle.' },
+  sciSourceIce: { es: 'NASA · Hielo lunar', en: 'NASA · Lunar ice' },
+
+  labTitle: { es: 'Laboratorio Docente', en: 'Teacher Lab' },
+  labSubtitle: { es: 'Crisis fijas de 5 minutos. Mismas condiciones, decisiones comparables.', en: 'Five-minute fixed crises. Same conditions, comparable decisions.' },
+  labDarknessTitle: { es: 'Oscuridad prolongada', en: 'Extended darkness' },
+  labDarknessDesc: { es: '300 s sin Sol. Reparte la batería entre soporte vital, calefacción y luces.', en: '300 s without the Sun. Split the battery between life support, heating and lights.' },
+  labDarknessGoal: { es: 'Llegar a 300 s con O₂, agua y comida > 0.', en: 'Reach 300 s with O₂, water and food above 0.' },
+  labStormTitle: { es: 'Tormenta solar', en: 'Solar storm' },
+  labStormDesc: { es: 'Una fulguración real cruza el escenario a mitad de la crisis. Decide cuándo entrar al refugio.', en: 'A real flare crosses the scenario mid-crisis. Decide when to enter the shelter.' },
+  labStormGoal: { es: 'Mantener la exposición bajo el límite y la salud > 0.', en: 'Keep exposure below the limit and health above 0.' },
+  labCropTitle: { es: 'Cultivo en riesgo', en: 'Crop at risk' },
+  labCropDesc: { es: 'El invernadero pierde agua y temperatura. Sostén la cosecha sin vaciar la batería.', en: 'The greenhouse loses water and temperature. Keep the harvest alive without draining the battery.' },
+  labCropGoal: { es: 'Cosechar al menos una planta.', en: 'Harvest at least one plant.' },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;
@@ -258,14 +441,16 @@ export type StringKey = keyof typeof STRINGS;
 const listeners = new Set<() => void>();
 let lang: Lang = load();
 
+if (typeof document !== 'undefined') document.documentElement.lang = lang;
+
 function load(): Lang {
   try {
     const saved = localStorage.getItem('nexus.lang');
     if (saved === 'es' || saved === 'en') return saved;
   } catch {
-    // Storage can be blocked (private mode); fall back to the browser language.
+    // Storage can be blocked (private mode); the default language still applies.
   }
-  return navigator.language?.startsWith('en') ? 'en' : 'es';
+  return DEFAULT_LANG;
 }
 
 export function getLang(): Lang {
@@ -283,8 +468,9 @@ export function setLang(next: Lang): void {
   listeners.forEach((fn) => fn());
 }
 
-export function onLangChange(fn: () => void): void {
+export function onLangChange(fn: () => void): () => void {
   listeners.add(fn);
+  return () => listeners.delete(fn);
 }
 
 let playerName = '';
