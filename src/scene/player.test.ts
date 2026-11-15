@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { Player } from './player';
+import { DRIVER_SEAT, rover } from '../models/vehicles';
 
 const still = new THREE.Vector2();
 
@@ -70,5 +71,20 @@ describe('player', () => {
     const box = new THREE.Box2(new THREE.Vector2(-1, -1), new THREE.Vector2(1, 1));
     for (let i = 0; i < 180; i++) p.update(1 / 60, new THREE.Vector2(1, 0), [{ box }], false, false);
     expect(p.position.x).toBeLessThan(-1.3);
+  });
+
+  it('stays visible in the rover seat while driving, and stands up again after', () => {
+    const p = new Player(new THREE.Vector3(0, 0, 0));
+    const rv = rover();
+    rv.position.set(5, 0.2, -3);
+    rv.rotation.set(-0.1, 1.2, 0);
+    p.sitAt(rv, DRIVER_SEAT);
+    expect(p.obj.visible).toBe(true);
+    expect(p.obj.userData.mode).toBe('sit');
+    const seat = DRIVER_SEAT.clone().applyMatrix4(rv.matrixWorld);
+    expect(p.position.distanceTo(seat)).toBeLessThan(1e-6);
+    p.update(1 / 60, still, [], false, false);
+    expect(p.obj.rotation.x).toBe(0);
+    expect(p.obj.userData.mode).toBe('idle');
   });
 });

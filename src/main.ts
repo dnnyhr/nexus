@@ -26,6 +26,7 @@ import { createSky } from './scene/sky';
 import { createTerrain, heightAt, ICE_CRATER } from './scene/terrain';
 import { Player } from './scene/player';
 import { RoverDriver } from './scene/rover';
+import { DRIVER_SEAT } from './models/vehicles';
 import { deliverIce, scoopIce } from './game/rover';
 import '@fontsource/barlow-semi-condensed/400.css';
 import '@fontsource/barlow-semi-condensed/500.css';
@@ -593,9 +594,8 @@ renderer.setAnimationLoop(() => {
   if (state.rover.driving) {
     const rv = base.rover();
     driver.update(dt, moveInput(), colliders.filter((c) => c.obj !== rv));
-    // The astronaut rides along (hidden in the seat), so saves and prompts stay consistent.
-    player.position.set(rv.position.x, rv.position.y, rv.position.z);
-    player.update(dt, new THREE.Vector2(), [], true, false);
+    // The astronaut sits in the driver's seat and rides along.
+    player.sitAt(rv, DRIVER_SEAT);
   } else {
     player.update(dt, moveInput(), colliders, state.sheltered, keys.has(' ') || hud.jumpHeld());
   }
