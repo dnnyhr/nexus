@@ -18,21 +18,6 @@
 /* Music button in the top bar. */
 #topright .t-btn.x-bgm { min-width: 44px; min-height: 44px; }
 
-/* Integration shell: title menu, debrief tabs and the mission layout around the HUD.
-   Uses the experience palette defined on :root by src/ui/experience/experience.css. */
-
-.nx-debrief { min-height: 100%; }
-.nx-debrief__tabs {
-  position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
-  padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: rgba(4, 9, 12, 0.92); border-bottom: 1px solid var(--x-faint);
-}
-.nx-debrief__tab {
-  min-height: 44px; padding: 8px 18px; font: inherit; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
-  color: var(--x-dim); background: transparent; border: 1px solid transparent; border-bottom: 2px solid transparent;
-}
-.nx-debrief__tab[aria-selected='true'] { color: var(--x-ink); border-bottom-color: var(--x-cyan); }
-.nx-debrief__panel { outline: none; }
-
 /* Mission layout: the classic HUD stays (gauges, radio, buttons); the mission bar sits at the
    bottom between the gauges and the counters. Full-screen views hide what is behind them. */
 body.nx-overlay #mission-bar-root,
@@ -52,81 +37,107 @@ body.nx-overlay #hud { visibility: hidden; }
   #mission-bar-root .m-timeline { height: 10px; }
 }
 
-/* ---- Title menu: logo, three modes, quiet footer, over the 3D space scene ---------------- */
+/* ---- Title menu over the 3D Moon: patch, name, a numbered list. Same type as the landing. -- */
 body.nx-on-title #hud, body.nx-on-title #rotate-hint { visibility: hidden; }
 .nx-title {
-  position: fixed; inset: 0; z-index: 80; display: grid; grid-template-rows: auto 1fr auto; gap: 18px;
-  padding: max(28px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
+  position: fixed; inset: 0; z-index: 80; display: grid; grid-template-rows: auto 1fr auto; gap: 24px;
+  padding: max(40px, env(safe-area-inset-top)) max(56px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(56px, env(safe-area-inset-left));
   color: var(--x-ink); font-family: 'Barlow Semi Condensed', 'Helvetica Neue', Arial, sans-serif; pointer-events: none;
-  background: linear-gradient(90deg, rgba(1, 2, 4, 0.78) 0%, rgba(1, 2, 4, 0.35) 42%, rgba(1, 2, 4, 0) 70%);
-  opacity: 0; transition: opacity 0.38s ease;
+  background: linear-gradient(90deg, rgba(7, 8, 11, 0.82) 0%, rgba(7, 8, 11, 0.4) 38%, rgba(7, 8, 11, 0) 62%);
 }
-.nx-title.is-in { opacity: 1; }
 .nx-title * { box-sizing: border-box; }
-.nx-title button, .nx-title input { pointer-events: auto; font: inherit; }
-.nx-title__top { max-width: 560px; }
-.nx-title__logo { display: block; width: min(420px, 70vw); height: auto; max-height: 30vh; object-fit: contain; }
-.nx-title__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.nx-title__word { margin: 0; font-size: clamp(64px, 11vw, 132px); font-weight: 600; letter-spacing: 0.22em; line-height: 0.9; text-shadow: 0 0 40px rgba(143, 224, 232, 0.18); }
-.nx-title__word span { display: block; margin-top: 10px; font-size: clamp(15px, 1.8vw, 20px); font-weight: 500; letter-spacing: 0.5em; color: var(--x-cyan); text-transform: uppercase; }
-.nx-title__tagline { margin: 16px 0 0; font-size: clamp(16px, 1.6vw, 19px); color: var(--x-dim); max-width: 44ch; }
-.nx-title__stage { align-self: end; max-width: 560px; width: 100%; }
-.nx-modes { display: grid; gap: 10px; }
-.nx-mode {
-  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 18px; padding: 14px 16px;
-  background: rgba(6, 12, 15, 0.8); border: 1px solid var(--x-faint); border-left: 2px solid var(--x-faint);
+.nx-title button, .nx-title input { pointer-events: auto; font: inherit; color: inherit; }
+.nx-title :focus-visible { outline: 2px solid var(--x-amber); outline-offset: 4px; }
+
+/* Brand: the patch and the name, set like the landing hero. */
+.nx-title__brand { display: flex; align-items: center; gap: 22px; }
+.nx-title__patch { width: 72px; height: 72px; flex: none; }
+.nx-title__word { margin: 0; display: grid; gap: 4px; font-size: clamp(56px, 8vw, 104px); font-weight: 700; letter-spacing: 0.16em; line-height: 0.9; }
+.nx-title__sub { font-size: clamp(15px, 1.7vw, 20px); font-weight: 600; letter-spacing: 0.36em; text-transform: uppercase; color: var(--x-dim); }
+
+/* The menu: numbered lines between hairlines, no boxes. */
+.nx-title__stage { align-self: end; width: min(560px, 100%); }
+.nx-menu { list-style: none; margin: 0; padding: 0; border-bottom: 1px solid var(--x-faint); }
+.nx-item {
+  position: relative; display: grid; grid-template-columns: 44px 1fr auto; grid-template-rows: auto auto; column-gap: 8px;
+  width: 100%; padding: 16px 4px 16px 0; text-align: left; cursor: pointer;
+  background: none; border: 0; border-top: 1px solid var(--x-faint);
 }
-.nx-mode--cadet { border-left-color: var(--x-amber); background: rgba(14, 16, 12, 0.84); }
-.nx-mode--sim { border-left-color: var(--x-cyan); }
-.nx-mode--lab { opacity: 0.72; }
-.nx-mode__name { grid-column: 1; margin: 0; font-size: 22px; font-weight: 600; letter-spacing: 0.06em; display: flex; align-items: center; gap: 10px; }
-.nx-mode__desc { grid-column: 1; margin: 0; font-size: 15px; color: var(--x-dim); line-height: 1.35; }
-.nx-mode__go {
-  grid-column: 2; grid-row: 1 / span 2; min-height: 46px; min-width: 128px; padding: 10px 18px; cursor: pointer;
-  font-size: 14px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--x-ink); background: transparent; border: 1px solid var(--x-line);
+.nx-item::before {
+  content: ''; position: absolute; left: -16px; top: 16px; bottom: 16px; width: 2px; background: var(--x-amber);
+  transform: scaleY(0); transition: transform 0.2s ease;
 }
-.nx-mode--cadet .nx-mode__go, .nx-panel .nx-mode__go { background: var(--x-amber); border-color: var(--x-amber); color: #120c02; }
-.nx-mode__go:disabled { cursor: default; color: var(--x-dim); border-color: var(--x-faint); }
-.nx-mode__go:not(:disabled):hover { filter: brightness(1.1); }
-.nx-chip { font-size: 11px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; padding: 2px 7px; border: 1px solid var(--x-faint); color: var(--x-dim); }
-.nx-chip--go { border-color: rgba(242, 181, 74, 0.6); color: var(--x-amber); }
-.nx-panel { padding: 18px; background: rgba(6, 12, 15, 0.86); border: 1px solid var(--x-faint); border-top: 2px solid var(--x-amber); }
-.nx-panel__title { margin: 0 0 12px; font-size: 22px; font-weight: 600; }
-.nx-panel__kicker { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--x-amber); }
-.nx-panel--brief p:not(.nx-panel__kicker):not(.nx-panel__source) { margin: 0 0 8px; font-size: 19px; line-height: 1.4; }
-.nx-panel__source { margin: 10px 0 0; font-size: 13px; color: var(--x-dim); }
-.nx-panel__actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
-.nx-panel__actions .nx-mode__go { margin-left: auto; min-width: 160px; }
-.nx-mission-card {
-  display: grid; gap: 4px; width: 100%; text-align: left; padding: 14px 16px; margin-bottom: 12px; cursor: pointer;
-  color: var(--x-ink); background: rgba(0, 0, 0, 0.3); border: 1px solid var(--x-line); border-left: 2px solid var(--x-amber);
+.nx-item__num { grid-row: 1 / span 2; padding-top: 7px; font-size: 14px; font-weight: 700; letter-spacing: 0.2em; color: var(--x-danger); font-variant-numeric: tabular-nums; }
+.nx-item__name { font-size: 28px; font-weight: 600; letter-spacing: 0.02em; line-height: 1.15; transition: transform 0.2s ease; }
+.nx-item__note { grid-column: 2; font-size: 16px; color: var(--x-dim); transition: transform 0.2s ease; }
+.nx-item__arrow { grid-column: 3; grid-row: 1 / span 2; align-self: center; font-size: 22px; color: var(--x-dim); transition: transform 0.2s ease, color 0.2s; }
+.nx-item--primary .nx-item__name { font-size: 34px; }
+.nx-item--primary .nx-item__arrow { color: var(--x-amber); }
+.nx-item:hover::before, .nx-item:focus-visible::before { transform: scaleY(1); }
+.nx-item:hover .nx-item__name, .nx-item:hover .nx-item__note,
+.nx-item:focus-visible .nx-item__name, .nx-item:focus-visible .nx-item__note { transform: translateX(6px); }
+.nx-item:hover .nx-item__arrow, .nx-item:focus-visible .nx-item__arrow { color: var(--x-ink); transform: translateX(4px); }
+.nx-item:focus-visible { outline: none; }
+
+/* Briefing: replaces the list in place. */
+.nx-brief { padding-top: 4px; border-top: 1px solid var(--x-faint); }
+.nx-back { margin: 6px 0 14px -4px; }
+.nx-brief__eyebrow { margin: 0 0 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.26em; text-transform: uppercase; color: var(--x-amber); }
+.nx-brief__title { margin: 0 0 14px; font-size: 34px; font-weight: 700; line-height: 1.05; }
+.nx-brief p:not([class]) { margin: 0 0 10px; font-size: 19px; line-height: 1.45; color: rgba(245, 242, 236, 0.88); max-width: 46ch; }
+.nx-brief__source { margin: 14px 0 0; font-size: 14px; color: var(--x-dim); }
+.nx-brief__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 22px; }
+.nx-cta, .nx-ghost {
+  min-height: 52px; padding: 0 26px; cursor: pointer; border-radius: 2px;
+  font-size: 17px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
 }
-.nx-mission-card strong { font-size: 20px; font-weight: 600; }
-.nx-mission-card span { font-size: 14px; color: var(--x-dim); }
-.nx-link { min-height: 40px; padding: 6px 4px; cursor: pointer; color: var(--x-dim); background: none; border: 0; font-size: 15px; letter-spacing: 0.04em; }
-.nx-link:hover { color: var(--x-ink); }
+.nx-cta { color: #07080b !important; background: var(--x-ink); border: 0; transition: box-shadow 0.25s, background 0.2s; }
+.nx-cta:hover { background: #fff; box-shadow: 0 0 0 6px rgba(242, 181, 74, 0.22); }
+.nx-ghost { background: none; border: 1px solid var(--x-faint); font-weight: 600; }
+.nx-ghost:hover { border-color: var(--x-ink); }
+
+/* Footer: who you are and the language. */
 .nx-title__foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .nx-title__spacer { flex: 1; }
+.nx-link { min-height: 40px; padding: 6px 4px; cursor: pointer; color: var(--x-dim) !important; background: none; border: 0; font-size: 15px; letter-spacing: 0.06em; }
+.nx-link:hover { color: var(--x-ink) !important; }
 .nx-langs { display: flex; gap: 2px; }
-.nx-lang { min-width: 44px; min-height: 40px; cursor: pointer; color: var(--x-dim); background: rgba(6, 12, 15, 0.5); border: 1px solid var(--x-faint); letter-spacing: 0.1em; }
-.nx-lang[aria-pressed='true'] { color: var(--x-ink); border-color: var(--x-line); }
+.nx-lang { min-width: 44px; min-height: 40px; cursor: pointer; color: var(--x-dim) !important; background: none; border: 1px solid transparent; font-weight: 600; letter-spacing: 0.12em; }
+.nx-lang[aria-pressed='true'] { color: var(--x-ink) !important; border-color: var(--x-faint); }
 .nx-name-edit { display: inline-flex; gap: 6px; align-items: center; }
-.nx-name { min-height: 38px; padding: 4px 8px; color: var(--x-ink); background: rgba(0, 0, 0, 0.4); border: 1px solid var(--x-line); }
-.nx-title :focus-visible { outline: 2px solid var(--x-amber); outline-offset: 2px; }
+.nx-name { min-height: 38px; padding: 4px 8px; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--x-line); }
+
+/* Entrance: the name settles, then the lines come in one after another. */
+.nx-title__brand, .nx-title__foot, .nx-menu li, .nx-brief { opacity: 0; transform: translateY(8px); transition: opacity 0.5s ease, transform 0.5s ease; }
+.nx-title.is-in .nx-title__brand, .nx-title.is-in .nx-title__foot, .nx-title.is-in .nx-brief { opacity: 1; transform: none; }
+.nx-title.is-in .nx-menu li { opacity: 1; transform: none; }
+.nx-title.is-in .nx-menu li:nth-child(1) { transition-delay: 0.15s; }
+.nx-title.is-in .nx-menu li:nth-child(2) { transition-delay: 0.22s; }
+.nx-title.is-in .nx-menu li:nth-child(3) { transition-delay: 0.29s; }
+.nx-title.is-in .nx-title__foot { transition-delay: 0.36s; }
+.nx-title:not(.is-in) { pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .nx-title *, .nx-title *::before { transition: none !important; }
+}
+
 @media (max-width: 760px), (max-height: 520px) {
-  .nx-title { gap: 10px; padding-top: max(14px, env(safe-area-inset-top)); background: linear-gradient(180deg, rgba(1, 2, 4, 0.55), rgba(1, 2, 4, 0.82)); }
-  .nx-title__word { font-size: clamp(44px, 9vw, 64px); }
-  .nx-title__tagline { display: none; }
-  .nx-mode { padding: 10px 12px; }
-  .nx-mode__name { font-size: 18px; }
-  .nx-mode__desc { font-size: 13px; }
-  .nx-mode__go { min-width: 100px; }
+  .nx-title { gap: 12px; padding: max(16px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    background: linear-gradient(180deg, rgba(7, 8, 11, 0.5), rgba(7, 8, 11, 0.85)); }
+  .nx-title__brand { gap: 14px; }
+  .nx-title__patch { width: 52px; height: 52px; }
+  .nx-title__word { font-size: clamp(40px, 9vw, 60px); }
+  .nx-item { padding-block: 11px; grid-template-columns: 36px 1fr auto; }
+  .nx-item__name, .nx-item--primary .nx-item__name { font-size: 22px; }
+  .nx-item__note { font-size: 14px; }
+  .nx-item::before { left: -10px; }
+  .nx-brief__title { font-size: 26px; }
+  .nx-brief p:not([class]) { font-size: 16px; }
+  .nx-cta, .nx-ghost { min-height: 46px; padding: 0 18px; font-size: 15px; }
 }
 @media (max-height: 520px) and (orientation: landscape) {
-  .nx-title { grid-template-columns: 1fr minmax(320px, 52%); grid-template-rows: 1fr auto; }
-  .nx-title__top { grid-row: 1; align-self: start; }
-  .nx-title__stage { grid-column: 2; grid-row: 1; align-self: center; }
+  .nx-title { grid-template-columns: 1fr minmax(320px, 54%); grid-template-rows: 1fr auto; background: linear-gradient(90deg, rgba(7, 8, 11, 0.4), rgba(7, 8, 11, 0.88)); }
+  .nx-title__brand { grid-row: 1; align-self: start; flex-direction: column; align-items: flex-start; }
+  .nx-title__stage { grid-column: 2; grid-row: 1; align-self: center; width: 100%; max-height: calc(100dvh - 90px); overflow-y: auto; }
   .nx-title__foot { grid-column: 1 / span 2; }
 }
 /* While a flight sequence plays, no game HUD is on screen. */
