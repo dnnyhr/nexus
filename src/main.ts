@@ -9,14 +9,14 @@ import { protection, stepStorm } from './game/storm';
 import { stepRescue } from './game/rescue';
 import { RESCUE, ROVER } from './game/config';
 import { radiationScale, snapshotWeather, SOURCES, toSpaceWeather, type SpaceWeather } from './data/spaceweather';
-import { loadTelemetry, type SpaceTelemetry } from './data/telemetry';
+import { loadTelemetry } from './data/telemetry';
 import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
 import { carryMax, collectByHand, deliverRegolith, resolvePower, robotUnload, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { fixedStepClock } from './game/loop';
-import { CADET_DESIGN, createMissionRunner, darknessAt, missionPowerOptions, project, startMission, summarize, type Circuit, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type MissionState, type Summary } from './engine';
+import { CADET_DESIGN, createMissionRunner, darknessAt, missionPowerOptions, project, startMission, summarize, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type MissionState, type Summary } from './engine';
 import { mountPrepare, type Mounted } from './ui/mission/prepare';
 import { mountMissionBar } from './ui/mission/missionBar';
 import { mountCommander, type CommanderHandle } from './ui/mission/commander';
@@ -29,7 +29,11 @@ import {
 } from './ui/experience';
 import { compareFlightPlans, mountFlightReview, type FlightComparison } from './ui/flightreview';
 import { mountPassport } from './ui/passport';
-import { mountCadetIntro, type CadetIntroHandle } from './ui/shell/cadetIntro';
+import { mountTitle, type TitleHandle } from './ui/shell/titleScreen';
+import { createTitleScene } from './ui/shell/titleScene';
+import { CinematicDirector } from './scene/cinematics/director';
+import { preloadOrbitalMaps } from './scene/cinematics/orbit';
+import type { SequenceKind } from './scene/cinematics/timeline';
 import { mountDebrief, type DebriefHandle } from './ui/shell/debrief';
 import { TacticalCamera } from './scene/camera';
 import { mountCameraControl } from './scene/cameraControl';
@@ -109,6 +113,9 @@ export let state: GameState = loaded ?? newGame();
 type Mode = 'menu' | 'free' | 'mission';
 let mode: Mode = 'menu';
 let runner: MissionRunner | null = null;
+/** A flight sequence or a modal owns the screen: no world input reaches the game. */
+let inputLocked = false;
+let contextLost = false;
 /** Bumped when the state is replaced, so deferred work started before cannot act on the new one. */
 let epoch = 0;
 const base = new BaseView();
@@ -138,7 +145,7 @@ const hud = new Hud({
   poke: (o) => { if (o) poke(o, clock.elapsedTime); },
   action: () => doAction(),
   newGame: () => { if (mode !== 'free') return; clearSave(); resetting = true; location.reload(); },
-  jump: () => player.jump(),
+  jump: () => { if (!inputLocked && (mode === 'free' || runner?.canDispatch())) player.jump(); },
   dig: () => dig(),
   get dispatch() { return mode === 'mission' ? dispatch : undefined; },
 });
@@ -232,6 +239,7 @@ function currentAct(): Act | null {
 }
 
 function doAction(): void {
+  if (inputLocked || (mode === 'mission' && !runner?.canDispatch())) return;
   const act = currentAct();
   if (!act) return;
   if (act.type === 'use') {
@@ -318,6 +326,7 @@ function doAction(): void {
 
 /** Dig regolith into the bag, facing `towards` when given (right click on the ground). */
 function dig(towards?: THREE.Vector3): void {
+  if (inputLocked || (mode === 'mission' && !runner?.canDispatch())) return;
   if (mode === 'menu' || state.sheltered || player.isBusy() || player.airborne) return;
   if (towards) player.obj.rotation.y = Math.atan2(towards.x - player.position.x, towards.z - player.position.z);
   const head = player.position.clone().add(new THREE.Vector3(0, 2.4, 0));
@@ -418,16 +427,29 @@ function checkMissions(): void {
   colliders = base.colliders();
 }
 /** Free mode: catch up the time away, then run the base as it always did. */
+let weatherTimer = 0;
 function startFree(): void {
+  const saved = loadGame();
+  state = saved ?? newGame();
+  runner = null;
+  epoch++;
+  clearFlightInput();
+  leaveMissionHud();
   mode = 'free';
+  hud.setState(state);
+  base.parkRover(state.rover.x, state.rover.z, state.rover.rot);
+  player.position.set(state.player.x, 0, state.player.z);
+  camera.position.set(state.player.x + 11, 13, state.player.z + 14);
+  controls.target.set(state.player.x, 0.8, state.player.z);
   flightButton.hidden = true;
   if (flightMode) toggleFlightMode();
-  const away = loaded ? simulateOffline(state, (Date.now() - loaded.savedAt) / 1000) : null;
+  const away = saved ? simulateOffline(state, (Date.now() - saved.savedAt) / 1000) : null;
   power = tick(state, 0);
   hud.setMode('free');
   syncWorld();
   colliders = base.colliders();
-  setInterval(refreshWeather, 10 * 60 * 1000);
+  player.unstick(colliders);
+  if (!weatherTimer) weatherTimer = window.setInterval(refreshWeather, 10 * 60 * 1000);
   mountCamera();
   hud.setShower(shower ? shower.shower.name[getLang()] : null);
   // First time here: ask the astronaut's name (it can be changed any time in Profile).
@@ -474,8 +496,7 @@ setInterval(() => {
 // ---- Solar storms with real space weather ---------------------------------------------------
 let weather: SpaceWeather = snapshotWeather();
 /** Real space weather with provenance (NASA DONKI, NOAA GOES/RTSW). Never an input of the mission engine. */
-let telemetry: SpaceTelemetry | null = null;
-const refreshWeather = () => loadTelemetry().then((tel) => { telemetry = tel; weather = toSpaceWeather(tel); });
+const refreshWeather = () => loadTelemetry().then((tel) => { weather = toSpaceWeather(tel); });
 refreshWeather();
 const STORMS_FROM = MISSIONS.findIndex((m) => m.id === 'battery');
 
@@ -559,6 +580,7 @@ hud.joystick.onTap = (x, y) => tapAt(x, y);
 
 /** Tap or click on the world: open what the astronaut is next to, or say to get closer. */
 function tapAt(x: number, y: number): void {
+  if (inputLocked || mode === 'menu' || (mode === 'mission' && !runner?.canDispatch())) return;
   const ndc = new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const model = findModel(raycaster.intersectObject(base.group, true)[0]?.object ?? null);
@@ -594,7 +616,7 @@ resize();
 // (or R) digs, Q / E turn the camera.
 const keys = new Set<string>();
 window.addEventListener('keydown', (e) => {
-  if ((e.target as HTMLElement).tagName === 'INPUT') return;
+  if (inputLocked || mode === 'menu' || (e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) return;
   const k = e.key.toLowerCase();
   if (!keys.has(k)) {
     if (k === ' ') player.jump();
@@ -678,9 +700,9 @@ const showOverlay = (on: boolean) => { overlay.style.display = on ? '' : 'none';
 const coverHud = (on: boolean) => document.body.classList.toggle('nx-overlay', on);
 
 let center: ControlCenterHandle | null = null;
-let intro: CadetIntroHandle | null = null;
+let title: TitleHandle | null = null;
 let screen: Mounted | null = null;
-let missionBar: { update(): void; destroy(): void } | null = null;
+let missionBar: { update(force?: boolean): void; destroy(): void } | null = null;
 let ribbon: TelemetryRibbonHandle | null = null;
 let systems: SystemsHudHandle | null = null;
 let radio: CommanderRadioHandle | null = null;
@@ -689,13 +711,13 @@ let commander: CommanderHandle | null = null;
 let debrief: DebriefHandle | null = null;
 let previousSummary: Summary | null = null;
 let comparison: FlightComparison | undefined;
-let chosenPriority: Circuit[] | null = null;
 const flights: MissionState[] = [];
 let ended = false;
 let eventsSeen = 0;
 let lastShortageRadio = -Infinity;
 
 function dispatch(cmd: Command): CommandResult {
+  if (inputLocked) return { ok: false, reason: 'Secuencia de vuelo en curso' };
   return runner ? runner.dispatch(cmd) : { ok: false, reason: 'Sin misión en curso' };
 }
 
@@ -708,33 +730,43 @@ function mountCamera(): void {
   if (!cameraUi) cameraUi = mountCameraControl(cameraHost, cameraRig);
 }
 
-function showCenter(): void {
-  center?.destroy();
-  center = mountControlCenter(document.body, {
-    getGame: () => state,
-    hasFreeSave: () => !!loaded,
-    missionReady: true,
-    // Laboratory crises are not connected to the engine yet: shown as in preparation, never playable.
-    labReady: false,
-    onCadet: () => { leaveCenter(); showCadetIntro(); },
-    onSimulator: () => { leaveCenter(); startFree(); },
-    onLab: () => {},
-    closable: false,
-    initialOpen: true,
+/** Title menu over the 3D space scene. Leaving it fades out; it never runs the economy. */
+function showTitle(): void {
+  mode = 'menu';
+  document.body.classList.add('nx-on-title');
+  titleScene.frame(camera);
+  void preloadOrbitalMaps();
+  title = mountTitle(document.body, {
+    savedMission: () => loadGame()?.mission ?? null,
+    onCadetLaunch: () => { void leaveTitle(); startMissionMode(CADET_DESIGN); },
+    onCadetDesign: () => { void leaveTitle(); showPrepare(CADET_DESIGN); },
+    onSimulator: () => { void leaveTitle(); startFree(); },
+    onProgress: openProgress,
   });
 }
 
-function leaveCenter(): void {
-  center?.destroy();
-  center = null;
+function leaveTitle(): Promise<void> {
+  document.body.classList.remove('nx-on-title');
+  const closing = title?.destroy() ?? Promise.resolve();
+  title = null;
+  return closing;
 }
 
-function showCadetIntro(): void {
-  intro = mountCadetIntro(document.body, {
-    getTelemetry: () => telemetry,
-    onStart: (priority) => { intro?.destroy(); intro = null; chosenPriority = priority; startMissionMode(CADET_DESIGN); },
-    onDesign: (priority) => { intro?.destroy(); intro = null; chosenPriority = priority; showPrepare(CADET_DESIGN); },
-    onBack: () => { intro?.destroy(); intro = null; showCenter(); },
+/** Progress, certifications and science live one step away from the title, never in front. */
+function openProgress(): void {
+  center?.destroy();
+  center = mountControlCenter(document.body, {
+    getGame: () => loadGame() ?? newGame(0),
+    hasFreeSave: () => !!loadGame(),
+    missionReady: true,
+    // Laboratory crises are not connected to the engine yet: shown as in preparation, never playable.
+    labReady: false,
+    onCadet: () => { center?.destroy(); center = null; void leaveTitle(); startMissionMode(CADET_DESIGN); },
+    onSimulator: () => { center?.destroy(); center = null; void leaveTitle(); startFree(); },
+    onLab: () => {},
+    onClose: () => { center?.destroy(); center = null; },
+    closable: true,
+    initialOpen: true,
   });
 }
 
@@ -744,7 +776,7 @@ function showPrepare(initial?: Design, previous: Summary | null = null): void {
   screen = mountPrepare(overlay, {
     initial, previous,
     onConfirm: (design) => { screen?.destroy(); screen = null; showOverlay(false); startMissionMode(design); },
-    onBack: () => { screen?.destroy(); screen = null; showOverlay(false); if (mode === 'menu') showCadetIntro(); else location.reload(); },
+    onBack: () => { screen?.destroy(); screen = null; showOverlay(false); returnToControl(); },
   });
 }
 
@@ -795,8 +827,6 @@ function startMissionMode(design: Design): void {
   ended = false;
   eventsSeen = 0;
   lastShortageRadio = -Infinity;
-  // The order chosen in the briefing is the first logged command, so replay and review include it.
-  if (chosenPriority) dispatch({ type: 'setPriority', order: chosenPriority });
   power = ms.lastPower;
   showOverlay(false);
   coverHud(false);
@@ -847,6 +877,12 @@ function startMissionMode(design: Design): void {
   radio?.destroy();
   radio = mountCommanderRadio(document.body);
   mountCamera();
+  barRoot.querySelector('.m-controls')?.insertBefore(evacuate, barRoot.querySelector('.m-status'));
+  evacuate.hidden = false;
+  cameraRig.setMode('follow');
+  controls.update();
+  // Earth launch, cislunar transit and touchdown; the camera ends on the exact gameplay pose.
+  playSequence('arrival', () => { canvas.focus({ preventScroll: true }); });
 }
 
 function togglePause(): void {
@@ -857,7 +893,7 @@ function togglePause(): void {
 
 /** The commander pauses the mission; closing restores the pause state it found. */
 function openCommander(): void {
-  if (!runner || commander || runner.mission.phase !== 'running') return;
+  if (inputLocked || !runner || runner.blocked || commander || runner.mission.phase !== 'running') return;
   const active = runner;
   const wasPaused = active.paused;
   const focusBack = document.activeElement as HTMLElement | null;
@@ -974,8 +1010,11 @@ function missionFrame(active: MissionRunner): void {
   active.blocked = true;
   hud.close();
   keys.clear();
+  evacuate.hidden = true;
   flights.push(structuredClone(ms));
-  showDebrief(ms);
+  // Victory earns its fly-over before the Flight Readiness Review; a failure goes straight there.
+  if (ms.phase === 'victory') playSequence('victory', () => showDebrief(ms));
+  else showDebrief(ms);
 }
 
 function showDebrief(ms: MissionState): void {
@@ -985,46 +1024,154 @@ function showDebrief(ms: MissionState): void {
     debrief = null;
     showPrepare(design, previousSummary);
   };
-  const menu = () => location.reload();
+  const menu = () => returnToControl();
   showOverlay(true);
   coverHud(true);
   debrief = mountDebrief(overlay, [
     { id: 'result', labelKey: 'nxTabResult', mount: (root) => mountReport(root, { getState: () => ms, previous: previousSummary, onRetry: retry, onMenu: menu }) },
     { id: 'review', labelKey: 'nxTabReview', mount: (root) => mountFlightReview(root, { getState: () => ms, comparison, weather, onRetry: retry, onMenu: menu, onPassport: () => debrief?.show('passport') }) },
     { id: 'passport', labelKey: 'nxTabPassport', mount: (root) => mountPassport(root, { name: getPlayerName(), missions: flights, onBack: () => debrief?.show('review') }) },
-  ]);
+  ], 'review');
 }
 
-/** Cinematic menu shot: slow orbit with a gentle dolly and height sweep. */
-const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-let menuOrbitAngle = 0;
-function menuOrbit(dt: number): void {
-  const t = clock.elapsedTime;
-  if (REDUCED_MOTION) {
-    menuOrbitAngle += 0.04 * dt;
-    const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.04);
-    camera.position.copy(controls.target).add(offset);
-    camera.lookAt(controls.target);
-    return;
-  }
-  // Varying angular speed gives the shot a "breathing" rhythm instead of a metronome.
-  const speed = 0.038 + Math.sin(t * 0.027) * 0.011;
-  menuOrbitAngle += speed * dt;
-  const target = controls.target;
-  const radius = 22 + Math.sin(t * 0.061) * 5;
-  const height = 11 + Math.sin(t * 0.043) * 3;
-  camera.position.set(
-    target.x + Math.cos(menuOrbitAngle) * radius,
-    target.y + height,
-    target.z + Math.sin(menuOrbitAngle) * radius,
-  );
-  camera.lookAt(target);
+/** Motion preference: the title shot and the flight sequences stay still when it asks so. */
+const REDUCED_MOTION = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---- Flight sequences (arrival, evacuation, victory) ---------------------------------------
+
+const titleScene = createTitleScene(REDUCED_MOTION);
+// Compile the title shaders up front so the first menu frame is not a long blank one.
+renderer.compile(titleScene.scene, camera);
+const cinema = new CinematicDirector({ camera, controls, scene, lander: base.objectOf('lander')!, astronaut: player.obj });
+canvas.tabIndex = 0;
+const evacuate = el('button.cinema-evacuate', { type: 'button', hidden: true }, 'Evacuar');
+document.body.append(evacuate);
+
+function clearFlightInput(): void {
+  keys.clear();
+  downAt = null;
+  hud.resetInput();
+  player.resetMotion();
 }
+
+function leaveMissionHud(): void {
+  missionBar?.destroy(); missionBar = null;
+  ribbon?.destroy(); ribbon = null;
+  systems?.destroy(); systems = null;
+  radio?.destroy(); radio = null;
+  evacuate.hidden = true;
+  document.body.classList.remove('nx-mission');
+  coverHud(false);
+}
+
+let contextPause: { active: MissionRunner; blocked: boolean } | null = null;
+function blockMission(active: MissionRunner, blocked: boolean): void {
+  if (contextLost && contextPause?.active === active) {
+    contextPause.blocked = blocked;
+    active.blocked = true;
+  } else active.blocked = blocked;
+}
+
+/** Hand the camera to a sequence: the mission is paused and blocked, inputs drained, HUD hidden. */
+function playSequence(kind: SequenceKind, done: () => void): void {
+  if (cinema.active) return;
+  const active = runner;
+  const wasBlocked = active?.blocked ?? false;
+  const wasPaused = active?.paused ?? false;
+  inputLocked = true;
+  epoch++;
+  if (active) { blockMission(active, true); active.paused = true; }
+  clearFlightInput();
+  hud.close();
+  document.body.classList.add('nx-cinema');
+  const markerVisible = marker.visible;
+  marker.visible = false;
+  clock.getDelta();
+  cinema.start(kind, () => {
+    if (active && runner === active) { blockMission(active, wasBlocked); active.paused = wasPaused; }
+    missionBar?.update(true);
+    document.body.classList.remove('nx-cinema');
+    marker.visible = markerVisible;
+    clearFlightInput();
+    inputLocked = false;
+    done();
+  });
+}
+
+/** Back to the title menu without reloading: the mission is dropped, the free save untouched. */
+function returnToControl(): void {
+  epoch++;
+  closeCommander();
+  debrief?.destroy(); debrief = null;
+  screen?.destroy(); screen = null;
+  showOverlay(false);
+  leaveMissionHud();
+  runner = null;
+  inputLocked = false;
+  clearFlightInput();
+  hud.close();
+  showTitle();
+}
+
+evacuate.addEventListener('click', () => {
+  if (inputLocked || !runner || runner.blocked || runner.mission.phase !== 'running') return;
+  const active = runner;
+  const paused = active.paused;
+  const blocked = active.blocked;
+  active.blocked = true;
+  inputLocked = true;
+  clearFlightInput();
+  const dialog = el('dialog.cinema-confirm', { 'aria-labelledby': 'evacuation-title' },
+    el('h2', { id: 'evacuation-title' }, 'Evacuar base'),
+    el('p', {}, 'Terminar este intento y evacuar a la tripulación. Volverás al menú; este vuelo no cuenta como victoria.'),
+    el('form', { method: 'dialog' }, el('button', { value: 'continue', autofocus: true }, 'Continuar misión'), el('button', { value: 'evacuate' }, 'Confirmar evacuación')));
+  for (const type of ['keydown', 'keyup']) dialog.addEventListener(type, (event) => event.stopPropagation());
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    inputLocked = false;
+    active.paused = paused;
+    blockMission(active, blocked);
+    clearFlightInput();
+    if (dialog.returnValue === 'evacuate') playSequence('evacuation', returnToControl);
+    else evacuate.focus();
+  }, { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+});
+
+document.addEventListener('visibilitychange', () => { clock.getDelta(); clearFlightInput(); });
+canvas.addEventListener('webglcontextlost', () => {
+  contextLost = true;
+  cinema.interrupt();
+  contextPause = runner ? { active: runner, blocked: runner.blocked } : null;
+  if (runner) runner.blocked = true;
+});
+canvas.addEventListener('webglcontextrestored', () => {
+  contextLost = false;
+  clock.getDelta();
+  clearFlightInput();
+  if (runner && contextPause?.active === runner) runner.blocked = contextPause.blocked;
+  contextPause = null;
+});
+if (import.meta.env.DEV) Object.assign(window, { cinema });
 
 const freeClock = fixedStepClock(SIM_STEP);
 let frame = 0;
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
+  const realDt = clock.getDelta();
+  if (document.hidden || contextLost) return;
+  const dt = Math.min(realDt, 0.1);
+  if (cinema.active) {
+    cinema.update(realDt);
+    renderer.shadowMap.needsUpdate = true;
+    renderer.render(cinema.renderScene, camera);
+    return;
+  }
+  if (mode === 'menu') {
+    titleScene.update(dt, camera);
+    renderer.render(titleScene.scene, camera);
+    return;
+  }
   adaptQuality(dt);
   renderer.shadowMap.needsUpdate = frame++ % 2 === 0;
   if (mode === 'free') {
@@ -1042,9 +1189,10 @@ renderer.setAnimationLoop(() => {
     runner.advance(dt);
     power = runner.mission.lastPower;
     missionFrame(runner);
+    if (cinema.active) { renderer.render(cinema.renderScene, camera); return; }
   }
   // The astronaut only moves when the world is live: not behind the menu, a pause or an overlay.
-  const live = mode === 'free' || (mode === 'mission' && !!runner && runner.canDispatch());
+  const live = !inputLocked && (mode === 'free' || (mode === 'mission' && !!runner && runner.canDispatch()));
   const pdt = live ? dt : 0;
   // Day and night fade smoothly; the Sun moves along the horizon.
   const isDay = mode === 'mission' && runner ? !darknessAt(runner.mission).isDark : cyclePhase(state.time).isDay;
@@ -1066,15 +1214,10 @@ renderer.setAnimationLoop(() => {
   }
   animateModel(player.obj, clock.elapsedTime, dt);
   const focus = state.rover.driving ? base.rover().position : player.position;
-  if (mode === 'menu') {
-    menuOrbit(dt);
-    controls.update();
-  } else {
-    // Q / E turn the camera only when no tactical transition is running.
-    if (!cameraRig.transitioning) cameraTurn(dt);
-    cameraRig.setEnabled(!(runner && runner.blocked && mode === 'mission'));
-    cameraRig.update(dt, focus);
-  }
+  // Q / E turn the camera only when no tactical transition is running.
+  if (!cameraRig.transitioning && live) cameraTurn(dt);
+  cameraRig.setEnabled(!inputLocked && !(runner && runner.blocked && mode === 'mission'));
+  cameraRig.update(dt, focus);
   updatePrompt();
   updateMarker(clock.elapsedTime);
 
@@ -1094,4 +1237,4 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-showCenter();
+showTitle();

@@ -39,6 +39,14 @@ export class Player {
     return this.obj.position;
   }
 
+  resetMotion(): void {
+    this.busy = 0;
+    this.onDone = null;
+    this.height = 0;
+    this.vy = 0;
+    this.landing = 0;
+  }
+
   get airborne(): boolean {
     return this.height > 0 || this.vy > 0;
   }
