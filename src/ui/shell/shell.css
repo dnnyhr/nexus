@@ -15,9 +15,6 @@
 
 [hidden] { display: none !important; }
 
-/* Music button in the top bar. */
-#topright .t-btn.x-bgm { min-width: 44px; min-height: 44px; }
-
 /* Mission layout: the classic HUD stays (gauges, radio, buttons); the mission bar sits at the
    bottom between the gauges and the counters. Full-screen views hide what is behind them. */
 body.nx-overlay #mission-bar-root,

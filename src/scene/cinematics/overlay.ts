@@ -11,20 +11,34 @@ export function mountCinemaUI(kind: SequenceKind, skip: () => void) {
   const radio = el('p.cinema-radio', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' });
   const mask = el('div.cinema-mask', { 'aria-hidden': 'true' });
   const button = el('button', { type: 'button' }, 'Omitir secuencia');
-  const sound = el('button', { type: 'button', 'aria-pressed': 'false' }, 'Audio apagado');
+  const sound = el('button', { type: 'button' });
   const hint = el('p.cinema-note', {}, kind === 'arrival' ? 'Recreación con elipsis temporal · cartografía NASA SVS · vuelo simulado' : 'Registro de vuelo · secuencia resumida');
   const node = el('section.cinema-overlay', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Secuencia de misión' }, mask,
     el('div.cinema-transmission', {}, radio, hint), el('div.cinema-actions', {}, sound, button));
   let audio: AudioContext | null = null;
   let clip: HTMLAudioElement | null = null;
   let time = 0;
-  let muted = true;
+  // The touchdown quote plays by default; the other sequences start silent.
+  let muted = kind !== 'arrival';
+  let unlocking = false;
+  const label = () => {
+    sound.textContent = muted ? 'Audio apagado' : 'Audio de comunicaciones';
+    sound.setAttribute('aria-pressed', String(!muted));
+  };
+  label();
   if (kind === 'arrival' && typeof Audio !== 'undefined') {
     clip = new Audio(ARRIVAL_AUDIO_URL);
     clip.preload = 'auto';
+    // The sequence starts from the «Despegar» tap: play and pause silently now, inside that
+    // gesture, so mobile browsers (iOS) let the quote play later on its own.
+    const unlock = clip;
+    unlock.muted = true;
+    unlocking = true;
+    const done = () => { unlocking = false; unlock.muted = false; };
+    void unlock.play().then(() => { if (time < ARRIVAL_AUDIO_START) { unlock.pause(); unlock.currentTime = 0; } done(); }).catch(done);
   }
   const syncClip = () => {
-    if (!clip) return;
+    if (!clip || unlocking) return;
     if (muted || time < ARRIVAL_AUDIO_START) {
       if (!clip.paused) clip.pause();
       if (time < ARRIVAL_AUDIO_START) clip.currentTime = 0;
@@ -41,8 +55,7 @@ export function mountCinemaUI(kind: SequenceKind, skip: () => void) {
     } else if (!muted) {
       try { audio ??= new AudioContext(); void audio.resume().catch(() => {}); } catch { muted = true; }
     } else if (audio) void audio.suspend().catch(() => {});
-    sound.textContent = muted ? 'Audio apagado' : 'Audio de comunicaciones';
-    sound.setAttribute('aria-pressed', String(!muted));
+    label();
   }, { signal: ctrl.signal });
   button.addEventListener('click', skip, { signal: ctrl.signal });
   node.addEventListener('keydown', event => {
