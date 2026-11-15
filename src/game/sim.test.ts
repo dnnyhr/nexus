@@ -98,7 +98,7 @@ describe('energy and the lunar night', () => {
     const a = developedGame();
     const b = developedGame();
     for (const s of [a, b]) { s.time = CYCLE.daySeconds; s.res.energy = 100; }
-    b.power = { heating: false, processor: false, robots: false, growLights: 0 };
+    b.power = { ...b.power, heating: false, processor: false, robots: false, growLights: 0 };
     run2(a, 60);
     run2(b, 60);
     expect(b.res.energy).toBeGreaterThan(a.res.energy);
