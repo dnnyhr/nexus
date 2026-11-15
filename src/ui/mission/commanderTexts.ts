@@ -1,4 +1,4 @@
-import type { Command, Design, Failure, Horizon, Summary } from '../../engine/types';
+import type { Circuit, Command, Design, Failure, Horizon, Summary } from '../../engine/types';
 
 export type Rating = 'optimal' | 'adequate' | 'critical';
 
@@ -84,10 +84,19 @@ export function horizonLabel(horizon: Horizon): string {
   return horizonLabels[horizon.kind];
 }
 
-export const powerLabels: Record<'heating' | 'processor' | 'robots', string> = {
+export const powerLabels: Record<'heating' | 'processor' | 'robots' | 'greenhouse', string> = {
   heating: 'Calefacción',
   processor: 'Procesador',
   robots: 'Robots',
+  greenhouse: 'Invernadero',
+};
+
+export const circuitLabels: Record<Circuit, string> = {
+  lifeSupport: 'Soporte vital',
+  heating: 'Calefacción',
+  processor: 'Procesador',
+  robots: 'Robots',
+  greenhouse: 'Invernadero',
 };
 
 export function commandText(cmd: Command): string {
@@ -96,6 +105,8 @@ export function commandText(cmd: Command): string {
       return `Luces de cultivo al ${Math.round(cmd.value)} %`;
     case 'setPower':
       return `${powerLabels[cmd.system]} ${cmd.on ? 'encendido' : 'apagado'}`;
+    case 'setPriority':
+      return `Prioridad eléctrica: ${cmd.order.map((c) => circuitLabels[c]).join(' › ')}`;
     case 'irrigate':
       return 'Regar el cultivo';
     case 'adjustClimate':
