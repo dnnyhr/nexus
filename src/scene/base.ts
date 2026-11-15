@@ -44,6 +44,8 @@ interface Agent {
   workSeconds: number;
   workLeft: number;
   moveMode: AnimMode;
+  /** Collector robots fill their bucket at a dig site and empty it at the processor. */
+  role: 'collector' | 'harvester';
 }
 
 export class BaseView {
@@ -52,6 +54,9 @@ export class BaseView {
   private agents: Agent[] = [];
   /** True after the first sync, so loading a game doesn't animate every building. */
   private ready = false;
+
+  /** Called when a collector robot empties its bucket at the processor (returns what it unloaded). */
+  onRobotUnload: (robot: THREE.Object3D) => void = () => {};
 
   /** Building roots by slot, for picking and for the UI. */
   readonly buildings = new Map<THREE.Object3D, Slot>();
@@ -267,13 +272,18 @@ export class BaseView {
         ? [DIG_SITES[i % DIG_SITES.length], UNLOAD]
         : [new THREE.Vector3(-1, 0, 8.6), new THREE.Vector3(6, 0, 8.6)];
       obj.position.copy(targets[1]);
-      this.agents.push({ obj, targets, index: 0, speed: kind === 'collector' ? 1.8 : 0.9, workSeconds: kind === 'collector' ? 6.4 : 8, workLeft: 0, moveMode: 'drive' });
+      const level = Math.max(1, s.levels.collectorRobot);
+      this.agents.push({
+        obj, targets, index: 0, workLeft: 0, moveMode: 'drive', role: kind === 'collector' ? 'collector' : 'harvester',
+        speed: kind === 'collector' ? 1.8 + 0.5 * (level - 1) : 0.9,
+        workSeconds: kind === 'collector' ? 6.4 : 8,
+      });
     });
   }
 
   /** Per-frame update: movement, animations, and state shown on the models. */
   update(s: GameState, t: number, dt: number, sunAzimuth: number, power: PowerReport): void {
-    for (const a of this.agents) this.moveAgent(a, dt, s);
+    for (const a of this.agents) this.moveAgent(a, dt, s, power);
     for (const [obj, age] of this.rising) {
       const k = Math.min(1, (age + dt) / 1.4);
       const e = 1 - Math.pow(1 - k, 3);
@@ -303,19 +313,28 @@ export class BaseView {
     animateModel(this.group, t, dt);
   }
 
-  private moveAgent(a: Agent, dt: number, s: GameState): void {
-    const isRobot = a.obj.userData.id !== 'astronaut';
-    // Robots stop while the crew shelters or when robots are switched off; the astronaut hides inside.
-    if (s.sheltered || (isRobot && !s.power.robots)) {
+  private moveAgent(a: Agent, dt: number, s: GameState, power: PowerReport): void {
+    // Robots stop when switched off, without power (empty battery at night), while the crew
+    // shelters, and during a solar storm (they park to protect their electronics).
+    if (!power.running.robots || s.sheltered || s.storm.phase === 'active') {
       setMode(a.obj, 'idle');
-      a.obj.visible = isRobot || !s.sheltered;
       return;
     }
-    a.obj.visible = true;
     if (a.workLeft > 0) {
       a.workLeft -= dt;
-      setMode(a.obj, a.obj.userData.modes?.includes('work') ? 'work' : 'idle');
-      if (a.workLeft <= 0) a.index = (a.index + 1) % a.targets.length;
+      // A collector digs at the site; at the processor it just tips the bucket.
+      const unloading = a.role === 'collector' && a.index === 1;
+      setMode(a.obj, unloading ? 'idle' : a.obj.userData.modes?.includes('work') ? 'work' : 'idle');
+      if (a.workLeft <= 0) {
+        if (a.role === 'collector') {
+          if (a.index === 0) a.obj.userData.carrying = true;
+          else {
+            a.obj.userData.carrying = false;
+            this.onRobotUnload(a.obj);
+          }
+        }
+        a.index = (a.index + 1) % a.targets.length;
+      }
       return;
     }
     const target = a.targets[a.index];
@@ -324,7 +343,7 @@ export class BaseView {
     const dz = target.z - pos.z;
     const dist = Math.hypot(dx, dz);
     if (dist < 0.2) {
-      a.workLeft = a.workSeconds;
+      a.workLeft = a.role === 'collector' && a.index === 1 ? 1.2 : a.workSeconds;
       return;
     }
     const heading = Math.atan2(dx, dz);
