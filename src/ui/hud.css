@@ -235,19 +235,31 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 
-/* ---- Joystick (touch) ---- */
+/* ---- Joystick (touch): the left side of the screen moves the astronaut ---- */
+#move-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 45%;
+  touch-action: none;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+}
 #joystick {
   position: absolute;
   left: max(18px, env(safe-area-inset-left));
-  bottom: 178px;
+  top: calc(100% - 178px - 116px);
   width: 116px;
   height: 116px;
   border-radius: 50%;
   border: 1px solid var(--faint);
   background: rgba(0, 0, 0, 0.25);
-  touch-action: none;
-  pointer-events: auto;
+  opacity: 0.55;
+  pointer-events: none;
 }
+#joystick.active { opacity: 1; }
 #joystick .knob {
   position: absolute;
   left: 50%;
@@ -258,7 +270,11 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.85);
 }
-@media (pointer: fine) { #joystick { display: none; } }
+@media (pointer: fine) { #move-zone { display: none; } }
+
+/* ---- Full screen ---- */
+#fullscreen-btn { min-width: 40px; padding-left: 10px; padding-right: 10px; }
+#fullscreen-btn svg { display: block; width: 16px; height: 16px; }
 
 @media (max-height: 430px) {
   #telemetry { height: 124px; gap: 22px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
@@ -266,7 +282,7 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
   .gauge-r svg { width: 62px; height: 62px; }
   .timeline .goal { font-size: 15px; }
   .big { font-size: 22px; }
-  #joystick { bottom: 132px; width: 100px; height: 100px; }
+  #joystick { top: calc(100% - 132px - 100px); width: 100px; height: 100px; }
   .hint { bottom: 132px; }
   .touch { bottom: 136px; }
   .panel { max-height: calc(100vh - 130px); }
@@ -341,3 +357,26 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
 .data-list li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px solid var(--faint); }
 .data-list a { color: #fff; }
 .panel a { color: #fff; }
+
+/* ---- Phones in landscape: tighter bars so nothing overlaps ---- */
+@media (max-width: 900px) {
+  #topright { gap: 4px; }
+  #topright .t-btn { padding: 6px 9px; min-height: 36px; font-size: 11px; letter-spacing: 0.08em; }
+  #lang .t-btn { min-height: 32px; padding: 5px 7px; }
+  #fullscreen-btn { min-width: 36px; padding-left: 8px; padding-right: 8px; }
+  #profile-btn { max-width: 96px; }
+  #hud > .shower { max-width: 26vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; letter-spacing: 0.08em; }
+  #telemetry { gap: 14px; padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .gauges { gap: 6px; }
+  .gauge-r { width: 64px; }
+  .gauge-r svg { width: 54px; height: 54px; }
+  .gauge-r .label { font-size: 9px; letter-spacing: 0.08em; }
+  .gauge-r .sub { display: none; }
+  .timeline .now { gap: 10px; margin-bottom: 10px; }
+  .timeline .goal { font-size: 13px; }
+  .timeline .clock { white-space: nowrap; }
+  .timeline .clock .big { font-size: 15px; }
+  .counts { gap: 12px; }
+  .counts .label { font-size: 9px; letter-spacing: 0.08em; }
+  .big { font-size: 18px; }
+}
