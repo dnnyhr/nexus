@@ -4,7 +4,8 @@ import { currentMission, MISSIONS, type Mission } from '../game/missions';
 import { capacity, carryMax, lifeSupportPercent, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
-import { getLang, onLangChange, setLang, t, type StringKey } from './i18n';
+import { cleanName, NAME_MAX, saveProfile } from '../game/profile';
+import { getLang, getPlayerName, onLangChange, setLang, setPlayerName, t, type StringKey } from './i18n';
 import { Joystick } from './joystick';
 import { makePanel, makePowerPanel, type Panel, type PanelContext, type PanelKind } from './panels';
 import './hud.css';
@@ -87,6 +88,7 @@ export class Hud {
   private stormInfo = el('span.label');
   private vignette = el('div', { id: 'vignette' });
   private dataBtn: HTMLButtonElement;
+  private profileBtn: HTMLButtonElement;
   dataPanel: (() => HTMLElement) | null = null;
   private showerName: string | null = null;
   private rail = el('div.rail');
@@ -139,6 +141,7 @@ export class Hud {
     // Radio.
     this.stormBox.append(this.stormTitle, this.stormTime, this.stormInfo);
     this.dataBtn = el('button.t-btn', { onclick: () => this.toggleData() }, el('span', { 'data-label': 'nasaData' }, t('nasaData')));
+    this.profileBtn = el('button.t-btn', { id: 'profile-btn', onclick: () => this.toggleProfile() });
     this.radioBox.append(
       el('div.from', {}, el('span.dot'), this.radioFrom),
       this.radioMsg,
@@ -146,7 +149,7 @@ export class Hud {
     );
 
     this.prompt.addEventListener('click', () => deps.action());
-    this.root.append(this.vignette, band, el('div', { id: 'topright' }, this.dataBtn, this.powerBtn, this.shelterBtn, langBox), this.stormBox, this.radioBox, this.prompt, this.hint, this.arrow, this.showerTag);
+    this.root.append(this.vignette, band, el('div', { id: 'topright' }, this.profileBtn, this.dataBtn, this.powerBtn, this.shelterBtn, langBox), this.stormBox, this.radioBox, this.prompt, this.hint, this.arrow, this.showerTag);
     document.body.append(this.root);
     this.joystick = new Joystick(this.root);
     // Touch buttons: hop (hold to keep hopping) and dig.
@@ -223,6 +226,42 @@ export class Hud {
     this.show({ el: panelEl, update: () => {} }, null, 'data');
   }
 
+  /** Profile: the astronaut's name, used on the radio. Kept when starting a new game. */
+  openProfile(): void {
+    if (this.panel?.kind !== 'profile') this.toggleProfile();
+  }
+
+  private toggleProfile(): void {
+    if (this.panel?.kind === 'profile') return this.close();
+    const input = el('input', {
+      type: 'text', id: 'profile-name', maxlength: NAME_MAX, value: getPlayerName(), placeholder: t('defaultName'),
+      autocomplete: 'off', spellcheck: 'false', enterkeyhint: 'done',
+    });
+    const save = () => this.rename(input.value);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') save();
+      if (e.key === 'Escape') this.close();
+    });
+    const head = el('div.head', {}, el('h3', {}, t('profile')), el('button.close', { onclick: () => this.close() }, '✕'));
+    const panelEl = el('div.panel.interactive', {}, head,
+      el('label.label', { for: 'profile-name' }, t('profileName')),
+      input,
+      el('p.fact', {}, t('profileHint')),
+      el('div.row', {}, el('button.t-btn.primary', { onclick: save }, t('saveName'))));
+    this.show({ el: panelEl, update: () => {} }, null, 'profile');
+    // Focus only with a keyboard: on phones it would pop the keyboard over the game.
+    if (!matchMedia('(pointer: coarse)').matches) input.focus();
+  }
+
+  private rename(raw: string): void {
+    const name = cleanName(raw);
+    this.close();
+    if (name === getPlayerName()) return;
+    saveProfile({ name });
+    setPlayerName(name);
+    this.radioText(this.deps.s.levels.antenna ? t('nameAckRadio') : t('nameAckLander'), !this.deps.s.levels.antenna);
+  }
+
   /** Solar storm alert: countdown, dose, and a red pulse when caught outside. */
   setStorm(info: { phase: 'none' | 'warning' | 'active'; seconds: number; label: string; dose: number; exposed: boolean } | null, time: number): void {
     const on = !!info && info.phase !== 'none';
@@ -246,6 +285,7 @@ export class Hud {
     this.close();
     if (p.kind === 'power') this.toggleMenu();
     else if (p.kind === 'data') this.toggleData();
+    else if (p.kind === 'profile') this.toggleProfile();
     else if (p.anchor) this.open(p.kind as PanelKind, p.anchor);
   }
 
@@ -361,6 +401,7 @@ export class Hud {
 
   private refresh(): void {
     const s = this.deps.s;
+    setText(this.profileBtn, getPlayerName() || t('profile'));
     const cap = capacity(s);
     this.gauges.life.set(lifeSupportPercent(s));
     setText(this.gauges.life.sub, `O₂ ${Math.floor(s.res.o2)} · ${t('water')} ${Math.floor(s.res.water)} · ${t('food')} ${Math.floor(s.res.food)}`);
