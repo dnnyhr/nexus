@@ -1,0 +1,14 @@
+# Netlify builds the site from this repo on every push to main,
+# and makes a preview link for each pull request.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# File names under /assets change on every build, so they can be cached forever.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
