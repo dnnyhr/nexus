@@ -73,6 +73,22 @@ export class BaseView {
     this.place('rover', rover(), SLOTS.rover, -0.6);
   }
 
+  /** The expedition rover object. */
+  rover(): THREE.Object3D {
+    return this.built.get('rover')!.obj;
+  }
+
+  /** Put the rover where the state says (after loading) or re-measure it after driving. */
+  parkRover(x: number, z: number, rot: number): void {
+    const obj = this.rover();
+    obj.position.set(x, heightAt(x, z), z);
+    obj.rotation.set(0, rot, 0);
+    obj.updateMatrixWorld(true);
+    obj.userData.footprints = [new THREE.Box2().setFromCenterAndSize(new THREE.Vector2(x, z), new THREE.Vector2(2.2, 2.2))];
+    obj.userData.box = new THREE.Box3().setFromObject(obj);
+    this.colliderCache = null;
+  }
+
   /** Where a building kind goes (for sites and for the mission marker). */
   slotOf(kind: BuildingKind, s: GameState): THREE.Vector3 | null {
     switch (kind) {
