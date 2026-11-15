@@ -7,3 +7,4 @@ export { project } from './project';
 export { replay } from './replay';
 export { darknessAt, nextEvent } from './observation';
 export { summarize } from './summary';
+export { createMissionRunner, type MissionRunner, type MissionSpeed } from './runner';
