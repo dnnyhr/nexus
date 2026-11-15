@@ -1,4 +1,5 @@
 import { el, setText } from '../dom';
+import { isCompactViewport, loadPrefs, savePrefs } from '../disclosure';
 import { getLang, onLangChange, t, type StringKey } from '../i18n';
 import {
   formatTrend,
@@ -39,6 +40,7 @@ export interface TelemetryRibbonOptions {
 export interface TelemetryRibbonHandle {
   readonly el: HTMLElement;
   update(force?: boolean): void;
+  setDensity(density: 'full' | 'compact'): void;
   destroy(): void;
 }
 
@@ -106,6 +108,8 @@ class TelemetryRibbon implements TelemetryRibbonHandle {
   private directiveBox: HTMLElement;
   private powerButton: HTMLButtonElement | null = null;
   private commanderButton: HTMLButtonElement | null = null;
+  private densityButton: HTMLButtonElement;
+  private density: 'full' | 'compact' = 'full';
   private chips: Record<'dark' | 'sheltered' | 'storm', HTMLElement>;
   private sample: Partial<Record<TelemetryResource, number>> = {};
   private sampleAt = 0;
@@ -133,7 +137,7 @@ class TelemetryRibbon implements TelemetryRibbonHandle {
       const unit = el('span.x-read__unit', {}, meta.unit);
       const trend = el('span.x-read__trend', { 'aria-hidden': 'true' }, '=');
       const flag = el('span.x-sr-only');
-      const node = el('div.x-read', { 'data-risk': 'ok', role: 'group' },
+      const node = el(`div.x-read.x-read--${meta.field}`, { 'data-risk': 'ok', role: 'group' },
         label,
         el('span.x-read__main', {}, value, unit),
         trend,
@@ -156,11 +160,17 @@ class TelemetryRibbon implements TelemetryRibbonHandle {
       actions.append(this.commanderButton);
     }
 
+    this.densityButton = el('button.x-tel__btn.x-tel__density', { type: 'button' });
+    this.densityButton.addEventListener('click', () => {
+      this.setDensity(this.density === 'full' ? 'compact' : 'full');
+    });
+
     const status = el('div.x-tel__status', {},
       this.chips.dark,
       this.chips.sheltered,
       this.chips.storm,
       this.updated,
+      this.densityButton,
       actions,
     );
 
@@ -177,9 +187,26 @@ class TelemetryRibbon implements TelemetryRibbonHandle {
     );
 
     this.unsubscribe = onLangChange(() => this.applyLabels());
+    const prefs = loadPrefs();
+    const initial = prefs.telemetry === 'compact' ? 'compact' : (isCompactViewport() ? 'compact' : 'full');
+    this.setDensity(initial, false);
     this.timer = window.setInterval(() => {
       if (this.lastSnapshot) this.renderUpdated(this.lastSnapshot, Date.now());
     }, 1000);
+  }
+
+  setDensity(density: 'full' | 'compact', persist = true): void {
+    this.density = density;
+    this.el.classList.toggle('is-compact', density === 'compact');
+    const label = t(density === 'compact' ? 'telFull' : 'telCompact');
+    this.densityButton.textContent = label;
+    this.densityButton.setAttribute('aria-label', label);
+    this.densityButton.setAttribute('aria-pressed', String(density === 'compact'));
+    if (persist) {
+      const prefs = loadPrefs();
+      (prefs as Record<string, string>).telemetry = density;
+      savePrefs(prefs);
+    }
   }
 
   update(force = false): void {
@@ -289,6 +316,9 @@ class TelemetryRibbon implements TelemetryRibbonHandle {
       this.commanderButton.setAttribute('aria-label', t('telOpenCommander'));
     }
     for (const reading of this.readings.values()) setText(reading.label, t(reading.labelKey));
+    const densityLabel = t(this.density === 'compact' ? 'telFull' : 'telCompact');
+    this.densityButton.textContent = densityLabel;
+    this.densityButton.setAttribute('aria-label', densityLabel);
     this.lastDirective = '';
     if (this.lastSnapshot) {
       this.renderUpdated(this.lastSnapshot, Date.now());

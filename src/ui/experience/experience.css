@@ -2220,3 +2220,35 @@ button.x-cert__mission {
     transition: none !important;
   }
 }
+
+/* Telemetry ribbon: compact density (user toggle) */
+.x-tel.is-compact .x-read--water,
+.x-tel.is-compact .x-read--food { display: none; }
+.x-tel.is-compact .x-tel__brand { display: none; }
+.x-tel.is-compact .x-tel__actions { display: none; }
+.x-tel.is-compact .x-tel__dir-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.x-tel__density { margin-left: 6px; }
+
+/* Collapsible sections (Control Center) */
+.x-cc__section { margin-bottom: 12px; }
+.x-cc__section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--x-faint);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+}
+.x-cc__section-toggle .x-cc__chevron { transition: transform 0.15s; }
+.x-cc__section-toggle[aria-expanded='false'] .x-cc__chevron { transform: rotate(-90deg); }

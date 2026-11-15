@@ -2,6 +2,7 @@ import { el, setText } from '../dom';
 import { onLangChange, t, type StringKey } from '../i18n';
 import type { Circuit } from '../../game/config';
 import { formatRate, riskForPercent, type Risk } from './logic';
+import { mountDisclosure, type DisclosureHandle, type SurfaceState } from '../disclosure';
 import './experience.css';
 
 export type BreakerSystem = 'heating' | 'processor' | 'robots' | 'greenhouse';
@@ -39,6 +40,7 @@ export interface SystemsHudHandle {
   readonly el: HTMLElement;
   update(force?: boolean): void;
   setCollapsed(collapsed: boolean): void;
+  isCollapsed(): boolean;
   destroy(): void;
 }
 
@@ -91,7 +93,7 @@ class SystemsHud implements SystemsHudHandle {
   private snap: SystemsSnapshot | null = null;
   private lastCause = '';
   private lastRender = 0;
-  private collapsed: boolean;
+  private disclosure: DisclosureHandle;
   private unsubscribe: () => void;
 
   constructor(private options: SystemsHudOptions) {
@@ -207,10 +209,17 @@ class SystemsHud implements SystemsHudHandle {
     );
 
     this.el = el('aside.x-sys', { 'aria-label': t('sysTitle') }, this.toggle, this.body);
-    this.collapsed = options.initialCollapsed ?? matchMedia('(max-width: 900px), (max-height: 520px)').matches;
-    this.toggle.addEventListener('click', () => this.setCollapsed(!this.collapsed));
+    const defaultState: SurfaceState = options.initialCollapsed ? 'closed' : 'open';
+    this.disclosure = mountDisclosure(this.el, {
+      id: 'systems',
+      persist: true,
+      defaultState,
+      toggle: this.toggle,
+      body: this.body,
+      nameKey: 'sysTitle',
+      mutexGroup: 'hud-mobile',
+    });
     this.unsubscribe = onLangChange(() => this.applyLabels());
-    this.applyCollapsed();
     this.update(true);
   }
 
@@ -225,7 +234,7 @@ class SystemsHud implements SystemsHudHandle {
     const net = snap.generation - snap.demand;
     const allowed = this.commandAllowed();
 
-    this.el.dataset.risk = risk;
+    this.disclosure.setRisk(risk);
     setText(this.summaryEnergy, t('sysEnergyValue', { n: Math.round(energy) }));
     setText(this.energyValue, t('sysEnergyValue', { n: Math.round(energy) }));
     setText(this.summaryNet, t('sysBalanceValue', { n: formatRate(net) }));
@@ -284,12 +293,16 @@ class SystemsHud implements SystemsHudHandle {
   }
 
   setCollapsed(collapsed: boolean): void {
-    this.collapsed = collapsed;
-    this.applyCollapsed();
+    this.disclosure.setState(collapsed ? 'closed' : 'open', 'user');
+  }
+
+  isCollapsed(): boolean {
+    return this.disclosure.getState() !== 'open';
   }
 
   destroy(): void {
     this.unsubscribe();
+    this.disclosure.destroy();
     this.el.remove();
   }
 
@@ -312,14 +325,6 @@ class SystemsHud implements SystemsHudHandle {
     return t('sysCauseBalance', { g: snap.generation.toFixed(1), d: snap.demand.toFixed(1) });
   }
 
-  private applyCollapsed(): void {
-    this.el.classList.toggle('is-collapsed', this.collapsed);
-    this.body.hidden = this.collapsed;
-    this.toggle.setAttribute('aria-expanded', String(!this.collapsed));
-    this.toggle.setAttribute('aria-label', t(this.collapsed ? 'sysExpand' : 'sysCollapse'));
-    this.toggle.title = t(this.collapsed ? 'sysExpand' : 'sysCollapse');
-  }
-
   private applyLabels(): void {
     setText(this.title, t('sysTitle'));
     setText(this.energyLabel, t('sysEnergyAvailable'));
@@ -332,7 +337,6 @@ class SystemsHud implements SystemsHudHandle {
     setText(this.priorityHint, t('sysPriorityHint'));
     setText(this.lightsLabel, t('growLights'));
     this.el.setAttribute('aria-label', t('sysTitle'));
-    this.applyCollapsed();
     for (const spec of BREAKERS) setText(this.breakerLabels.get(spec.id) ?? this.title, t(spec.labelKey));
     if (this.snap) {
       this.lastCause = '';

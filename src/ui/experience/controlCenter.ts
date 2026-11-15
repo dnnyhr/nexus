@@ -5,6 +5,7 @@ import { getLang, getPlayerName, onLangChange, setLang, t, type StringKey } from
 import { CertificationsView, missionTitleKey } from './certifications';
 import { LAB_SCENARIOS, type LabScenarioId } from './labs';
 import { mountScienceCapsules, SCIENCE_CAPSULES, type ScienceCapsulesHandle } from './science';
+import { mountDisclosure, isCompactViewport, resetPrefs } from '../disclosure';
 import './experience.css';
 
 export type ControlCenterView = 'home' | 'lab';
@@ -318,14 +319,38 @@ class ControlCenter implements ControlCenterHandle {
     this.certifications.update(game.mission);
     certBox.append(this.certifications.el);
 
+    const certToggle = el('button.x-cc__section-toggle', { type: 'button' }, t('ccCertifications'), el('span.x-cc__chevron', { 'aria-hidden': 'true' }));
+    const certSection = el('section.x-cc__section', {}, certToggle, certBox);
+    mountDisclosure(certSection, {
+      id: 'cc.certifications',
+      persist: false,
+      defaultState: isCompactViewport() ? 'closed' : 'open',
+      toggle: certToggle,
+      body: certBox,
+      nameKey: 'ccCertifications',
+      mutexGroup: 'cc-sections',
+    });
+
     const scienceBox = el('div.x-cc__science');
     this.science = mountScienceCapsules(scienceBox, {
       initialIndex: game.mission % SCIENCE_CAPSULES.length,
     });
 
+    const scienceToggle = el('button.x-cc__section-toggle', { type: 'button' }, t('sciTitle'), el('span.x-cc__chevron', { 'aria-hidden': 'true' }));
+    const scienceSection = el('section.x-cc__section', {}, scienceToggle, scienceBox);
+    mountDisclosure(scienceSection, {
+      id: 'cc.science',
+      persist: false,
+      defaultState: isCompactViewport() ? 'closed' : 'open',
+      toggle: scienceToggle,
+      body: scienceBox,
+      nameKey: 'sciTitle',
+      mutexGroup: 'cc-sections',
+    });
+
     return el('div.x-cc__body', {},
       el('section.x-cc__access', { 'aria-label': t('ccTitle') }, index, cadet, simulator, lab),
-      el('div.x-cc__lower', {}, certBox, scienceBox),
+      el('div.x-cc__lower', {}, certSection, scienceSection),
     );
   }
 
@@ -380,12 +405,23 @@ class ControlCenter implements ControlCenterHandle {
       initialIndex: this.options.getGame().mission % SCIENCE_CAPSULES.length,
     });
 
+    const scienceToggle = el('button.x-cc__section-toggle', { type: 'button' }, t('sciTitle'), el('span.x-cc__chevron', { 'aria-hidden': 'true' }));
+    const scienceSection = el('section.x-cc__section', {}, scienceToggle, scienceBox);
+    mountDisclosure(scienceSection, {
+      id: 'cc.lab.science',
+      persist: false,
+      defaultState: isCompactViewport() ? 'closed' : 'open',
+      toggle: scienceToggle,
+      body: scienceBox,
+      nameKey: 'sciTitle',
+    });
+
     return el('div.x-cc__body.x-cc__body--lab', {},
       head,
       banner,
       grid,
       el('p.x-cc__teacher', {}, t('ccLabTeacher')),
-      scienceBox,
+      scienceSection,
     );
   }
 
@@ -415,7 +451,11 @@ class ControlCenter implements ControlCenterHandle {
         onclick: () => this.options.onOpenControls?.(),
       }, t('ccShowGuide'))
       : null;
-    return el('footer.x-cc__foot', {}, quick, guide);
+    const reset = el('button.x-cc__guide', {
+      type: 'button',
+      onclick: () => { resetPrefs(); this.render(); },
+    }, t('uiResetView'));
+    return el('footer.x-cc__foot', {}, quick, guide, reset);
   }
 
   private card(options: CardOptions): HTMLElement {
