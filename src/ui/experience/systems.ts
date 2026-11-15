@@ -1,9 +1,10 @@
 import { el, setText } from '../dom';
 import { onLangChange, t, type StringKey } from '../i18n';
+import type { Circuit } from '../../game/config';
 import { formatRate, riskForPercent, type Risk } from './logic';
 import './experience.css';
 
-export type BreakerSystem = 'heating' | 'processor' | 'robots';
+export type BreakerSystem = 'heating' | 'processor' | 'robots' | 'greenhouse';
 
 export interface SystemsSnapshot {
   energy: number;
@@ -15,6 +16,12 @@ export interface SystemsSnapshot {
   sheltered?: boolean;
   shortage?: boolean;
   lightsDraw?: number;
+  /** Feeding order in force (first is fed first). Shown only with onPriority. */
+  priority?: readonly Circuit[];
+  /** Circuits that asked for power this step and did not get all of it. */
+  shed?: readonly Circuit[];
+  /** Generation plus what the batteries can deliver this step. */
+  available?: number;
   cause?: { key: StringKey; vars?: Record<string, string | number>; risk?: Risk } | null;
 }
 
@@ -22,6 +29,8 @@ export interface SystemsHudOptions {
   getSnapshot(): SystemsSnapshot;
   onBreaker(system: BreakerSystem, on: boolean): void;
   onLights(value: number): void;
+  /** Reorder circuits; when present, the priority list is shown. */
+  onPriority?(order: Circuit[]): void;
   canCommand?(): boolean;
   initialCollapsed?: boolean;
 }
@@ -37,7 +46,14 @@ const BREAKERS: { id: BreakerSystem; labelKey: StringKey }[] = [
   { id: 'heating', labelKey: 'heating' },
   { id: 'processor', labelKey: 'processor' },
   { id: 'robots', labelKey: 'robots' },
+  { id: 'greenhouse', labelKey: 'greenhouse' },
 ];
+
+const CIRCUIT_KEYS: Record<Circuit, StringKey> = {
+  lifeSupport: 'lifeSupport', heating: 'heating', processor: 'processor', robots: 'robots', greenhouse: 'greenhouse',
+};
+
+interface PriorityRow { name: HTMLElement; up: HTMLButtonElement; down: HTMLButtonElement; row: HTMLElement }
 
 let uid = 0;
 
@@ -66,6 +82,12 @@ class SystemsHud implements SystemsHudHandle {
   private lightsValue: HTMLElement;
   private lights: HTMLInputElement;
   private hint: HTMLElement;
+  private availableLabel: HTMLElement;
+  private availableValue: HTMLElement;
+  private availableCell: HTMLElement;
+  private priorityLabel: HTMLElement;
+  private priorityHint: HTMLElement;
+  private priorityRows: PriorityRow[] = [];
   private snap: SystemsSnapshot | null = null;
   private lastCause = '';
   private lastRender = 0;
@@ -99,6 +121,9 @@ class SystemsHud implements SystemsHudHandle {
     this.generationValue = el('span.x-sys__stat-value');
     this.demandValue = el('span.x-sys__stat-value');
     this.netValue = el('span.x-sys__stat-value');
+    this.availableLabel = el('span.x-sys__stat-label', {}, t('sysAvailable'));
+    this.availableValue = el('span.x-sys__stat-value');
+    this.availableCell = el('div', {}, this.availableLabel, this.availableValue);
     this.cause = el('p.x-sys__cause');
 
     this.breakersLabel = el('div.x-sys__section-label', {}, t('sysBreakers'));
@@ -137,6 +162,28 @@ class SystemsHud implements SystemsHudHandle {
 
     this.hint = el('p.x-sys__hint');
 
+    this.priorityLabel = el('div.x-sys__section-label', {}, t('sysPriority'));
+    this.priorityHint = el('p.x-sys__hint', {}, t('sysPriorityHint'));
+    const priorityList = el('ol.x-sys__priority');
+    const move = (i: number, dir: -1 | 1) => {
+      if (!this.commandAllowed() || !this.options.onPriority) return;
+      const order = [...(this.options.getSnapshot().priority ?? [])];
+      const j = i + dir;
+      if (j < 0 || j >= order.length) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      this.options.onPriority(order);
+    };
+    for (let i = 0; i < Object.keys(CIRCUIT_KEYS).length; i++) {
+      const name = el('span.x-sys__priority-name');
+      const up = el('button.x-sys__priority-move', { type: 'button', onclick: () => move(i, -1) }, '▲') as HTMLButtonElement;
+      const down = el('button.x-sys__priority-move', { type: 'button', onclick: () => move(i, 1) }, '▼') as HTMLButtonElement;
+      const row = el('li.x-sys__priority-row', {}, name, el('span.x-sys__priority-actions', {}, up, down));
+      this.priorityRows.push({ name, up, down, row });
+      priorityList.append(row);
+    }
+    const prioritySection = el('div.x-sys__priority-wrap', {}, this.priorityLabel, priorityList, this.priorityHint);
+    prioritySection.hidden = !options.onPriority;
+
     this.body = el('div.x-sys__body', { id },
       el('div.x-sys__energy', {},
         el('div.x-sys__label-row', {}, this.energyLabel, this.energyValue),
@@ -146,6 +193,7 @@ class SystemsHud implements SystemsHudHandle {
         el('div', {}, this.generationLabel, this.generationValue),
         el('div', {}, this.demandLabel, this.demandValue),
         el('div', {}, this.netLabel, this.netValue),
+        this.availableCell,
       ),
       this.cause,
       this.breakersLabel,
@@ -154,6 +202,7 @@ class SystemsHud implements SystemsHudHandle {
         el('span.x-sys__label-row', {}, this.lightsLabel, this.lightsValue),
         this.lights,
       ),
+      prioritySection,
       this.hint,
     );
 
@@ -202,6 +251,24 @@ class SystemsHud implements SystemsHudHandle {
       setText(label, t(spec.labelKey));
     }
 
+    this.availableCell.hidden = snap.available === undefined;
+    if (snap.available !== undefined) setText(this.availableValue, t('perSecond', { n: snap.available.toFixed(1) }));
+
+    const order = snap.priority ?? [];
+    this.priorityRows.forEach((r, i) => {
+      const circuit = order[i];
+      r.row.hidden = !circuit;
+      if (!circuit) return;
+      const shed = snap.shed?.includes(circuit) ?? false;
+      const tags = [circuit === 'lifeSupport' ? t('sysCritical') : '', shed ? t('sysShed') : ''].filter(Boolean).join(' · ');
+      setText(r.name, `${i + 1}. ${t(CIRCUIT_KEYS[circuit])}${tags ? ` · ${tags}` : ''}`);
+      r.row.classList.toggle('is-shed', shed);
+      r.up.disabled = !allowed || i === 0;
+      r.down.disabled = !allowed || i === order.length - 1;
+      r.up.setAttribute('aria-label', t('sysUp', { x: t(CIRCUIT_KEYS[circuit]) }));
+      r.down.setAttribute('aria-label', t('sysDown', { x: t(CIRCUIT_KEYS[circuit]) }));
+    });
+
     if (document.activeElement !== this.lights) this.lights.value = String(Math.round(snap.lights));
     setText(this.lightsValue, t('sysEnergyValue', { n: Math.round(Number(this.lights.value)) }));
     this.lights.disabled = !allowed;
@@ -232,6 +299,10 @@ class SystemsHud implements SystemsHudHandle {
 
   private causeText(snap: SystemsSnapshot): string {
     if (snap.cause) return t(snap.cause.key, snap.cause.vars);
+    if (snap.shed?.includes('lifeSupport')) return t('sysCauseLifeSupport');
+    if (snap.shed?.length && snap.available !== undefined) {
+      return t('sysCauseLimit', { a: snap.available.toFixed(1), d: snap.demand.toFixed(1), x: snap.shed.map((c) => t(CIRCUIT_KEYS[c]).toLowerCase()).join(', ') });
+    }
     if (snap.sheltered) return t('sysCauseSheltered');
     if (snap.shortage) return t('sysCauseShortage');
     if (snap.dark && snap.generation <= 0) return t('sysCauseDark');
@@ -256,6 +327,9 @@ class SystemsHud implements SystemsHudHandle {
     setText(this.demandLabel, t('sysDemand'));
     setText(this.netLabel, t('sysNet'));
     setText(this.breakersLabel, t('sysBreakers'));
+    setText(this.availableLabel, t('sysAvailable'));
+    setText(this.priorityLabel, t('sysPriority'));
+    setText(this.priorityHint, t('sysPriorityHint'));
     setText(this.lightsLabel, t('growLights'));
     this.el.setAttribute('aria-label', t('sysTitle'));
     this.applyCollapsed();

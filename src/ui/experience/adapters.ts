@@ -1,4 +1,5 @@
 import { ENERGY } from '../../game/config';
+import { priorityOf } from '../../game/power';
 import { capacity, type PowerReport } from '../../game/sim';
 import { cyclePhase, type GameState } from '../../game/state';
 import type { SystemsSnapshot } from './systems';
@@ -49,7 +50,10 @@ export function systemsFromGame(
       heating: game.power.heating,
       processor: game.power.processor,
       robots: game.power.robots,
+      greenhouse: game.power.greenhouse,
     },
+    priority: priorityOf(game),
+    shed: power.shed ?? [],
     dark: !phase.isDay,
     sheltered: game.sheltered,
     shortage: power.shortage,
