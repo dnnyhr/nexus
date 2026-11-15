@@ -5,6 +5,8 @@ import { defineConfig } from 'vite';
 // Two pages: the game (index.html) and the model viewer (viewer.html).
 export default defineConfig({
   base: './',
+  // Lane worktrees live inside the repo; their edits must not reload this dev server.
+  server: { watch: { ignored: ['**/.worktrees/**'] } },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 900,

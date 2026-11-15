@@ -420,6 +420,8 @@ function checkMissions(): void {
 /** Free mode: catch up the time away, then run the base as it always did. */
 function startFree(): void {
   mode = 'free';
+  flightButton.hidden = true;
+  if (flightMode) toggleFlightMode();
   const away = loaded ? simulateOffline(state, (Date.now() - loaded.savedAt) / 1000) : null;
   power = tick(state, 0);
   hud.setMode('free');
@@ -598,6 +600,13 @@ window.addEventListener('keydown', (e) => {
     if (k === ' ') player.jump();
     if (k === 'f') doAction();
     if (k === 'r') dig();
+    if (k === 'h' && mode === 'mission' && !commander && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+      e.preventDefault();
+      toggleFlightMode();
+    }
+    if (k === 'escape' && flightMode && mode === 'mission' && !commander) {
+      toggleFlightMode();
+    }
   }
   keys.add(k);
   if (k === ' ') e.preventDefault();
@@ -749,13 +758,26 @@ function missionTelemetry() {
   });
 }
 
+/** Power every switched-on circuit asks for right now, as if the batteries had no limit. */
+function requestedDemand(ms: MissionState, isDay: boolean): number {
+  const probe = structuredClone(ms.game);
+  probe.res.energy = 1e9;
+  return resolvePower(probe, SIM_STEP, isDay, { ...missionPowerOptions(probe), dischargeLimit: 1e9 }).demand;
+}
+
 function missionSystems() {
   const ms = runner!.mission;
   const scale = missionPowerOptions(ms.game).lightsDrawScale;
+  const dark = darknessAt(ms).isDark;
+  const shed = ms.lastPower.shed ?? [];
+  const names = { lifeSupport: 'lifeSupport', heating: 'heating', processor: 'processor', robots: 'robots', greenhouse: 'greenhouse' } as const;
   return systemsFromGame(ms.game, ms.lastPower, {
-    dark: darknessAt(ms).isDark,
+    dark,
     available: ms.lastPower.available,
     lightsDraw: (ms.lastPower.running.lights / 100) * ENERGY.growLightsMaxDraw * scale,
+    cause: shed.length && !shed.includes('lifeSupport')
+      ? { key: 'sysCauseLimit', vars: { a: (ms.lastPower.available ?? 0).toFixed(2), d: requestedDemand(ms, !dark).toFixed(2), x: shed.map((c) => t(names[c]).toLowerCase()).join(', ') }, risk: 'caution' }
+      : null,
   });
 }
 
@@ -779,6 +801,12 @@ function startMissionMode(design: Design): void {
   showOverlay(false);
   coverHud(false);
   document.body.classList.add('nx-mission');
+  flightButton.hidden = false;
+  flightMode = false;
+  flightSnapshot = null;
+  cameraHost.style.visibility = '';
+  document.body.classList.remove('nx-flight');
+  updateFlightButton();
   hud.setState(state);
   hud.setMode('mission');
   hud.setShower(null);
@@ -868,6 +896,46 @@ function openCommander(): void {
 }
 let closeCommander = (): void => {};
 
+let flightMode = false;
+let flightSnapshot: { systemsOpen: boolean; density: 'full' | 'compact' } | null = null;
+const flightButton = el('button.nx-flight-btn', { type: 'button' }, 'H');
+Object.assign(flightButton.style, {
+  position: 'fixed', right: 'max(12px, env(safe-area-inset-right))', bottom: 'max(12px, env(safe-area-inset-bottom))',
+  zIndex: '45', padding: '6px 10px', minHeight: '36px',
+});
+flightButton.hidden = true;
+document.body.append(flightButton);
+
+function updateFlightButton(): void {
+  flightButton.textContent = flightMode ? t('flightModeOff') : t('flightModeOn');
+  flightButton.title = t('flightModeHint');
+}
+
+function toggleFlightMode(): void {
+  if (mode !== 'mission' || commander) return;
+  flightMode = !flightMode;
+  if (flightMode) {
+    flightSnapshot = {
+      systemsOpen: systems ? !systems.isCollapsed() : true,
+      density: ribbon ? (ribbon.el.classList.contains('is-compact') ? 'compact' : 'full') : 'full',
+    };
+    systems?.setCollapsed(true);
+    ribbon?.setDensity('compact');
+    cameraHost.style.visibility = 'hidden';
+    document.body.classList.add('nx-flight');
+  } else {
+    if (flightSnapshot) {
+      systems?.setCollapsed(!flightSnapshot.systemsOpen);
+      ribbon?.setDensity(flightSnapshot.density);
+    }
+    cameraHost.style.visibility = '';
+    document.body.classList.remove('nx-flight');
+    flightSnapshot = null;
+  }
+  updateFlightButton();
+}
+flightButton.addEventListener('click', toggleFlightMode);
+
 const RADIO: Partial<Record<MissionEvent['kind'], Omit<RadioCall, 'text'>>> = {
   darkness_warning: { priority: 'warning', hintKey: 'nxHintDarkWarn', whyKey: 'sciPolarWhy' },
   darkness_start: { priority: 'warning', hintKey: 'nxHintDarkWarn' },
@@ -927,10 +995,30 @@ function showDebrief(ms: MissionState): void {
   ]);
 }
 
-/** Behind the Control Center the camera drifts slowly around the base. */
+/** Cinematic menu shot: slow orbit with a gentle dolly and height sweep. */
+const REDUCED_MOTION = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+let menuOrbitAngle = 0;
 function menuOrbit(dt: number): void {
-  const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.06);
-  camera.position.copy(controls.target).add(offset);
+  const t = clock.elapsedTime;
+  if (REDUCED_MOTION) {
+    menuOrbitAngle += 0.04 * dt;
+    const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.04);
+    camera.position.copy(controls.target).add(offset);
+    camera.lookAt(controls.target);
+    return;
+  }
+  // Varying angular speed gives the shot a "breathing" rhythm instead of a metronome.
+  const speed = 0.038 + Math.sin(t * 0.027) * 0.011;
+  menuOrbitAngle += speed * dt;
+  const target = controls.target;
+  const radius = 22 + Math.sin(t * 0.061) * 5;
+  const height = 11 + Math.sin(t * 0.043) * 3;
+  camera.position.set(
+    target.x + Math.cos(menuOrbitAngle) * radius,
+    target.y + height,
+    target.z + Math.sin(menuOrbitAngle) * radius,
+  );
+  camera.lookAt(target);
 }
 
 const freeClock = fixedStepClock(SIM_STEP);
