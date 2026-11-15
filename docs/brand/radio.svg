@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 210" width="1280" height="210" role="img" aria-labelledby="t d">
+  <title id="t">Radio from Earth</title>
+  <desc id="d">Animated radio message, typed letter by letter after the 1.3 second delay: Commander Rivera here, from Earth. We hear you! To build you need regolith: the Moon's dust and rocks.</desc>
+  <style>
+    text { font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .type1 { animation: type1 9s steps(46) infinite; }
+    .type2 { animation: type2 9s steps(52) infinite; }
+    @keyframes type1 { 0%, 14% { width: 0; } 40%, 100% { width: 1040px; } }
+    @keyframes type2 { 0%, 40% { width: 0; } 70%, 100% { width: 1100px; } }
+    .rx { animation: rx 9s steps(1) infinite; }
+    @keyframes rx { 0%, 13% { opacity: 1; } 14%, 100% { opacity: 0; } }
+    .dot { animation: dot 1.2s ease-in-out infinite; }
+    @keyframes dot { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+    .bar { animation: bar 9s linear infinite; }
+    @keyframes bar { 0% { width: 0; } 14%, 100% { width: 172px; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } .rx { opacity: 0; } }
+  </style>
+  <defs>
+    <clipPath id="c1"><rect class="type1" x="56" y="84" width="1040" height="44"/></clipPath>
+    <clipPath id="c2"><rect class="type2" x="56" y="128" width="1100" height="44"/></clipPath>
+  </defs>
+  <rect width="1280" height="210" fill="#07080b"/>
+  <rect x="24" y="24" width="1232" height="162" fill="#101113" stroke="#f5f2ec" stroke-opacity=".22"/>
+  <rect x="24" y="24" width="1232" height="3" fill="#f5f2ec"/>
+  <circle class="dot" cx="62" cy="60" r="5" fill="#f2b54a"/>
+  <text x="80" y="66" font-size="15" letter-spacing="3.5" fill="#f5f2ec" fill-opacity=".6">RADIO · COMMANDER RIVERA · EARTH</text>
+  <text x="1050" y="66" font-size="15" letter-spacing="3" fill="#f2b54a">DELAY 1.3 s</text>
+  <rect x="1050" y="74" width="172" height="2" fill="#f5f2ec" fill-opacity=".2"/>
+  <rect class="bar" x="1050" y="74" width="172" height="2" fill="#f2b54a"/>
+  <text class="rx" x="56" y="116" font-size="28" fill="#f5f2ec" fill-opacity=".55">Receiving transmission…</text>
+  <g clip-path="url(#c1)"><text x="56" y="116" font-size="28" fill="#f5f2ec">Commander Rivera here, from Earth. We hear you!</text></g>
+  <g clip-path="url(#c2)"><text x="56" y="160" font-size="28" fill="#f5f2ec">To build you need regolith: the Moon’s dust and rocks.</text></g>
+</svg>

@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 330" width="1280" height="330" role="img" aria-labelledby="t d">
+  <title id="t">From a real solar flare to a storm in the game</title>
+  <desc id="d">Animated diagram in three steps. NASA DONKI recorded an M6.7 solar flare on 2026-10-08, its X-ray flux spikes. Commander Rivera warns by radio and a countdown runs. The astronaut reaches the shelter: the dose meter outside climbs fast, inside it barely moves.</desc>
+  <style>
+    text { font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .flux { stroke-dasharray: 520; stroke-dashoffset: 520; animation: flux 8s ease-out infinite; }
+    @keyframes flux { 0% { stroke-dashoffset: 520; } 30%, 100% { stroke-dashoffset: 0; } }
+    .pulse { offset-rotate: 0deg; animation: go 8s linear infinite; opacity: 0; }
+    .p1 { offset-path: path("M 404 165 H 466"); animation-name: go1; }
+    .p2 { offset-path: path("M 814 165 H 876"); animation-name: go2; }
+    @keyframes go1 { 0%, 28% { offset-distance: 0%; opacity: 0; } 30% { opacity: 1; } 40% { offset-distance: 100%; opacity: 1; } 41%, 100% { opacity: 0; offset-distance: 100%; } }
+    @keyframes go2 { 0%, 58% { offset-distance: 0%; opacity: 0; } 60% { opacity: 1; } 70% { offset-distance: 100%; opacity: 1; } 71%, 100% { opacity: 0; offset-distance: 100%; } }
+    .count { animation: count 8s linear infinite; transform-origin: 506px 0; }
+    @keyframes count { 0%, 40% { transform: scaleX(1); } 70%, 100% { transform: scaleX(0); } }
+    .card2 { animation: on2 8s steps(1) infinite; }
+    @keyframes on2 { 0%, 39% { opacity: .35; } 40%, 100% { opacity: 1; } }
+    .card3 { animation: on3 8s steps(1) infinite; }
+    @keyframes on3 { 0%, 69% { opacity: .35; } 70%, 100% { opacity: 1; } }
+    .out { transform-origin: 0 262px; animation: out 8s ease-in infinite; }
+    @keyframes out { 0%, 70% { transform: scaleY(.04); } 98%, 100% { transform: scaleY(1); } }
+    .in { transform-origin: 0 262px; animation: inn 8s ease-in infinite; }
+    @keyframes inn { 0%, 70% { transform: scaleY(.04); } 98%, 100% { transform: scaleY(.16); } }
+    .warn { animation: warn 1s steps(1) infinite; }
+    @keyframes warn { 0%, 50% { opacity: 1; } 51%, 100% { opacity: .3; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } .flux { stroke-dashoffset: 0; } .pulse { opacity: 0; } }
+  </style>
+  <rect width="1280" height="330" fill="#07080b"/>
+
+  <!-- 1 · NASA DONKI -->
+  <g>
+    <rect x="24" y="24" width="380" height="282" fill="#101113" stroke="#f5f2ec" stroke-opacity=".22"/>
+    <rect x="24" y="24" width="380" height="3" fill="#f5f2ec"/>
+    <text x="48" y="62" font-size="14" letter-spacing="3" fill="#f5f2ec" fill-opacity=".6">1 · NASA DONKI</text>
+    <text x="48" y="104" font-size="34" font-weight="700" fill="#f5f2ec">M6.7 flare</text>
+    <text x="48" y="132" font-size="17" fill="#f5f2ec" fill-opacity=".7">Peak 2026-10-08 15:48 UTC</text>
+    <path d="M 48 262 H 380" stroke="#f5f2ec" stroke-opacity=".2"/>
+    <path class="flux" d="M 48 252 L 120 250 L 170 247 L 200 236 L 214 170 L 226 150 L 240 196 L 268 226 L 310 240 L 380 246" fill="none" stroke="#f2b54a" stroke-width="3" stroke-linejoin="round"/>
+    <text x="48" y="290" font-size="13" letter-spacing="2" fill="#f5f2ec" fill-opacity=".5">X-RAY FLUX</text>
+  </g>
+
+  <!-- 2 · Radio warning -->
+  <g class="card2">
+    <rect x="466" y="24" width="348" height="282" fill="#101113" stroke="#f5f2ec" stroke-opacity=".22"/>
+    <rect x="466" y="24" width="348" height="3" fill="#f2b54a"/>
+    <text x="490" y="62" font-size="14" letter-spacing="3" fill="#f5f2ec" fill-opacity=".6">2 · RADIO FROM EARTH</text>
+    <text x="490" y="104" font-size="27" font-weight="700" fill="#f2b54a" class="warn">Solar storm coming</text>
+    <text x="490" y="140" font-size="17" fill="#f5f2ec">“Alert! The Sun released a class M6.7</text>
+    <text x="490" y="164" font-size="17" fill="#f5f2ec">flare. Get in the shelter.”</text>
+    <text x="490" y="222" font-size="13" letter-spacing="2" fill="#f5f2ec" fill-opacity=".5">TIME TO REACH THE SHELTER</text>
+    <rect x="490" y="236" width="300" height="10" fill="#f5f2ec" fill-opacity=".12"/>
+    <rect class="count" x="490" y="236" width="300" height="10" fill="#f2b54a"/>
+    <text x="490" y="282" font-size="15" fill="#f5f2ec" fill-opacity=".7">Stronger flares give less warning</text>
+  </g>
+
+  <!-- 3 · Shelter -->
+  <g class="card3">
+    <rect x="876" y="24" width="380" height="282" fill="#101113" stroke="#f5f2ec" stroke-opacity=".22"/>
+    <rect x="876" y="24" width="380" height="3" fill="#c8553d"/>
+    <text x="900" y="62" font-size="14" letter-spacing="3" fill="#f5f2ec" fill-opacity=".6">3 · YOUR CHOICE</text>
+    <text x="900" y="104" font-size="27" font-weight="700" fill="#f5f2ec">Shelter or keep working?</text>
+    <text x="900" y="134" font-size="16" fill="#f5f2ec" fill-opacity=".7">Inside, robots and the greenhouse stop.</text>
+    <g transform="translate(940 0)">
+      <rect x="0" y="162" width="46" height="100" fill="#f5f2ec" fill-opacity=".08"/>
+      <rect class="out" x="0" y="162" width="46" height="100" fill="#c8553d"/>
+      <text x="23" y="288" font-size="14" text-anchor="middle" fill="#f5f2ec" fill-opacity=".7">Outside</text>
+    </g>
+    <g transform="translate(1060 0)">
+      <rect x="0" y="162" width="46" height="100" fill="#f5f2ec" fill-opacity=".08"/>
+      <rect class="in" x="0" y="162" width="46" height="100" fill="#8a9a63"/>
+      <text x="23" y="288" font-size="14" text-anchor="middle" fill="#f5f2ec" fill-opacity=".7">Habitat</text>
+    </g>
+    <text x="1156" y="214" font-size="13" letter-spacing="2" fill="#f5f2ec" fill-opacity=".5">DOSE</text>
+  </g>
+
+  <!-- Connectors with travelling pulses -->
+  <path d="M 404 165 H 466 M 814 165 H 876" stroke="#f5f2ec" stroke-opacity=".3" stroke-width="2" stroke-dasharray="3 5"/>
+  <circle class="pulse p1" r="6" fill="#f2b54a"/>
+  <circle class="pulse p2" r="6" fill="#f2b54a"/>
+</svg>
