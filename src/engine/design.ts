@@ -55,8 +55,11 @@ export function startMission(d: Design, scenario = SCENARIO_1): MissionState {
   game.res.energy = cap.energy * MISSION_RULES.initialEnergy;
   const ms: MissionState = {
     version: 2, scenario: structuredClone(scenario), design: structuredClone(d), t: 0, rng: scenario.seed,
-    game, lastPower: { generation: 0, demand: 0, running: { processor: false, robots: false, heating: false, lights: 0 }, shortage: false, lifeSupportPowered: true },
-    metrics: { minLifeSupport: lifeSupportPercent(game), secondsLightsReduced: 0, secondsSheltered: 0, secondsShortage: 0 },
+    game, lastPower: { generation: 0, demand: 0, available: 0, running: { processor: false, robots: false, heating: false, lights: 0 }, shortage: false, lifeSupportPowered: true, shed: [] },
+    metrics: {
+      minLifeSupport: lifeSupportPercent(game), secondsLightsReduced: 0, secondsSheltered: 0, secondsShortage: 0,
+      secondsLifeSupportUnpowered: 0, secondsHeatingShed: 0, secondsLightsShed: 0, minCrewHealth: game.crewHealth,
+    },
     ledger: emptyLedger(), exposure: 0, depleted: { o2: 0, water: 0, food: 0 }, phase: 'running', failure: null,
     log: [], events: [], samples: [],
   };

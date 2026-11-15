@@ -1,3 +1,5 @@
+import { POWER } from '../game/config';
+import { isPriority } from '../game/power';
 import { adjustClimate, collectByHand, deliverRegolith, harvest, irrigate, replant } from '../game/sim';
 import type { GameState } from '../game/state';
 import { recordChange } from './ledger';
@@ -22,8 +24,13 @@ export function applyToGame(s: GameState, cmd: Command): CommandResult {
       s.power.growLights = cmd.value;
       return { ok: true };
     case 'setPower':
-      if (!['heating', 'processor', 'robots'].includes(cmd.system) || typeof cmd.on !== 'boolean') return rejected('Sistema inválido');
-      s.power[cmd.system] = cmd.on;
+      if ((cmd.system as string) === 'lifeSupport') return rejected('Soporte vital es carga crítica: no se desconecta; cambia su prioridad');
+      if (!POWER.switchable.includes(cmd.system) || typeof cmd.on !== 'boolean') return rejected('Sistema inválido');
+      s.power[cmd.system as 'heating' | 'processor' | 'robots' | 'greenhouse'] = cmd.on;
+      return { ok: true };
+    case 'setPriority':
+      if (!isPriority(cmd.order)) return rejected('Prioridad inválida: ordena los cinco circuitos sin repetir');
+      s.power.priority = [...cmd.order];
       return { ok: true };
     case 'enterShelter':
       if (s.sheltered) return rejected('Ya estás en refugio');

@@ -1,6 +1,7 @@
 import { CREW, ENERGY, PROCESSOR } from '../game/config';
 import { processorFactor } from '../game/damage';
-import { capacity, clamp, resolvePower, step, stepGreenhouse } from '../game/sim';
+import { capacity, clamp, resolvePower, step, stepGreenhouse, type PowerOptions } from '../game/sim';
+import type { GameState } from '../game/state';
 import { protection } from '../game/storm';
 import { RESOURCES } from './ledger';
 import { MISSION_RULES } from './mission1';
@@ -35,6 +36,18 @@ function closeMission(ms: MissionState): void {
   }
 }
 
+/**
+ * Mission rules on top of the shared power resolver: the batteries deliver limited power, each
+ * greenhouse level lights more area, and farming stops in the shelter.
+ */
+export function missionPowerOptions(s: GameState): Required<PowerOptions> {
+  return {
+    dischargeLimit: MISSION_RULES.stationDischarge + MISSION_RULES.dischargePerBattery * s.counts.battery,
+    lightsDrawScale: s.levels.greenhouse * MISSION_RULES.agriculturalDrawPerLevel,
+    lightsSuspended: s.sheltered,
+  };
+}
+
 export function worldStep(ms: MissionState): void {
   if (ms.phase !== 'running') return;
   const s = ms.game;
@@ -46,22 +59,15 @@ export function worldStep(ms: MissionState): void {
   const wasPowered = ms.lastPower.lifeSupportPowered;
   const isDay = !darknessAt(ms).isDark;
   syncStorm(ms);
-  const scale = s.levels.greenhouse * MISSION_RULES.agriculturalDrawPerLevel;
-  const powered = { ...s, power: { ...s.power, growLights: s.sheltered ? 0 : s.power.growLights * scale } };
-  const report = resolvePower(powered, STEP, isDay);
-  report.running.lights /= Math.max(1, scale);
-  report.demand = ENERGY.lifeSupportDraw + (report.running.heating ? ENERGY.heatingDraw : 0) +
-    (report.running.processor ? ENERGY.processorDraw : 0) +
-    (report.running.robots ? ENERGY.robotDraw * (s.levels.collectorRobot + s.levels.harvesterRobot) : 0) +
-    report.running.lights / 100 * ENERGY.growLightsMaxDraw * scale;
-  report.shortage = !report.lifeSupportPowered || (s.power.heating && !isDay && !report.running.heating) ||
-    (s.levels.processor > 0 && s.power.processor && !s.sheltered && !report.running.processor) ||
-    (!s.sheltered && report.running.lights < s.power.growLights - 1e-9);
-  s.res.energy = clamp(before.energy + (report.generation - report.demand) * STEP, 0, capacity(s).energy);
+  const options = missionPowerOptions(s);
+  const scale = options.lightsDrawScale;
+  const report = resolvePower(s, STEP, isDay, options);
+  const shed = report.shed ?? [];
+  report.shortage = shed.length > 0;
   ms.lastPower = report;
   ms.ledger.energy.solar += report.generation * STEP;
   const supportCause = s.sheltered ? 'shelter' : 'crew';
-  ms.ledger.energy[supportCause] -= Math.min(ENERGY.lifeSupportDraw * STEP, before.energy + report.generation * STEP);
+  ms.ledger.energy[supportCause] -= Math.min(ENERGY.lifeSupportDraw * STEP, Math.max(0, (report.available ?? 0) * STEP));
   if (report.running.heating) ms.ledger.energy.heating -= ENERGY.heatingDraw * STEP;
   if (report.running.processor) ms.ledger.energy.processor -= ENERGY.processorDraw * STEP;
   ms.ledger.energy.lights -= report.running.lights / 100 * ENERGY.growLightsMaxDraw * scale * STEP;
@@ -88,6 +94,10 @@ export function worldStep(ms: MissionState): void {
   if (!s.sheltered && s.power.growLights < MISSION_RULES.reducedLightsBelow) ms.metrics.secondsLightsReduced += STEP;
   if (s.sheltered) ms.metrics.secondsSheltered += STEP;
   if (report.shortage) ms.metrics.secondsShortage += STEP;
+  if (!report.lifeSupportPowered) ms.metrics.secondsLifeSupportUnpowered += STEP;
+  if (shed.includes('heating')) ms.metrics.secondsHeatingShed += STEP;
+  if (shed.includes('greenhouse')) ms.metrics.secondsLightsShed += STEP;
+  ms.metrics.minCrewHealth = Math.min(ms.metrics.minCrewHealth, s.crewHealth);
   if (!wasDead && s.plant.dead) ms.events.push({ t: ms.t, kind: 'plant_dead', text: `Cultivo muerto; estrés ${figure(s.plant.stress)} %` });
   if (!wasShortage && report.shortage) ms.events.push({ t: ms.t, kind: 'power_shortage', text: `Potencia insuficiente: batería ${figure(s.res.energy / capacity(s).energy * 100)} %, luces efectivas ${figure(report.running.lights)} %; cortes acumulados ${figure(ms.metrics.secondsShortage)} s` });
   if (wasShortage && !report.shortage) ms.events.push({ t: ms.t, kind: 'power_restored', text: 'Potencia restablecida' });

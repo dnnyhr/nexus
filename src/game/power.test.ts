@@ -37,7 +37,7 @@ function grid(): GameState[] {
   const out: GameState[] = [];
   for (const energy of [0, 0.05, 0.2, 0.4, 1, 5, 120])
     for (const isNightSetup of [false, true])
-      for (const lights of [0, 0.4, 35, 100])
+      for (const lights of [0, 1, 5, 35, 100])
         for (const robots of [0, 2])
           for (const sheltered of [false, true]) {
             const s = developedGame();
@@ -67,6 +67,16 @@ describe('power priority', () => {
           expect(a.res.energy).toBe(b.res.energy);
         }
       }
+    }
+  });
+
+  it('charges fractional brightness for the light it actually gives (fix: it was squared below 1)', () => {
+    for (const lights of [0.01, 0.5]) {
+      const s = developedGame();
+      s.res.energy = 100;
+      s.power.growLights = lights;
+      const r = resolvePower(s, 0.25, true);
+      expect(r.demand).toBeCloseTo(ENERGY.lifeSupportDraw + ENERGY.processorDraw + (lights / 100) * ENERGY.growLightsMaxDraw, 12);
     }
   });
 

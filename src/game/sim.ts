@@ -171,7 +171,7 @@ export function resolvePower(s: GameState, dt: number, isDay: boolean, opts: Pow
   }
 
   const demand = ENERGY.lifeSupportDraw + (on.heating ? want.heating : 0) + (on.processor ? want.processor : 0) +
-    (on.robots ? want.robots : 0) + (want.greenhouse > 0 ? want.greenhouse * (on.lights / Math.max(1, lights)) : 0);
+    (on.robots ? want.robots : 0) + (want.greenhouse > 0 && lights > 0 ? want.greenhouse * (on.lights / lights) : 0);
   const shortage = (want.heating > 0 && !on.heating) || (want.processor > 0 && !on.processor) ||
     (want.robots > 0 && !on.robots) || on.lights < lights - 0.5;
   const shed = POWER.circuits.filter((c) =>

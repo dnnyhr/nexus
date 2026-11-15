@@ -4,7 +4,7 @@ import { capacity, resolvePower } from '../game/sim';
 import { protection } from '../game/storm';
 import {
   applyCommand, emptyDesign, MISSION_RULES, project, replay, SCENARIO_1, SCENARIO_SOURCE,
-  startMission, STEP, summarize, worldStep,
+  missionPowerOptions, startMission, STEP, summarize, worldStep,
 } from './index';
 import type { Scenario } from './types';
 
@@ -163,11 +163,63 @@ describe('mission mechanics', () => {
   it('matches shared kernel power for ordinary level-one day operation', () => {
     const ms = startMission(emptyDesign());
     const free = structuredClone(ms.game);
-    const report = resolvePower(free, STEP, true);
+    const report = resolvePower(free, STEP, true, missionPowerOptions(free));
     worldStep(ms);
     expect(ms.lastPower).toEqual(report);
     expect(ms.game.res.energy).toBe(free.res.energy);
     expect(MISSION_RULES.initialGrowLights).toBe(50);
+    const unlimited = resolvePower(structuredClone(ms.game), STEP, true);
+    expect(ms.lastPower.running).toEqual(unlimited.running);
+  });
+
+  it('batteries deliver limited power: in darkness the priority decides what runs', () => {
+    const base = startMission(emptyDesign());
+    advance(base, 240);
+    expect(base.game.res.energy).toBeGreaterThan(10);
+    worldStep(base);
+    expect(base.lastPower.available).toBeCloseTo(MISSION_RULES.stationDischarge, 9);
+    expect(base.lastPower.running.heating).toBe(true);
+    expect(base.lastPower.shed).toEqual(['greenhouse']);
+    expect(base.metrics.secondsLightsShed).toBe(STEP);
+    const lightsFirst = startMission(emptyDesign());
+    advance(lightsFirst, 240);
+    expect(applyCommand(lightsFirst, { type: 'setPriority', order: ['lifeSupport', 'greenhouse', 'heating', 'processor', 'robots'] }).ok).toBe(true);
+    worldStep(lightsFirst);
+    expect(lightsFirst.lastPower.running.lights).toBeCloseTo(50, 9);
+    expect(lightsFirst.lastPower.shed).toEqual(['heating']);
+    expect(lightsFirst.metrics.secondsHeatingShed).toBe(STEP);
+    const stored = startMission({ ...emptyDesign(), batteries: 1 });
+    advance(stored, 240);
+    worldStep(stored);
+    expect(stored.lastPower.shed).toEqual([]);
+  });
+
+  it('ranking life support last costs crew health, measured step by step', () => {
+    const ms = startMission(emptyDesign());
+    advance(ms, 240);
+    applyCommand(ms, { type: 'setGrowLights', value: 100 });
+    applyCommand(ms, { type: 'setPriority', order: ['greenhouse', 'heating', 'processor', 'robots', 'lifeSupport'] });
+    advance(ms, 250);
+    expect(ms.metrics.secondsLifeSupportUnpowered).toBe(10);
+    expect(ms.metrics.minCrewHealth).toBeLessThan(99);
+    expect(ms.metrics.minCrewHealth).toBe(ms.game.crewHealth);
+    expect(ms.events.some(e => e.kind === 'life_support_unpowered')).toBe(true);
+    expect(summarize(ms).minCrewHealth).toBe(ms.metrics.minCrewHealth);
+  });
+
+  it('switches: life support cannot be opened; bad orders are rejected and logged without effect', () => {
+    const ms = startMission(emptyDesign());
+    const before = structuredClone(ms.game.power);
+    expect(applyCommand(ms, { type: 'setPower', system: 'lifeSupport' as never, on: false })).toMatchObject({ ok: false });
+    expect(applyCommand(ms, { type: 'setPriority', order: ['heating', 'heating', 'processor', 'robots', 'greenhouse'] }).ok).toBe(false);
+    expect(applyCommand(ms, { type: 'setPriority', order: ['heating'] as never }).ok).toBe(false);
+    expect(ms.game.power).toEqual(before);
+    expect(ms.log.map(e => e.ok)).toEqual([false, false, false]);
+    expect(applyCommand(ms, { type: 'setPower', system: 'greenhouse', on: false }).ok).toBe(true);
+    worldStep(ms);
+    expect(ms.lastPower.running.lights).toBe(0);
+    expect(ms.lastPower.shortage).toBe(false);
+    expect(replay(ms.design, ms.log, ms.t)).toEqual(ms);
   });
 
   it('charges fractional LED settings exactly without artificial storage credits', () => {

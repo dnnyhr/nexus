@@ -1,4 +1,5 @@
 import snapshot from '../data/snapshot.json';
+import { MISSION } from '../game/config';
 import type { DesignItem, Scenario } from './types';
 
 export const SCENARIO_SOURCE = {
@@ -18,21 +19,7 @@ export const SCENARIO_1: Scenario = {
   ],
 };
 
-export const PRICES: Record<DesignItem, number> = {
-  solarMasts: 40, batteries: 50, greenhouse: 60, processor: 50, shield: 40,
-  reserveO2: 15, reserveWater: 15, reserveFood: 15,
-};
-export const LIMITS: Record<DesignItem, number> = {
-  solarMasts: 3, batteries: 3, greenhouse: 2, processor: 1, shield: 3,
-  reserveO2: 5, reserveWater: 5, reserveFood: 5,
-};
-export const MISSION_RULES = {
-  initialReserve: 0.5,
-  reservePerPack: 0.1,
-  initialEnergy: 0.5,
-  initialGrowLights: 50,
-  reducedLightsBelow: 50,
-  agriculturalDrawPerLevel: 1,
-  outsideExposurePerSecond: 0.8,
-  unpoweredHealthLoss: 0.3,
-};
+export const PRICES: Record<DesignItem, number> = MISSION.prices;
+export const LIMITS: Record<DesignItem, number> = MISSION.limits;
+/** Balance de misión: vive en src/game/config.ts (MISSION) junto al resto del juego. */
+export const MISSION_RULES = MISSION;

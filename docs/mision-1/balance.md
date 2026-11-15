@@ -25,11 +25,15 @@ Ledger aprobado: crew registra consumo vital y energía de soporte fuera de refu
 
 ## Ajustes de balance
 
-| Constante en mission1.ts | Antes | Después | Motivo |
+| Constante en src/game/config.ts (MISSION) | Antes | Después | Motivo |
 | --- | --- | --- | --- |
 | unpoweredHealthLoss | 0.3 | 0.3 | Valor inicial; sin ajuste tras barrido |
 | agriculturalDrawPerLevel | 1 | 1 | Escala LED por nivel; sin ajuste tras barrido |
+| stationDischarge | sin límite | 1.2/s | Potencia máxima de la batería de estación: capacidad no es potencia. Sin baterías, soporte vital + calefacción + LED no caben juntos en oscuridad y la prioridad decide qué se corta (cortes 88.75 → 180 s en base) |
+| dischargePerBattery | sin límite | 0.8/s | Cada batería suma potencia además de capacidad; con 1 batería los cortes siguen en 0 s |
 | cronología / presupuesto / límite exposición | 600 s / 300 / 40 u | sin cambios | Contrato preservado |
+
+Prioridad eléctrica: orden por defecto = histórico (LED se cortan primero, soporte vital último). setPriority cambia el orden; soporte vital es carga crítica y no se desconecta. Victorias, cosechas y exposición del barrido no cambian con el límite; cambia la duración de cortes. Base sin compras sigue ganando: dificultad permisiva pendiente de calibración con estudiantes.
 
 No se ajustó kernel libre ni curva de protección. Berma 2 y 3 saturan en 97 %: nivel 3 no mejora protección y queda dominado por nivel 2 para esta misión. No se presenta como compra ventajosa.
 
@@ -39,28 +43,28 @@ Diseño: S=solares extra, B=baterías, G=niveles agrícolas extra, P=procesador,
 
 | Caso | Política | S/B/G/P/R; reservas | Coste | Resultado / motivo | Duración s | minLifeSupport % | Exposición u | Cosechas | Refugio s | Cortes s |
 | --- | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| A | granja | 1/0/2/0/1; 2/2/0 | 260 | victory | 600.00 | 25.00 | 3.84 | 1 | 60.00 | 108.75 |
+| A | granja | 1/0/2/0/1; 2/2/0 | 260 | victory | 600.00 | 25.00 | 3.84 | 1 | 60.00 | 180.00 |
 | B | batería | 1/3/0/0/2; 0/0/0 | 270 | victory | 600.00 | 5.00 | 1.44 | 2 | 60.00 | 0.00 |
-| C | riesgo | 3/0/2/0/0; 0/0/0 | 240 | failed / exposure_exceeded | 535.75 | 12.50 | 40.14 | 0 | 0.00 | 148.50 |
-| base-granja | granja | 0/0/0/0/0; 0/0/0 | 0 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
-| solarMasts-1-granja | granja | 1/0/0/0/0; 0/0/0 | 40 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
-| solarMasts-2-granja | granja | 2/0/0/0/0; 0/0/0 | 80 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
-| solarMasts-3-granja | granja | 3/0/0/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
+| C | riesgo | 3/0/2/0/0; 0/0/0 | 240 | failed / exposure_exceeded | 535.75 | 12.50 | 40.14 | 0 | 0.00 | 180.00 |
+| base-granja | granja | 0/0/0/0/0; 0/0/0 | 0 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| solarMasts-1-granja | granja | 1/0/0/0/0; 0/0/0 | 40 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| solarMasts-2-granja | granja | 2/0/0/0/0; 0/0/0 | 80 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| solarMasts-3-granja | granja | 3/0/0/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
 | batteries-1-granja | granja | 0/1/0/0/0; 0/0/0 | 50 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 0.00 |
 | batteries-2-granja | granja | 0/2/0/0/0; 0/0/0 | 100 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 0.00 |
 | batteries-3-granja | granja | 0/3/0/0/0; 0/0/0 | 150 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 0.00 |
-| greenhouse-1-granja | granja | 0/0/1/0/0; 0/0/0 | 60 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 100.00 |
-| greenhouse-2-granja | granja | 0/0/2/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 108.75 |
-| processor-1-granja | granja | 0/0/0/1/0; 0/0/0 | 50 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 133.00 |
-| shield-1-granja | granja | 0/0/0/0/1; 0/0/0 | 40 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 88.75 |
-| shield-2-granja | granja | 0/0/0/0/2; 0/0/0 | 80 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 88.75 |
-| shield-3-granja | granja | 0/0/0/0/3; 0/0/0 | 120 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 88.75 |
-| o2-2-granja | granja | 0/0/0/0/0; 2/0/0 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
-| o2-5-granja | granja | 0/0/0/0/0; 5/0/0 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
-| water-2-granja | granja | 0/0/0/0/0; 0/2/0 | 30 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 88.75 |
-| water-5-granja | granja | 0/0/0/0/0; 0/5/0 | 75 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 88.75 |
-| food-2-granja | granja | 0/0/0/0/0; 0/0/2 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
-| food-5-granja | granja | 0/0/0/0/0; 0/0/5 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 88.75 |
+| greenhouse-1-granja | granja | 0/0/1/0/0; 0/0/0 | 60 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| greenhouse-2-granja | granja | 0/0/2/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| processor-1-granja | granja | 0/0/0/1/0; 0/0/0 | 50 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| shield-1-granja | granja | 0/0/0/0/1; 0/0/0 | 40 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 180.00 |
+| shield-2-granja | granja | 0/0/0/0/2; 0/0/0 | 80 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 180.00 |
+| shield-3-granja | granja | 0/0/0/0/3; 0/0/0 | 120 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 180.00 |
+| o2-2-granja | granja | 0/0/0/0/0; 2/0/0 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| o2-5-granja | granja | 0/0/0/0/0; 5/0/0 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| water-2-granja | granja | 0/0/0/0/0; 0/2/0 | 30 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 180.00 |
+| water-5-granja | granja | 0/0/0/0/0; 0/5/0 | 75 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 180.00 |
+| food-2-granja | granja | 0/0/0/0/0; 0/0/2 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| food-5-granja | granja | 0/0/0/0/0; 0/0/5 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
 | mix-1-0-granja | granja | 0/1/0/0/1; 0/0/0 | 90 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 0.00 |
 | mix-1-1-granja | granja | 0/1/1/0/1; 0/0/0 | 150 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 0.00 |
 | mix-1-2-granja | granja | 0/1/2/0/1; 0/0/0 | 210 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 0.00 |
@@ -69,28 +73,28 @@ Diseño: S=solares extra, B=baterías, G=niveles agrícolas extra, P=procesador,
 | mix-2-2-granja | granja | 0/2/2/0/1; 0/0/0 | 260 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 0.00 |
 | mix-3-0-granja | granja | 0/3/0/0/1; 0/0/0 | 190 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 0.00 |
 | mix-3-1-granja | granja | 0/3/1/0/1; 0/0/0 | 250 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 0.00 |
-| base-batería | batería | 0/0/0/0/0; 0/0/0 | 0 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
-| solarMasts-1-batería | batería | 1/0/0/0/0; 0/0/0 | 40 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
-| solarMasts-2-batería | batería | 2/0/0/0/0; 0/0/0 | 80 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
-| solarMasts-3-batería | batería | 3/0/0/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
+| base-batería | batería | 0/0/0/0/0; 0/0/0 | 0 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| solarMasts-1-batería | batería | 1/0/0/0/0; 0/0/0 | 40 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| solarMasts-2-batería | batería | 2/0/0/0/0; 0/0/0 | 80 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| solarMasts-3-batería | batería | 3/0/0/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
 | batteries-1-batería | batería | 0/1/0/0/0; 0/0/0 | 50 | victory | 600.00 | 5.00 | 14.40 | 2 | 60.00 | 0.00 |
 | batteries-2-batería | batería | 0/2/0/0/0; 0/0/0 | 100 | victory | 600.00 | 5.00 | 14.40 | 2 | 60.00 | 0.00 |
 | batteries-3-batería | batería | 0/3/0/0/0; 0/0/0 | 150 | victory | 600.00 | 5.00 | 14.40 | 2 | 60.00 | 0.00 |
-| greenhouse-1-batería | batería | 0/0/1/0/0; 0/0/0 | 60 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 121.50 |
-| greenhouse-2-batería | batería | 0/0/2/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 132.25 |
-| processor-1-batería | batería | 0/0/0/1/0; 0/0/0 | 50 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 137.50 |
-| shield-1-batería | batería | 0/0/0/0/1; 0/0/0 | 40 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 104.75 |
-| shield-2-batería | batería | 0/0/0/0/2; 0/0/0 | 80 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 104.75 |
-| shield-3-batería | batería | 0/0/0/0/3; 0/0/0 | 120 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 104.75 |
-| o2-2-batería | batería | 0/0/0/0/0; 2/0/0 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
-| o2-5-batería | batería | 0/0/0/0/0; 5/0/0 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
-| water-2-batería | batería | 0/0/0/0/0; 0/2/0 | 30 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 104.75 |
-| water-5-batería | batería | 0/0/0/0/0; 0/5/0 | 75 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 104.75 |
-| food-2-batería | batería | 0/0/0/0/0; 0/0/2 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
-| food-5-batería | batería | 0/0/0/0/0; 0/0/5 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 104.75 |
+| greenhouse-1-batería | batería | 0/0/1/0/0; 0/0/0 | 60 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| greenhouse-2-batería | batería | 0/0/2/0/0; 0/0/0 | 120 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| processor-1-batería | batería | 0/0/0/1/0; 0/0/0 | 50 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| shield-1-batería | batería | 0/0/0/0/1; 0/0/0 | 40 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 180.00 |
+| shield-2-batería | batería | 0/0/0/0/2; 0/0/0 | 80 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 180.00 |
+| shield-3-batería | batería | 0/0/0/0/3; 0/0/0 | 120 | victory | 600.00 | 5.00 | 1.44 | 1 | 60.00 | 180.00 |
+| o2-2-batería | batería | 0/0/0/0/0; 2/0/0 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| o2-5-batería | batería | 0/0/0/0/0; 5/0/0 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| water-2-batería | batería | 0/0/0/0/0; 0/2/0 | 30 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 180.00 |
+| water-5-batería | batería | 0/0/0/0/0; 0/5/0 | 75 | victory | 600.00 | 8.00 | 14.40 | 1 | 60.00 | 180.00 |
+| food-2-batería | batería | 0/0/0/0/0; 0/0/2 | 30 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
+| food-5-batería | batería | 0/0/0/0/0; 0/0/5 | 75 | victory | 600.00 | 5.00 | 14.40 | 1 | 60.00 | 180.00 |
 | mix-1-0-batería | batería | 0/1/0/0/1; 0/0/0 | 90 | victory | 600.00 | 5.00 | 3.84 | 2 | 60.00 | 0.00 |
 | mix-1-1-batería | batería | 0/1/1/0/1; 0/0/0 | 150 | victory | 600.00 | 5.00 | 3.84 | 2 | 60.00 | 0.00 |
-| mix-1-2-batería | batería | 0/1/2/0/1; 0/0/0 | 210 | victory | 600.00 | 5.00 | 3.84 | 2 | 60.00 | 10.00 |
+| mix-1-2-batería | batería | 0/1/2/0/1; 0/0/0 | 210 | victory | 600.00 | 5.00 | 3.84 | 1 | 60.00 | 180.00 |
 | mix-2-0-batería | batería | 0/2/0/0/1; 0/0/0 | 140 | victory | 600.00 | 5.00 | 3.84 | 2 | 60.00 | 0.00 |
 | mix-2-1-batería | batería | 0/2/1/0/1; 0/0/0 | 200 | victory | 600.00 | 5.00 | 3.84 | 2 | 60.00 | 0.00 |
 | mix-2-2-batería | batería | 0/2/2/0/1; 0/0/0 | 260 | victory | 600.00 | 5.00 | 3.84 | 2 | 60.00 | 0.00 |
