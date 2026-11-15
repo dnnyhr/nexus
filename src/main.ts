@@ -15,13 +15,16 @@ import { carryMax, collectByHand, deliverRegolith, resolvePower, robotUnload, ti
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { fixedStepClock } from './game/loop';
-import { createMissionRunner, darknessAt, startMission, summarize, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type Summary } from './engine';
+import { createMissionRunner, darknessAt, project, startMission, summarize, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type Summary } from './engine';
 import { mountPrepare, mountStartMenu, type Mounted } from './ui/mission/prepare';
 import { mountMissionBar } from './ui/mission/missionBar';
 import { mountCommander, type CommanderHandle } from './ui/mission/commander';
-import { mountReport, type ReportHandle } from './ui/mission/report';
 import { commandText } from './ui/mission/commanderTexts';
-import './ui/mission/report.css';
+import { CinematicDirector } from './scene/cinematics/director';
+import { preloadOrbitalMaps } from './scene/cinematics/orbit';
+import type { SequenceKind } from './scene/cinematics/timeline';
+import { compareFlightPlans, mountFlightReview, type FlightComparison } from './ui/flightreview';
+import { mountPassport } from './ui/passport';
 import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
@@ -94,6 +97,8 @@ if (profile) setPlayerName(profile.name);
 export let state: GameState = loaded ?? newGame();
 type Mode = 'menu' | 'free' | 'mission';
 let mode: Mode = 'menu';
+let inputLocked = false;
+let contextLost = false;
 let runner: MissionRunner | null = null;
 /** Bumped when the state is replaced, so deferred work started before cannot act on the new one. */
 let epoch = 0;
@@ -124,7 +129,7 @@ const hud = new Hud({
   poke: (o) => { if (o) poke(o, clock.elapsedTime); },
   action: () => doAction(),
   newGame: () => { if (mode !== 'free') return; clearSave(); resetting = true; location.reload(); },
-  jump: () => player.jump(),
+  jump: () => { if (!inputLocked && (mode === 'free' || runner?.canDispatch())) player.jump(); },
   dig: () => dig(),
   get dispatch() { return mode === 'mission' ? dispatch : undefined; },
 });
@@ -218,6 +223,7 @@ function currentAct(): Act | null {
 }
 
 function doAction(): void {
+  if (inputLocked || (mode === 'mission' && !runner?.canDispatch())) return;
   const act = currentAct();
   if (!act) return;
   if (act.type === 'use') {
@@ -304,6 +310,7 @@ function doAction(): void {
 
 /** Dig regolith into the bag, facing `towards` when given (right click on the ground). */
 function dig(towards?: THREE.Vector3): void {
+  if (inputLocked || (mode === 'mission' && !runner?.canDispatch())) return;
   if (mode === 'menu' || state.sheltered || player.isBusy() || player.airborne) return;
   if (towards) player.obj.rotation.y = Math.atan2(towards.x - player.position.x, towards.z - player.position.z);
   const head = player.position.clone().add(new THREE.Vector3(0, 2.4, 0));
@@ -405,12 +412,24 @@ function checkMissions(): void {
 }
 /** Free mode: catch up the time away, then run the base as it always did. */
 function startFree(): void {
+  const saved = loadGame();
+  state = saved ?? newGame();
+  runner = null;
+  epoch++;
+  clearFlightInput();
   mode = 'free';
-  const away = loaded ? simulateOffline(state, (Date.now() - loaded.savedAt) / 1000) : null;
+  hud.setState(state);
+  const away = saved ? simulateOffline(state, (Date.now() - saved.savedAt) / 1000) : null;
   power = tick(state, 0);
   hud.setMode('free');
   syncWorld();
   colliders = base.colliders();
+  base.parkRover(state.rover.x, state.rover.z, state.rover.rot);
+  player.position.set(state.player.x, 0, state.player.z);
+  player.unstick(colliders);
+  camera.position.set(player.position.x + 11, 13, player.position.z + 14);
+  controls.target.set(player.position.x, 0.8, player.position.z);
+  controls.enabled = true;
   refreshWeather();
   setInterval(refreshWeather, 10 * 60 * 1000);
   hud.setShower(shower ? shower.shower.name[getLang()] : null);
@@ -540,6 +559,7 @@ hud.joystick.onTap = (x, y) => tapAt(x, y);
 
 /** Tap or click on the world: open what the astronaut is next to, or say to get closer. */
 function tapAt(x: number, y: number): void {
+  if (inputLocked || mode === 'menu' || (mode === 'mission' && !runner?.canDispatch())) return;
   const ndc = new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const model = findModel(raycaster.intersectObject(base.group, true)[0]?.object ?? null);
@@ -574,7 +594,7 @@ resize();
 // (or R) digs, Q / E turn the camera.
 const keys = new Set<string>();
 window.addEventListener('keydown', (e) => {
-  if ((e.target as HTMLElement).tagName === 'INPUT') return;
+  if (inputLocked || mode === 'menu' || (mode === 'mission' && !runner?.canDispatch()) || (e.target as HTMLElement).closest('input, textarea, select, button, [contenteditable]')) return;
   const k = e.key.toLowerCase();
   if (!keys.has(k)) {
     if (k === ' ') player.jump();
@@ -648,15 +668,17 @@ document.body.append(barRoot, overlay);
 const showOverlay = (on: boolean) => { overlay.style.display = on ? '' : 'none'; };
 
 let screen: Mounted | null = null;
-let missionBar: { update(): void; destroy(): void } | null = null;
+let missionBar: { update(force?: boolean): void; destroy(): void } | null = null;
 let commander: CommanderHandle | null = null;
-let report: ReportHandle | null = null;
+let report: Mounted | null = null;
+let flightComparison: FlightComparison | undefined;
 let previousSummary: Summary | null = null;
 let ended = false;
 let eventsSeen = 0;
 let lastShortageRadio = -Infinity;
 
 function dispatch(cmd: Command): CommandResult {
+  if (inputLocked) return { ok: false, reason: 'Secuencia de vuelo en curso' };
   return runner ? runner.dispatch(cmd) : { ok: false, reason: 'Sin misión en curso' };
 }
 
@@ -670,11 +692,12 @@ function showMenu(): void {
 }
 
 function showPrepare(initial?: Design, previous: Summary | null = null): void {
+  void preloadOrbitalMaps();
   showOverlay(true);
   screen = mountPrepare(overlay, {
     initial, previous,
     onConfirm: (design) => { screen?.destroy(); screen = null; showOverlay(false); startMissionMode(design); },
-    onBack: () => { screen?.destroy(); screen = null; if (mode === 'menu') showMenu(); else location.reload(); },
+    onBack: () => { screen?.destroy(); screen = null; returnToControl(); },
   });
 }
 
@@ -689,6 +712,7 @@ function startMissionMode(design: Design): void {
   state = ms.game;
   mode = 'mission';
   ended = false;
+  flightComparison = undefined;
   eventsSeen = 0;
   lastShortageRadio = -Infinity;
   power = ms.lastPower;
@@ -700,8 +724,8 @@ function startMissionMode(design: Design): void {
   base.parkRover(state.rover.x, state.rover.z, state.rover.rot);
   player.position.set(state.player.x, 0, state.player.z);
   player.unstick(colliders);
-  camera.position.set(state.player.x + 11, 13, state.player.z + 14);
-  controls.target.set(state.player.x, 0.8, state.player.z);
+  camera.position.set(player.position.x + 11, 13, player.position.z + 14);
+  controls.target.set(player.position.x, 0.8, player.position.z);
   missionBar?.destroy();
   missionBar = mountMissionBar(barRoot, {
     getState: () => runner!.mission,
@@ -711,6 +735,10 @@ function startMissionMode(design: Design): void {
     onSpeed: (v) => { if (runner) runner.speed = v; },
     onOpenCommander: openCommander,
   });
+  barRoot.querySelector('.m-controls')!.insertBefore(evacuate, barRoot.querySelector('.m-status'));
+  controls.update();
+  evacuate.hidden = false;
+  playSequence('arrival', () => { hud.radioText('CONTROL · Touchdown confirmado. Operaciones de superficie autorizadas.'); canvas.focus({ preventScroll: true }); });
 }
 
 function togglePause(): void {
@@ -721,7 +749,7 @@ function togglePause(): void {
 
 /** The commander pauses the mission; closing restores the pause state it found. */
 function openCommander(): void {
-  if (!runner || commander || runner.mission.phase !== 'running') return;
+  if (inputLocked || !runner || runner.blocked || commander || runner.mission.phase !== 'running') return;
   const active = runner;
   const wasPaused = active.paused;
   const focusBack = document.activeElement as HTMLElement | null;
@@ -731,7 +759,7 @@ function openCommander(): void {
   const close = () => {
     commander?.destroy();
     commander = null;
-    active.blocked = false;
+    blockMission(active, false);
     active.paused = wasPaused;
     focusBack?.focus();
   };
@@ -739,6 +767,7 @@ function openCommander(): void {
     getState: () => active.mission,
     onClose: close,
     onConfirm: (plan) => {
+      flightComparison = compareFlightPlans(active.mission, plan, { kind: 'endOfMission' }, project);
       const results = active.confirm(plan);
       results.forEach((r, i) => { if (!r.ok) hud.radioText(`${commandText(plan[i])}: ${r.reason ?? ''}`, true); });
       close();
@@ -773,18 +802,31 @@ function missionFrame(active: MissionRunner): void {
   closeCommander();
   active.blocked = true;
   hud.close();
-  showOverlay(true);
-  report = mountReport(overlay, {
-    getState: () => ms,
-    previous: previousSummary,
-    onRetry: (design) => {
-      previousSummary = summarize(ms);
-      report?.destroy();
-      report = null;
-      showPrepare(design, previousSummary);
-    },
-    onMenu: () => location.reload(),
-  });
+  evacuate.hidden = true;
+  const showReview = () => {
+    showOverlay(true);
+    const options = {
+      getState: () => ms,
+      comparison: flightComparison,
+      onRetry: (design: Design) => {
+        previousSummary = summarize(ms);
+        report?.destroy();
+        report = null;
+        showPrepare(design, previousSummary);
+      },
+      onMenu: returnToControl,
+      onPassport: () => {
+        report?.destroy();
+        report = mountPassport(overlay, {
+          name: loadProfile()?.name ?? '', missions: [ms],
+          onBack: () => { report?.destroy(); showReview(); },
+        });
+      },
+    };
+    report = mountFlightReview(overlay, options);
+  };
+  if (ms.phase === 'victory') playSequence('victory', showReview);
+  else showReview();
 }
 
 /** Behind the menu the camera drifts slowly around the base. */
@@ -793,10 +835,128 @@ function menuOrbit(dt: number): void {
   camera.position.copy(controls.target).add(offset);
 }
 
+const cinema = new CinematicDirector({ camera, controls, scene, lander: base.objectOf('lander')!, astronaut: player.obj });
+canvas.tabIndex = 0;
+const evacuate = el('button.cinema-evacuate', { type: 'button', hidden: true }, 'Evacuate · Evacuar');
+document.body.append(evacuate);
+
+function clearFlightInput(): void {
+  keys.clear();
+  downAt = null;
+  hud.resetInput();
+  player.resetMotion();
+}
+
+function playSequence(kind: SequenceKind, done: () => void): void {
+  if (cinema.active) return;
+  const active = runner;
+  const wasBlocked = active && contextPause?.active === active ? contextPause.blocked : active?.blocked ?? false;
+  const wasPaused = active?.paused ?? false;
+  inputLocked = true;
+  epoch++;
+  if (active) { blockMission(active, true); active.paused = true; }
+  clearFlightInput();
+  hud.close();
+  const prior = Array.from(document.body.children).filter((node): node is HTMLElement => node instanceof HTMLElement)
+    .map(node => ({ node, inert: node.inert, hidden: node.hidden }));
+  for (const item of prior) {
+    item.node.inert = true;
+    if (item.node.id === 'hud' || item.node.id === 'rotate-hint' || item.node === barRoot || item.node === evacuate) item.node.hidden = true;
+  }
+  const markerVisible = marker.visible;
+  marker.visible = false;
+  clock.getDelta();
+  cinema.start(kind, () => {
+    if (active && runner === active) { blockMission(active, wasBlocked); active.paused = wasPaused; }
+    missionBar?.update(true);
+    for (const item of prior) { item.node.inert = item.inert; item.node.hidden = item.hidden; }
+    marker.visible = markerVisible;
+    clearFlightInput();
+    inputLocked = false;
+    controls.enabled = mode === 'free' || !!runner?.canDispatch();
+    done();
+  });
+}
+
+function returnToControl(): void {
+  epoch++;
+  closeCommander();
+  report?.destroy(); report = null;
+  screen?.destroy(); screen = null;
+  missionBar?.destroy(); missionBar = null;
+  runner = null;
+  mode = 'menu';
+  inputLocked = false;
+  evacuate.hidden = true;
+  clearFlightInput();
+  controls.enabled = false;
+  showMenu();
+  overlay.querySelector<HTMLElement>('button')?.focus();
+}
+
+evacuate.addEventListener('click', () => {
+  if (inputLocked || !runner || runner.blocked || runner.mission.phase !== 'running') return;
+  const active = runner;
+  const paused = active.paused;
+  const blocked = active.blocked;
+  active.blocked = true;
+  inputLocked = true;
+  clearFlightInput();
+  const dialog = el('dialog.cinema-confirm', { 'aria-labelledby': 'evacuation-title' },
+    el('h2', { id: 'evacuation-title' }, 'Abort mission · Evacuar base'),
+    el('p', {}, 'Terminar este intento y evacuar a la tripulación. Regresarás al Centro de Control; este vuelo no recibirá una victoria.'),
+    el('form', { method: 'dialog' }, el('button', { value: 'continue', autofocus: true }, 'Continuar misión'), el('button', { value: 'evacuate' }, 'Confirmar evacuación')));
+  for (const type of ['keydown', 'keyup']) dialog.addEventListener(type, event => event.stopPropagation());
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    inputLocked = false;
+    active.paused = paused;
+    blockMission(active, blocked);
+    clearFlightInput();
+    if (dialog.returnValue === 'evacuate') playSequence('evacuation', returnToControl);
+    else evacuate.focus();
+  }, { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+});
+let contextPause: { active: MissionRunner; blocked: boolean } | null = null;
+function blockMission(active: MissionRunner, blocked: boolean): void {
+  if (contextLost && contextPause?.active === active) {
+    contextPause.blocked = blocked;
+    active.blocked = true;
+  } else active.blocked = blocked;
+}
+document.addEventListener('visibilitychange', () => {
+  clock.getDelta();
+  clearFlightInput();
+});
+canvas.addEventListener('webglcontextlost', () => {
+  contextLost = true;
+  cinema.interrupt();
+  contextPause = runner ? { active: runner, blocked: runner.blocked } : null;
+  if (runner) runner.blocked = true;
+});
+canvas.addEventListener('webglcontextrestored', () => {
+  contextLost = false;
+  clock.getDelta();
+  clearFlightInput();
+  if (runner && contextPause?.active === runner) runner.blocked = contextPause.blocked;
+  contextPause = null;
+});
+if (import.meta.env.DEV) Object.assign(window, { cinema });
+
 const freeClock = fixedStepClock(SIM_STEP);
 let frame = 0;
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
+  const realDt = clock.getDelta();
+  if (document.hidden || contextLost) return;
+  const dt = Math.min(realDt, 0.1);
+  if (cinema.active) {
+    cinema.update(realDt);
+    renderer.shadowMap.needsUpdate = true;
+    renderer.render(cinema.renderScene, camera);
+    return;
+  }
   adaptQuality(dt);
   renderer.shadowMap.needsUpdate = frame++ % 2 === 0;
   if (mode === 'free') {
@@ -814,9 +974,11 @@ renderer.setAnimationLoop(() => {
     runner.advance(dt);
     power = runner.mission.lastPower;
     missionFrame(runner);
+    if (cinema.active) { renderer.render(cinema.renderScene, camera); return; }
   }
   // The astronaut only moves when the world is live: not behind the menu, a pause or an overlay.
-  const live = mode === 'free' || (mode === 'mission' && !!runner && runner.canDispatch());
+  const live = !inputLocked && (mode === 'free' || (mode === 'mission' && !!runner && runner.canDispatch()));
+  controls.enabled = live;
   const pdt = live ? dt : 0;
   // Day and night fade smoothly; the Sun moves along the horizon.
   const isDay = mode === 'mission' && runner ? !darknessAt(runner.mission).isDark : cyclePhase(state.time).isDay;
@@ -827,7 +989,7 @@ renderer.setAnimationLoop(() => {
   light.sun.position.set(Math.cos(az) * 40, 4 + (1 - night) * 3, Math.sin(az) * 40);
 
   if (mode === 'menu') menuOrbit(dt);
-  else cameraTurn(dt);
+  else if (live) cameraTurn(dt);
   // The astronaut moves; the camera follows (keeping the angle the player chose).
   colliders = base.colliders();
   const input = live ? moveInput() : new THREE.Vector2();
@@ -860,7 +1022,7 @@ renderer.setAnimationLoop(() => {
     exposed: !state.sheltered,
   }, clock.elapsedTime);
   hud.update(dt);
-  controls.update();
+  if (!inputLocked) controls.update();
   renderer.render(scene, camera);
 });
 

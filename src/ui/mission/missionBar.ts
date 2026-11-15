@@ -15,7 +15,7 @@ export interface MissionBarOptions {
   onOpenCommander(): void;
 }
 
-export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { update(): void; destroy(): void } {
+export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { update(force?: boolean): void; destroy(): void } {
   const listeners = new AbortController();
   const signal = listeners.signal;
   let destroyed = false;
@@ -91,8 +91,8 @@ export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { u
   }, { signal });
   root.append(node);
 
-  function update(): void {
-    if (destroyed || performance.now() - lastRender < 250) return;
+  function update(force = false): void {
+    if (destroyed || (!force && performance.now() - lastRender < 250)) return;
     lastRender = performance.now();
     const ms = opts.getState();
     const ended = ms.phase !== 'running';
