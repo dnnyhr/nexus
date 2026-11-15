@@ -87,7 +87,7 @@ export class CinematicDirector {
     const { camera, controls, lander, astronaut } = this.host;
     const t = f.time;
     const frame = shot(f.kind, t);
-    f.ui?.update(frame.text, frame.mask);
+    f.ui?.update(frame.text, frame.mask, t);
     camera.zoom = 1;
     camera.near = frame.orbital ? 0.01 : f.near;
     camera.far = frame.orbital ? 1500 : f.far;

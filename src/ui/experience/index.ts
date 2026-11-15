@@ -1,6 +1,7 @@
 import './experience.css';
 
 export * from './adapters';
+export * from './backgroundMusic';
 export * from './certifications';
 export * from './controlCenter';
 export * from './controls';

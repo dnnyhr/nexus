@@ -532,6 +532,10 @@ const STRINGS = {
   nxLaunch: { es: 'Despegar', en: 'Launch' },
   nxCustomize: { es: 'Diseñar base', en: 'Design base' },
   nxHintPlantDead: { es: 'Puedes replantar en el invernadero si tienes materiales.', en: 'You can replant in the greenhouse if you have materials.' },
+
+  bgmTitle: { es: 'Música', en: 'Music' },
+  bgmPlay: { es: 'Reanudar música', en: 'Resume music' },
+  bgmPause: { es: 'Detener música', en: 'Pause music' },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

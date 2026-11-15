@@ -6,3 +6,9 @@ Retrieved: 2026-11-15. Pixels unchanged; source metadata embedded in image files
 - `moon.jpg`, 1024×512: [CGI Moon Kit, NASA SVS4720](https://svs.gsfc.nasa.gov/4720/). [Original2019 JPEG](https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_1k.jpg). Credit: NASA's Scientific Visualization Studio; Ernie Wright; LRO/LROC camera team. Uses2019 color map, not newer2025 edition. Visualization map optimized for appearance; scientific use requires original instrument data.
 
 Attribution does not imply affiliation or NASA endorsement. No NASA insignia used.
+
+# Arrival audio
+
+Retrieved: 2026-11-15. Local presentation asset for the arrival cinematic, not live telemetry or evidence of a simulated flight.
+
+- `arrival.mp3`, 10 s, Spanish clip of Neil Armstrong's Apollo 11 first words ("Un pequeño paso para el hombre, un gran salto para la humanidad"). Retrieved as audio from [YouTube](https://youtu.be/oD4DTCrHwtY). The historic Apollo 11 transmission is a NASA recording; attribution does not imply affiliation or NASA endorsement.
