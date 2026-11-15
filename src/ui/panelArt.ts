@@ -1,6 +1,7 @@
 import { COLLECT, ROVER } from '../game/config';
 import { capacity, carryMax, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
+import './panelArt.css';
 
 // A small live illustration at the top of each panel, drawn from the real state: the plant
 // grows and wilts, the hopper fills, the battery charges, the dish talks to Earth. One SVG
