@@ -55,12 +55,6 @@ export function step(s: GameState, dt: number, running?: Running): void {
     s.stats.materialsMade += used * PROCESSOR.materialsPerRegolith;
   }
 
-  // Collector robots dig on their own.
-  if (active && run.robots && !s.sheltered && s.levels.collectorRobot > 0) {
-    const got = COLLECT.robotPerSecond * s.levels.collectorRobot * dt;
-    s.res.regolith += got;
-    s.stats.regolithCollected += got;
-  }
 
   // Crew health: drops while any life resource is empty, recovers when all are above 20 %.
   const empty = [s.res.o2, s.res.water, s.res.food].filter((v) => v <= 0).length;
@@ -89,6 +83,16 @@ export function collectByHand(s: GameState): number {
   s.carried += got;
   s.stats.regolithCollected += got;
   return got;
+}
+
+/** A collector robot unloads one trip into the processor's hopper. Returns the amount. */
+export function robotUnload(s: GameState): number {
+  if (s.levels.processor === 0 || s.levels.collectorRobot === 0) return 0;
+  const load = COLLECT.robotLoad[Math.min(3, s.levels.collectorRobot) - 1];
+  const amount = Math.min(load, capacity(s).regolith - s.res.regolith);
+  s.res.regolith += amount;
+  s.stats.regolithCollected += amount;
+  return amount;
 }
 
 /** Empty the bag into the processor's hopper (limited by its storage). Returns the amount. */

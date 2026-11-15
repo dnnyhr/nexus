@@ -7,11 +7,11 @@ import { damageOf, impact, impactChance, repair, repairCost } from './game/damag
 import { activeShower } from './game/meteors';
 import { protection, stepStorm } from './game/storm';
 import { stepRescue } from './game/rescue';
-import { RESCUE } from './game/config';
+import { RESCUE, ROVER } from './game/config';
 import { loadSpaceWeather, radiationScale, snapshotWeather, SOURCES, type SpaceWeather } from './data/spaceweather';
 import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
-import { carryMax, collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
+import { carryMax, collectByHand, deliverRegolith, robotUnload, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { animateModel, findModel, poke } from './models/anim';
@@ -23,8 +23,10 @@ import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
 import { createLighting } from './scene/lighting';
 import { createSky } from './scene/sky';
-import { createTerrain } from './scene/terrain';
+import { createTerrain, heightAt, ICE_CRATER } from './scene/terrain';
 import { Player } from './scene/player';
+import { RoverDriver } from './scene/rover';
+import { deliverIce, scoopIce } from './game/rover';
 import '@fontsource/barlow-semi-condensed/400.css';
 import '@fontsource/barlow-semi-condensed/500.css';
 import '@fontsource/barlow-semi-condensed/600.css';
@@ -101,6 +103,12 @@ const hud = new Hud({
 });
 
 /** Buildings and build sites follow the state (and what the missions have unlocked). */
+// Collector robots deliver one bucket per trip to the processor.
+base.onRobotUnload = (robot) => {
+  const n = robotUnload(state);
+  hud.float(robot.position.clone().add(new THREE.Vector3(0, 1.8, 0)), n > 0 ? t('robotDelivered', { n }) : t('hopperFull'), n === 0);
+};
+
 function syncWorld(): void {
   base.sync(state);
   base.syncSites(state, unlocked(state));
@@ -108,6 +116,12 @@ function syncWorld(): void {
 syncWorld();
 
 const player = new Player(new THREE.Vector3(state.player.x, 0, state.player.z));
+// The rover resumes where it was parked; the astronaut may still be at the wheel.
+base.parkRover(state.rover.x, state.rover.z, state.rover.rot);
+const driver = new RoverDriver(base.rover());
+function roverTop(): THREE.Vector3 {
+  return base.rover().position.clone().add(new THREE.Vector3(0, 2.6, 0));
+}
 camera.position.set(state.player.x + 11, 13, state.player.z + 14);
 controls.target.set(state.player.x, 0.8, state.player.z);
 scene.add(player.obj);
@@ -136,6 +150,10 @@ function topOf(o: THREE.Object3D, lift = 0.4): THREE.Vector3 {
 }
 
 type Act =
+  | { type: 'board'; obj: THREE.Object3D }
+  | { type: 'unboard'; obj: THREE.Object3D }
+  | { type: 'scoopIce'; obj: THREE.Object3D }
+  | { type: 'unloadIce'; obj: THREE.Object3D }
   | { type: 'shelter'; obj: THREE.Object3D }
   | { type: 'build'; kind: BuildingKind; obj: THREE.Object3D }
   | { type: 'repair'; key: string; obj: THREE.Object3D }
@@ -145,6 +163,15 @@ type Act =
 /** What F / the prompt would do right now: build here, deliver regolith, or use what is near. */
 function currentAct(): Act | null {
   if (state.sheltered || player.isBusy()) return null;
+  // Driving: scoop ice in the dark crater, unload it at the habitat or greenhouse, or get out.
+  if (state.rover.driving) {
+    const rv = base.rover();
+    const inCrater = Math.hypot(rv.position.x - ICE_CRATER.x, rv.position.z - ICE_CRATER.z) < ICE_CRATER.r * 0.8;
+    if (inCrater && driver.speed < 0.5) return { type: 'scoopIce', obj: rv };
+    const home = base.nearest(rv.position, 4.5, colliders.filter((c) => /^(station|greenhouse)/.test(c.obj.userData.id ?? '')));
+    if (home && state.rover.ice > 0) return { type: 'unloadIce', obj: rv };
+    return { type: 'unboard', obj: rv };
+  }
   // Priority: shelter during a storm, urgent repairs, delivering the bag, building, using.
   const near = base.nearest(player.position, REACH, colliders);
   const shelter = shelterObject();
@@ -152,6 +179,7 @@ function currentAct(): Act | null {
     return { type: 'shelter', obj: shelter };
   }
   const panel = near && panelKind(near);
+  if (near && panel === 'rover') return { type: 'board', obj: near };
   const key = near && base.keyOf(near);
   if (near && key && damageOf(state, key) > 0) return { type: 'repair', key, obj: near };
   if (near && panel === 'processor' && state.carried > 0) return { type: 'deliver', obj: near };
@@ -167,6 +195,34 @@ function doAction(): void {
   if (act.type === 'use') {
     poke(act.obj, clock.elapsedTime);
     hud.open(act.panel, act.obj);
+    return;
+  }
+  if (act.type === 'board') {
+    state.rover.driving = true;
+    hud.close();
+    poke(act.obj, clock.elapsedTime);
+    return;
+  }
+  if (act.type === 'unboard') {
+    state.rover.driving = false;
+    driver.speed = 0;
+    const rv = act.obj;
+    base.parkRover(rv.position.x, rv.position.z, rv.rotation.y);
+    colliders = base.colliders();
+    // Step out on the left side of the rover.
+    player.position.set(rv.position.x + Math.cos(rv.rotation.y) * 1.8, 0, rv.position.z - Math.sin(rv.rotation.y) * 1.8);
+    player.unstick(colliders);
+    return;
+  }
+  if (act.type === 'scoopIce') {
+    const got = scoopIce(state);
+    fx.dust(act.obj.position.clone());
+    hud.float(topOf(act.obj), got > 0 ? t('iceGain', { n: got }) : t('iceFull'), got === 0);
+    return;
+  }
+  if (act.type === 'unloadIce') {
+    const water = deliverIce(state);
+    hud.float(topOf(act.obj), water > 0 ? t('waterGain', { n: water }) : t('storageFull'), water === 0);
     return;
   }
   if (act.type === 'shelter') {
@@ -231,6 +287,10 @@ function updatePrompt(): void {
   if (player.isBusy()) return hud.setPrompt(player.position.clone().add(new THREE.Vector3(0, 2.3, 0)), t('busy'));
   const act = currentAct();
   if (!act) hud.setPrompt(null);
+  else if (act.type === 'board') hud.setPrompt(topOf(act.obj), t('board'));
+  else if (act.type === 'unboard') hud.setPrompt(roverTop(), t('unboard'), state.rover.ice ? `· ${t('iceGain', { n: Math.round(state.rover.ice) }).replace('+', '')}` : '');
+  else if (act.type === 'scoopIce') hud.setPrompt(roverTop(), t('scoopIce'), `· ${Math.round(state.rover.ice)}/${ROVER.iceCargoMax}`, state.rover.ice >= ROVER.iceCargoMax);
+  else if (act.type === 'unloadIce') hud.setPrompt(roverTop(), t('unloadIce'), `· ${Math.round(state.rover.ice)}`);
   else if (act.type === 'build') {
     const c = nextCost(state, act.kind);
     hud.setPrompt(topOf(act.obj), t('buildX', { x: t(BUILD_LABEL[act.kind]) }), c === null ? '' : `· ${c}`, !checkBuild(state, act.kind).ok);
@@ -262,10 +322,19 @@ function updateMarker(t: number): void {
     return;
   }
   const m = currentMission(state);
+  const from = state.rover.driving ? base.rover().position : player.position;
+  if (m.target === 'iceCrater') {
+    marker.visible = true;
+    const crater = new THREE.Vector3(ICE_CRATER.x, heightAt(ICE_CRATER.x, ICE_CRATER.z), ICE_CRATER.z);
+    hud.setTarget(crater.clone().setY(1), from);
+    marker.position.set(crater.x, crater.y + 5 + Math.sin(t * 2.4) * 0.25, crater.z);
+    (marker.userData.chevron as THREE.Object3D).rotation.y = t;
+    return;
+  }
   const kind = m.target === 'dig' ? null : m.target === 'greenhouseUse' ? 'greenhouse' : m.target;
   const at = kind ? base.slotOf(kind, state) : null;
   marker.visible = !!at;
-  hud.setTarget(at ? new THREE.Vector3(at.x, 1, at.z) : null, player.position);
+  hud.setTarget(at ? new THREE.Vector3(at.x, 1, at.z) : null, from);
   if (!at) return;
   const height = kind === 'solarMast' ? 10 : kind === 'station' || kind === 'shield' ? 6.5 : 4.2;
   marker.position.set(at.x, height + Math.sin(t * 2.4) * 0.25, at.z);
@@ -300,6 +369,8 @@ let resetting = false;
 function save(): void {
   if (resetting) return;
   state.player = { x: player.position.x, z: player.position.z };
+  const rv = base.rover();
+  Object.assign(state.rover, { x: rv.position.x, z: rv.position.z, rot: rv.rotation.y });
   saveGame(state);
 }
 setInterval(save, 30_000);
@@ -382,7 +453,7 @@ function maybeImpact(): void {
     if (shower) hud.radioText(t('showerNews', { name: shower.shower.name[getLang()] }));
   }
 }
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
+if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its
@@ -519,9 +590,18 @@ renderer.setAnimationLoop(() => {
   cameraTurn(dt);
   // The astronaut moves; the camera follows (keeping the angle the player chose).
   colliders = base.colliders();
-  player.update(dt, moveInput(), colliders, state.sheltered, keys.has(' ') || hud.jumpHeld());
+  if (state.rover.driving) {
+    const rv = base.rover();
+    driver.update(dt, moveInput(), colliders.filter((c) => c.obj !== rv));
+    // The astronaut rides along (hidden in the seat), so saves and prompts stay consistent.
+    player.position.set(rv.position.x, rv.position.y, rv.position.z);
+    player.update(dt, new THREE.Vector2(), [], true, false);
+  } else {
+    player.update(dt, moveInput(), colliders, state.sheltered, keys.has(' ') || hud.jumpHeld());
+  }
   animateModel(player.obj, clock.elapsedTime, dt);
-  const follow = new THREE.Vector3(player.position.x, 0.8, player.position.z).sub(controls.target).multiplyScalar(Math.min(1, dt * 4));
+  const focus = state.rover.driving ? base.rover().position : player.position;
+  const follow = new THREE.Vector3(focus.x, 0.8, focus.z).sub(controls.target).multiplyScalar(Math.min(1, dt * 4));
   controls.target.add(follow);
   camera.position.add(follow);
   updatePrompt();

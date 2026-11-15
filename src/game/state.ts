@@ -62,6 +62,8 @@ export interface GameState {
   damage: Record<string, number>;
   /** Emergency supply drops: seconds until another can be sent, and how many were sent. */
   rescue: { cooldown: number; count: number };
+  /** Expedition rover: where it is parked, whether the astronaut drives it, ice on board. */
+  rover: { x: number; z: number; rot: number; driving: boolean; ice: number };
   /** Where the astronaut stands (saved so a game resumes in place). */
   player: { x: number; z: number };
   /** Regolith in the astronaut's bag, not yet delivered to the processor. */
@@ -87,6 +89,7 @@ export interface GameState {
     harvests: number;
     regolithCollected: number;
     materialsMade: number;
+    iceDelivered: number;
   };
   /** Index of the current mission (see missions.ts). */
   mission: number;
@@ -104,6 +107,7 @@ export function newGame(now = Date.now()): GameState {
     power: { heating: true, processor: true, robots: true, growLights: 60 },
     plant: { water: 50, light: 50, temp: 50, growth: 0, stress: 0, maxStressTime: 0, dead: false },
     damage: {},
+    rover: { x: 9, z: 4, rot: -0.6, driving: false, ice: 0 },
     rescue: { cooldown: 0, count: 0 },
     player: { x: -14.5, z: 9.5 },
     carried: 0,
@@ -111,7 +115,7 @@ export function newGame(now = Date.now()): GameState {
     sheltered: false,
     storm: { phase: 'none', timeLeft: 0, nextIn: 40, strength: 0, flare: null, used: 0, live: false },
     dose: 0,
-    stats: { harvests: 0, regolithCollected: 0, materialsMade: 0 },
+    stats: { harvests: 0, regolithCollected: 0, materialsMade: 0, iceDelivered: 0 },
     mission: 0,
   };
 }
