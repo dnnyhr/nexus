@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // of time) and the modes it supports; the game or the viewer sets the mode and calls
 // animateModel() every frame. Animators only move pivots, never rebuild geometry.
 
-export type AnimMode = 'idle' | 'walk' | 'work' | 'drive' | 'jump' | 'land';
+export type AnimMode = 'idle' | 'walk' | 'work' | 'drive' | 'jump' | 'land' | 'sit';
 export type Animator = (t: number, dt: number, mode: AnimMode) => void;
 
 export function addAnimator(model: THREE.Object3D, fn: Animator): void {
