@@ -24,6 +24,8 @@ interface HudDeps {
   newGame(): void;
   jump(): void;
   dig(): void;
+  exportGame(): void;
+  importGame(): void;
 }
 
 interface Floater { node: HTMLElement; world: THREE.Vector3; age: number }
@@ -269,6 +271,8 @@ export class Hud {
       poke: () => this.deps.poke(anchor),
       close: () => this.close(),
       newGame: () => this.deps.newGame(),
+      exportGame: () => this.deps.exportGame(),
+      importGame: () => this.deps.importGame(),
     };
   }
 

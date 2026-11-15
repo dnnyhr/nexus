@@ -18,8 +18,10 @@ import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
 import { Hud } from './ui/hud';
-import { getLang, onLangChange, setPlayerName, t, type StringKey } from './ui/i18n';
+import { getLang, getPlayerName, onLangChange, setPlayerName, t, type StringKey } from './ui/i18n';
 import { loadProfile } from './game/profile';
+import { embedText, extractText, packCard, unpackCard } from './game/pngsave';
+import { cardFontsReady, drawCard } from './ui/savecard';
 import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
 import { createLighting } from './scene/lighting';
@@ -143,6 +145,8 @@ const hud = new Hud({
   newGame: () => { clearSave(); resetting = true; location.reload(); },
   jump: () => player.jump(),
   dig: () => dig(),
+  exportGame: () => { void exportCard(); },
+  importGame: () => importCard(),
 });
 // Page title and the "turn your phone" notice live outside the HUD: keep them translated too.
 const pageTexts = () => {
@@ -420,6 +424,56 @@ if (away && away.seconds > 60) {
 
 // ---- Saving: every 30 s, and whenever the page is hidden or closed ------------------------
 let resetting = false;
+
+// ---- Save cards: the game inside a PNG, exported and imported from the lander ---------
+
+/** A frame of the 3D view, copied right after rendering (the canvas is cleared after). */
+function snapshot(): HTMLCanvasElement {
+  renderer.render(scene, camera);
+  const c = document.createElement('canvas');
+  c.width = canvas.width;
+  c.height = canvas.height;
+  c.getContext('2d')!.drawImage(canvas, 0, 0);
+  return c;
+}
+
+async function exportCard(): Promise<void> {
+  const shot = snapshot();
+  await cardFontsReady();
+  const now = Date.now();
+  saveGame(state, now);
+  const card = drawCard({ state, name: getPlayerName(), shot, savedAt: now });
+  const blob = await new Promise<Blob | null>((ok) => card.toBlob(ok, 'image/png'));
+  if (!blob) return;
+  const png = embedText(new Uint8Array(await blob.arrayBuffer()), packCard(state, getPlayerName(), now));
+  const slug = (getPlayerName() || t('defaultName')).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'nexus';
+  const file = `nexus-${slug}-${t('cardFileMission')}-${String(state.mission + 1).padStart(2, '0')}.png`;
+  const url = URL.createObjectURL(new Blob([png as BlobPart], { type: 'image/png' }));
+  const a = el('a', { href: url, download: file });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  hud.float(player.position.clone().add(new THREE.Vector3(0, 2.6, 0)), t('exported'));
+}
+
+function importCard(): void {
+  const input = el('input', { type: 'file', accept: 'image/png' });
+  input.addEventListener('change', async () => {
+    const f = input.files?.[0];
+    if (!f) return;
+    const text = extractText(new Uint8Array(await f.arrayBuffer()));
+    const card = text ? unpackCard(text) : null;
+    if (!card) return hud.float(player.position.clone().add(new THREE.Vector3(0, 2.6, 0)), t('importBad'), true);
+    const date = new Date(card.savedAt).toLocaleString(getLang(), { dateStyle: 'medium', timeStyle: 'short' });
+    if (!confirm(t('importConfirm', { name: card.name || t('defaultName'), n: card.state.mission + 1, date }))) return;
+    // Write the loaded game and restart on it (the page-hide save must not overwrite it).
+    resetting = true;
+    saveGame(card.state);
+    location.reload();
+  });
+  input.click();
+}
 function save(): void {
   if (resetting) return;
   state.player = { x: player.position.x, z: player.position.z };
@@ -515,7 +569,7 @@ function maybeImpact(): void {
     }
   }
 }
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
+if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, hud, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its
