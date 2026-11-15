@@ -87,11 +87,42 @@ describe('mission runner', () => {
     expect(ran).toBe(runner.mission.t / STEP);
   });
 
-  it('only accepts 1x or 2x', () => {
+  it('only accepts 1x, 2x or 4x', () => {
     const runner = createMissionRunner(startMission(emptyDesign()));
     runner.speed = 3 as never;
     expect(runner.speed).toBe(1);
     runner.speed = 2;
     expect(runner.speed).toBe(2);
+    runner.speed = 4;
+    expect(runner.speed).toBe(4);
+  });
+
+  it('4x gives the same result as 1x for the same commands at the same times', () => {
+    expect(play(4, 4 as never)).toEqual(play(4, 1));
+  });
+
+  it('skipping to the next event runs the same steps as playing, and stops at each boundary', () => {
+    const skipped = createMissionRunner(startMission(DESIGN));
+    const played = createMissionRunner(startMission(DESIGN), { maxFrame: 1000, maxSteps: 100000 });
+    const stops: number[] = [];
+    while (skipped.mission.phase === 'running') {
+      expect(skipped.skipToNextStop()).toBeGreaterThan(0);
+      stops.push(skipped.mission.t);
+    }
+    expect(stops).toEqual([180, 240, 420, 450, 480, 535.75]);
+    expect(skipped.mission.failure?.code).toBe('exposure_exceeded');
+    played.advance(1000);
+    expect(skipped.mission).toEqual(played.mission);
+  });
+
+  it('does not skip while paused or with an overlay open', () => {
+    const runner = createMissionRunner(startMission(emptyDesign()));
+    runner.paused = true;
+    expect(runner.skipToNextStop()).toBe(0);
+    runner.paused = false;
+    runner.blocked = true;
+    expect(runner.skipToNextStop()).toBe(0);
+    expect(runner.mission.t).toBe(0);
+    expect(runner.nextStop()).toBe(180);
   });
 });
