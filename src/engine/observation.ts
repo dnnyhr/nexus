@@ -39,3 +39,19 @@ export function syncStorm(ms: MissionState): void {
     used: ms.scenario.events.filter(e => e.kind === 'storm' && e.warnAt <= ms.t).length, live: false,
   };
 }
+
+export function scenarioEvents(ms: MissionState, previous: number): void {
+  for (const event of ms.scenario.events) {
+    for (const [at, suffix] of [[event.warnAt, 'warning'], [event.startAt, 'start'], [event.endAt, 'end']] as const) {
+      if (previous >= at || ms.t < at) continue;
+      const text = event.kind === 'darkness'
+        ? suffix === 'end'
+          ? `Fin de la oscuridad: batería ${figure(sample(ms).energy)} %, luces reducidas ${figure(ms.metrics.secondsLightsReduced)} s`
+          : suffix === 'warning' ? `Oscuridad prevista en ${figure(event.startAt - ms.t)} s` : 'Comienza la oscuridad'
+        : suffix === 'end'
+          ? `Fin de tormenta: exposición ${figure(ms.exposure)} u; refugio ${figure(ms.metrics.secondsSheltered)} s`
+          : suffix === 'warning' ? `Tormenta prevista en ${figure(event.startAt - ms.t)} s` : 'Comienza la tormenta';
+      ms.events.push({ t: at, kind: `${event.kind}_${suffix}`, text });
+    }
+  }
+}

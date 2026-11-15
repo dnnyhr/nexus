@@ -6,6 +6,14 @@ import type { Command, CommandResult, MissionCause, MissionState } from './types
 
 const rejected = (reason: string): CommandResult => ({ ok: false, reason });
 
+function serializableCommand(cmd: Command): Command {
+  try {
+    return JSON.parse(JSON.stringify(cmd));
+  } catch {
+    return { type: 'invalid' } as unknown as Command;
+  }
+}
+
 export function applyToGame(s: GameState, cmd: Command): CommandResult {
   if (!cmd || typeof cmd !== 'object') return rejected('Comando inválido');
   switch (cmd.type) {
@@ -47,7 +55,7 @@ export function applyCommand(ms: MissionState, cmd: Command): CommandResult {
   if (ms.phase !== 'running') result = rejected('Misión terminada');
   else if (ms.game.sheltered && ['irrigate', 'adjustClimate', 'harvest', 'replant', 'collectRegolith', 'deliverRegolith'].includes(cmd?.type)) result = rejected('Acción suspendida en refugio');
   else result = applyToGame(ms.game, cmd);
-  ms.log.push({ t: ms.t, cmd: structuredClone(cmd), ok: result.ok });
+  ms.log.push({ t: ms.t, cmd: serializableCommand(cmd), ok: result.ok });
   if (result.ok) {
     const cause: MissionCause = cmd.type === 'harvest' ? 'harvest' : cmd.type === 'irrigate' ? 'irrigation' : 'climate';
     recordChange(ms, before, cause);
