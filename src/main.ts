@@ -15,6 +15,8 @@ import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missi
 import { carryMax, collectByHand, deliverRegolith, resolvePower, robotUnload, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
+import { type PortableSave } from './game/savePng';
+import { openPngSave } from './ui/savePng';
 import { fixedStepClock } from './game/loop';
 import { CADET_DESIGN, createMissionRunner, darknessAt, missionPowerOptions, project, startMission, summarize, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type MissionState, type Summary } from './engine';
 import { mountPrepare, type Mounted } from './ui/mission/prepare';
@@ -43,7 +45,7 @@ import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
 import { Hud } from './ui/hud';
 import { getLang, getPlayerName, setPlayerName, t, type StringKey } from './ui/i18n';
-import { loadProfile } from './game/profile';
+import { loadProfile, saveProfile } from './game/profile';
 import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
 import { createLighting } from './scene/lighting';
@@ -154,7 +156,7 @@ const hud = new Hud({
 /** Buildings and build sites follow the state (and what the missions have unlocked). */
 // Collector robots deliver one bucket per trip to the processor.
 base.onRobotUnload = (robot) => {
-  if (mode !== 'free') return;
+  if (mode !== 'free' || inputLocked) return;
   const n = robotUnload(state);
   hud.float(robot.position.clone().add(new THREE.Vector3(0, 1.8, 0)), n > 0 ? t('robotDelivered', { n }) : t('hopperFull'), n === 0);
 };
@@ -429,9 +431,9 @@ function checkMissions(): void {
 }
 /** Free mode: catch up the time away, then run the base as it always did. */
 let weatherTimer = 0;
-function startFree(): void {
-  const saved = loadGame();
-  state = saved ?? newGame();
+function startFree(restored?: GameState): void {
+  const saved = restored ? null : loadGame();
+  state = restored ?? saved ?? newGame();
   runner = null;
   epoch++;
   clearFlightInput();
@@ -454,7 +456,7 @@ function startFree(): void {
   mountCamera();
   hud.setShower(shower ? shower.shower.name[getLang()] : null);
   // First time here: ask the astronaut's name (it can be changed any time in Profile).
-  if (!profile) hud.openProfile();
+  if (!profile && !getPlayerName()) hud.openProfile();
   bgm.play();
   if (away && away.seconds > 60) {
     const h = Math.floor(away.seconds / 3600);
@@ -746,6 +748,7 @@ function showTitle(): void {
     onCadetDesign: () => { void leaveTitle(); showPrepare(CADET_DESIGN); },
     onSimulator: () => { void leaveTitle(); startFree(); },
     onProgress: openProgress,
+    onLoadPng: openSaveArchive,
   });
 }
 
@@ -818,13 +821,13 @@ function missionSystems() {
 }
 
 /** Swap in a fresh mission state: HUD, buildings, colliders, astronaut and camera follow it. */
-function startMissionMode(design: Design): void {
+function startMissionMode(design: Design, restored?: MissionState): void {
   epoch++;
   closeCommander();
   debrief?.destroy();
   debrief = null;
   comparison = undefined;
-  const ms = startMission(design);
+  const ms = restored ?? startMission(design);
   runner = createMissionRunner(ms);
   state = ms.game;
   mode = 'mission';
@@ -887,7 +890,8 @@ function startMissionMode(design: Design): void {
   controls.update();
   bgm.play();
   // Earth launch, cislunar transit and touchdown; the camera ends on the exact gameplay pose.
-  playSequence('arrival', () => { canvas.focus({ preventScroll: true }); });
+  if (restored) { runner.paused = true; eventsSeen = ms.events.length; if (ms.phase !== 'running') { ended = true; showDebrief(ms); } }
+  else playSequence('arrival', () => { canvas.focus({ preventScroll: true }); });
 }
 
 function togglePause(): void {
@@ -1179,7 +1183,7 @@ renderer.setAnimationLoop(() => {
   }
   adaptQuality(dt);
   renderer.shadowMap.needsUpdate = frame++ % 2 === 0;
-  if (mode === 'free') {
+  if (mode === 'free' && !inputLocked) {
     freeClock.advance(dt, () => {
       power = tick(state, SIM_STEP);
       checkMissions();
@@ -1226,7 +1230,7 @@ renderer.setAnimationLoop(() => {
   updatePrompt();
   updateMarker(clock.elapsedTime);
 
-  base.update(state, clock.elapsedTime, dt, Math.atan2(Math.cos(az), Math.sin(az)), power);
+  base.update(state, clock.elapsedTime, inputLocked ? 0 : dt, Math.atan2(Math.cos(az), Math.sin(az)), power);
   animateSharedMaterials(clock.elapsedTime);
   fx.update(dt);
   flashes.update(dt);
@@ -1241,5 +1245,48 @@ renderer.setAnimationLoop(() => {
   hud.update(dt);
   renderer.render(scene, camera);
 });
+
+const pngButton = el('button.t-btn.png-save-open', { type: 'button', onclick: openSaveArchive }, 'Partidas PNG');
+document.querySelector('#topright')?.append(pngButton);
+
+function openSaveArchive(): void {
+  if (inputLocked || cinema.active || commander) return;
+  const active = runner, wasPaused = active?.paused ?? false, wasBlocked = active?.blocked ?? false;
+  inputLocked = true; epoch++; clearFlightInput(); hud.close();
+  if (active) { active.paused = true; active.blocked = true; }
+  renderer.render(mode === 'menu' ? titleScene.scene : scene, camera);
+  const image = document.createElement('canvas'); image.width = canvas.width; image.height = canvas.height;
+  image.getContext('2d')?.drawImage(canvas, 0, 0);
+  let current: PortableSave | null = null;
+  const common = { format: 'nexus-save' as const, version: 1 as const, createdAt: Date.now(), name: getPlayerName(), lang: getLang() };
+  if (mode === 'free') {
+    const game = structuredClone(state), rv = base.rover();
+    game.player = { x: player.position.x, z: player.position.z };
+    Object.assign(game.rover, { x: rv.position.x, z: rv.position.z, rot: rv.rotation.y });
+    current = { ...common, checkpoint: { mode: 'free', game } };
+  } else if (mode === 'mission' && active) current = { ...common, checkpoint: { mode: 'mission', mission: structuredClone(active.mission), position: { x: player.position.x, z: player.position.z }, speed: active.speed } };
+  openPngSave({ current, image,
+    close: () => {
+      inputLocked = false; clearFlightInput();
+      if (active && runner === active) { active.paused = wasPaused; active.blocked = wasBlocked; }
+    },
+    load: (loadedSave) => {
+      if (mode === 'free') save();
+      void leaveTitle(); debrief?.destroy(); debrief = null; screen?.destroy(); screen = null;
+      setPlayerName(loadedSave.name);
+      saveProfile({ name: loadedSave.name });
+      const cp = loadedSave.checkpoint;
+      if (cp.mode === 'free') {
+        cp.game.savedAt = Date.now(); startFree(cp.game);
+        if (!saveGame(state)) hud.radioText('Partida cargada. Conserva PNG: guardado local no disponible.', true);
+      } else {
+        startMissionMode(cp.mission.design, cp.mission);
+        runner!.speed = cp.speed;
+        player.position.set(cp.position.x, 0, cp.position.z); player.unstick(base.colliders());
+        missionBar?.update(true);
+      }
+    },
+  });
+}
 
 showTitle();
