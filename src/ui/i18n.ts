@@ -186,6 +186,10 @@ const STRINGS = {
   profile: { es: 'Perfil', en: 'Profile' },
   fullscreen: { es: 'Pantalla completa', en: 'Full screen' },
   exitFullscreen: { es: 'Salir de pantalla completa', en: 'Exit full screen' },
+  fullscreenIos: {
+    es: 'En iPhone, Safari no deja poner una página en pantalla completa. Toca Compartir y luego "Agregar a inicio", y abre NEXUS desde ese ícono: se verá en pantalla completa.',
+    en: 'On iPhone, Safari cannot put a page in full screen. Tap Share, then "Add to Home Screen", and open NEXUS from that icon: it will fill the screen.',
+  },
   profileName: { es: 'Tu nombre de astronauta', en: 'Your astronaut name' },
   profileHint: { es: 'Así te llamarán por radio desde la Tierra.', en: 'This is what Earth will call you on the radio.' },
   defaultName: { es: 'Astronauta', en: 'Astronaut' },
