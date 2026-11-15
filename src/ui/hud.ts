@@ -74,10 +74,19 @@ function roundGauge(label: StringKey) {
 type FullscreenDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => Promise<void>; webkitFullscreenEnabled?: boolean };
 type FullscreenEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
 
-/** Full-screen toggle (hidden where the browser cannot do it, like Safari on iPhone). */
-function fullscreenButton(): HTMLButtonElement | null {
+/** Already running as an app from the home screen (it is full screen there). */
+function installedApp(): boolean {
+  return matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+/**
+ * Full-screen toggle. Where the browser cannot put a page in full screen (Safari on
+ * iPhone), the button explains how to add the game to the home screen instead.
+ */
+function fullscreenButton(onUnsupported: () => void): HTMLButtonElement | null {
   const doc = document as FullscreenDoc;
-  if (!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled)) return null;
+  const supported = !!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+  if (!supported && installedApp()) return null;
   const enter = '<path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5" fill="none" stroke="currentColor" stroke-width="1.6"/>';
   const exit = '<path d="M6 1v5H1M15 6h-5V1M10 15v-5h5M1 10h5v5" fill="none" stroke="currentColor" stroke-width="1.6"/>';
   const btn = el('button.t-btn', { id: 'fullscreen-btn' });
@@ -88,6 +97,7 @@ function fullscreenButton(): HTMLButtonElement | null {
     btn.title = t(isFull() ? 'exitFullscreen' : 'fullscreen');
   };
   btn.addEventListener('click', async () => {
+    if (!supported) return onUnsupported();
     try {
       if (isFull()) {
         await (doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.());
@@ -95,7 +105,8 @@ function fullscreenButton(): HTMLButtonElement | null {
         const root = document.documentElement as FullscreenEl;
         await (root.requestFullscreen?.({ navigationUI: 'hide' }) ?? root.webkitRequestFullscreen?.());
         // Phones: keep it landscape while in full screen (ignored where not supported).
-        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape').catch(() => {});
+        const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+        await orientation.lock?.('landscape')?.catch(() => {});
       }
     } catch {
       // The browser said no (for example, not from a user gesture): nothing to do.
@@ -179,7 +190,7 @@ export class Hud {
     this.stormBox.append(this.stormTitle, this.stormTime, this.stormInfo);
     this.dataBtn = el('button.t-btn', { onclick: () => this.toggleData() }, el('span', { 'data-label': 'nasaData' }, t('nasaData')));
     this.profileBtn = el('button.t-btn', { id: 'profile-btn', onclick: () => this.toggleProfile() });
-    const fullBtn = fullscreenButton();
+    const fullBtn = fullscreenButton(() => this.toggleFullscreenHelp());
     this.radioBox.append(
       el('div.from', {}, el('span.dot'), this.radioFrom),
       this.radioMsg,
@@ -264,6 +275,14 @@ export class Hud {
     this.show({ el: panelEl, update: () => {} }, null, 'data');
   }
 
+  /** Safari on iPhone: full screen only works for a game added to the home screen. */
+  private toggleFullscreenHelp(): void {
+    if (this.panel?.kind === 'fullscreen') return this.close();
+    const head = el('div.head', {}, el('h3', {}, t('fullscreen')), el('button.close', { onclick: () => this.close() }, '✕'));
+    const panelEl = el('div.panel.interactive', {}, head, el('p', {}, t('fullscreenIos')));
+    this.show({ el: panelEl, update: () => {} }, null, 'fullscreen');
+  }
+
   /** Profile: the astronaut's name, used on the radio. Kept when starting a new game. */
   openProfile(): void {
     if (this.panel?.kind !== 'profile') this.toggleProfile();
@@ -324,6 +343,7 @@ export class Hud {
     if (p.kind === 'power') this.toggleMenu();
     else if (p.kind === 'data') this.toggleData();
     else if (p.kind === 'profile') this.toggleProfile();
+    else if (p.kind === 'fullscreen') this.toggleFullscreenHelp();
     else if (p.anchor) this.open(p.kind as PanelKind, p.anchor);
   }
 

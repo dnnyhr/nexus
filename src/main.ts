@@ -64,13 +64,33 @@ controls.minPolarAngle = 0.35;
 controls.maxPolarAngle = 1.3;
 controls.screenSpacePanning = false;
 controls.enablePan = false;
-// Touch screens: a finger drag is much bigger than a mouse drag, so turn slower and stop
-// sooner (no long spin after lifting the finger). Two fingers zoom.
-if (matchMedia('(pointer: coarse)').matches) {
-  controls.rotateSpeed = 0.45;
+// Touch screens: OrbitControls turns by drag distance over the screen *height*, so on a
+// phone in landscape a short drag spun the camera ~100° and kept spinning. Here a one-finger
+// drag turns the camera only sideways, follows the finger exactly (a full-width swipe is
+// about half a turn) and stops when the finger stops. Two fingers still zoom.
+const touchScreen = matchMedia('(pointer: coarse)').matches;
+if (touchScreen) {
+  controls.enableRotate = false;
   controls.zoomSpeed = 0.8;
-  controls.dampingFactor = 0.18;
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+  const fingers = new Map<number, number>(); // pointerId -> last x
+  canvas.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') fingers.set(e.pointerId, e.clientX); });
+  canvas.addEventListener('pointermove', (e) => {
+    const last = fingers.get(e.pointerId);
+    if (last === undefined) return;
+    fingers.set(e.pointerId, e.clientX);
+    if (fingers.size !== 1) return; // pinching: zoom only
+    turnCamera(((e.clientX - last) / Math.max(1, canvas.clientWidth)) * Math.PI);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+    canvas.addEventListener(ev, (e) => fingers.delete((e as PointerEvent).pointerId));
+  }
+}
+
+/** Turn the camera around the astronaut (radians, + = drag to the right). */
+function turnCamera(angle: number): void {
+  const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), -angle);
+  camera.position.copy(controls.target).add(offset);
 }
 
 const light = createLighting(scene, 34);
@@ -491,7 +511,8 @@ hud.joystick.onTap = (x, y) => tapAt(x, y);
 
 /** Tap or click on the world: open what the astronaut is next to, or say to get closer. */
 function tapAt(x: number, y: number): void {
-  const ndc = new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+  const r = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const model = findModel(raycaster.intersectObject(base.group, true)[0]?.object ?? null);
   if (!model || model.userData.site) return hud.close();
@@ -512,13 +533,22 @@ function sunAzimuth(time: number): number {
   return (time / (CYCLE.daySeconds + CYCLE.nightSeconds)) * Math.PI * 2 + 2.6;
 }
 
+/** Match the drawing size to the canvas on screen (rotation, full screen, toolbars). */
 function resize(): void {
-  const { innerWidth: w, innerHeight: h } = window;
+  const w = canvas.clientWidth || window.innerWidth;
+  const h = canvas.clientHeight || window.innerHeight;
+  if (!w || !h) return;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
-window.addEventListener('resize', resize);
+// Phones report the new size late after rotating or entering full screen, so watch the
+// canvas itself and also check again on the next frames.
+new ResizeObserver(resize).observe(canvas);
+const resizeSoon = () => { resize(); requestAnimationFrame(resize); setTimeout(resize, 300); };
+for (const ev of ['resize', 'orientationchange']) window.addEventListener(ev, resizeSoon);
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, resizeSoon);
+window.visualViewport?.addEventListener('resize', resizeSoon);
 resize();
 
 // ---- Keyboard and mouse (desktop): WASD / arrows move, Space hops, F uses, right click
@@ -537,7 +567,8 @@ window.addEventListener('keydown', (e) => {
 });
 canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
-  const ndc = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  const r = canvas.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const ground = raycaster.intersectObject(terrain, true).find((h) => h.object.name === 'ground');
   dig(ground?.point);
@@ -559,10 +590,8 @@ function moveInput(): THREE.Vector2 {
 }
 
 function cameraTurn(dt: number): void {
-  const turn = (keys.has('e') ? 1 : 0) - (keys.has('q') ? 1 : 0);
-  if (!turn) return;
-  const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), -turn * dt * 1.2);
-  camera.position.copy(controls.target).add(offset);
+  const held = (keys.has('e') ? 1 : 0) - (keys.has('q') ? 1 : 0);
+  if (held) turnCamera(held * dt * 1.2);
 }
 
 /** Lower the resolution when frames are slow, raise it back when there is room. */
