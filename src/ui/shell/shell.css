@@ -1,0 +1,110 @@
+/* Integration shell: cadet briefing, debrief tabs and the mission layout around the HUD.
+   Uses the experience palette defined on :root by src/ui/experience/experience.css. */
+
+.nx-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: radial-gradient(1100px 600px at 20% -10%, rgba(34, 92, 102, 0.3), transparent 62%), rgba(2, 5, 7, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--x-ink);
+  font-family: 'Barlow Semi Condensed', 'Helvetica Neue', Arial, sans-serif;
+  pointer-events: auto;
+}
+.nx-intro * { box-sizing: border-box; }
+.nx-intro__card {
+  width: min(760px, 100%);
+  background: var(--x-panel);
+  border: 1px solid var(--x-faint);
+  border-top: 2px solid var(--x-cyan);
+  border-radius: var(--x-radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  padding: 22px clamp(18px, 4vw, 34px) 18px;
+}
+.nx-intro__head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.nx-intro__kicker { font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--x-cyan); }
+.nx-intro__step { margin-left: auto; font-size: 12px; color: var(--x-dim); letter-spacing: 0.08em; }
+.nx-intro__dots { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.nx-intro__dots li { width: 22px; height: 3px; background: var(--x-faint); }
+.nx-intro__dots li.is-done { background: var(--x-line); }
+.nx-intro__dots li.is-current { background: var(--x-cyan); }
+.nx-intro h2 { font-size: clamp(24px, 3.2vw, 34px); font-weight: 600; line-height: 1.1; margin: 4px 0 12px; outline: none; }
+.nx-intro p { font-size: 17px; line-height: 1.45; margin: 0 0 12px; max-width: 64ch; }
+.nx-intro a { color: var(--x-cyan); }
+.nx-intro__goal { border-left: 2px solid var(--x-amber); padding-left: 12px; }
+.nx-intro__muted, .nx-intro .nx-now__note { color: var(--x-dim); font-size: 15px; }
+.nx-intro__ask { font-weight: 600; color: var(--x-amber); }
+.nx-intro__facts { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; font-size: 16px; }
+.nx-intro__facts li { padding-left: 14px; position: relative; }
+.nx-intro__facts li::before { content: ''; position: absolute; left: 0; top: 0.5em; width: 8px; height: 8px; }
+.nx-intro__facts li.is-dark::before { background: #59606b; }
+.nx-intro__facts li.is-storm::before { background: var(--x-amber); }
+.nx-tl { margin: 6px 0 12px; }
+.nx-tl__track { position: relative; height: 14px; background: rgba(155, 196, 122, 0.18); border: 1px solid var(--x-faint); }
+.nx-tl__band { position: absolute; top: 0; bottom: 0; }
+.nx-tl__band.is-dark { background: #59606b; }
+.nx-tl__band.is-storm { background: var(--x-amber); }
+.nx-tl__ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--x-dim); margin-top: 4px; }
+.nx-choices { display: grid; gap: 8px; margin: 4px 0 12px; }
+.nx-choice {
+  min-height: 48px; padding: 10px 14px; text-align: left; font: inherit; font-size: 17px; cursor: pointer;
+  color: var(--x-ink); background: rgba(0, 0, 0, 0.25); border: 1px solid var(--x-faint); border-left: 3px solid var(--x-faint);
+}
+.nx-choice[aria-pressed='true'] { border-color: var(--x-line); border-left-color: var(--x-cyan); background: rgba(143, 224, 232, 0.1); }
+.nx-choice:focus-visible, .nx-btn:focus-visible, .nx-debrief__tab:focus-visible { outline: 2px solid var(--x-amber); outline-offset: 2px; }
+.nx-result { padding: 10px 12px; margin-bottom: 12px; background: rgba(0, 0, 0, 0.28); border-left: 3px solid var(--x-amber); }
+.nx-result[data-risk='critical'] { border-left-color: var(--x-danger); }
+.nx-result p { margin-bottom: 6px; }
+.nx-result__line { font-weight: 600; }
+.nx-now { padding: 10px 12px; margin: 4px 0 12px; border: 1px solid var(--x-faint); background: rgba(0, 0, 0, 0.22); }
+.nx-now p { font-size: 15px; margin-bottom: 6px; }
+.nx-now__title { font-size: 12px !important; letter-spacing: 0.16em; text-transform: uppercase; color: var(--x-cyan); }
+.nx-now__meta { color: var(--x-dim); }
+.nx-intro__actions { display: flex; align-items: center; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+.nx-intro__spacer { flex: 1; }
+.nx-btn {
+  min-height: 46px; padding: 10px 18px; font: inherit; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  color: var(--x-ink); background: transparent; border: 1px solid var(--x-line);
+}
+.nx-btn--primary { background: var(--x-cyan); color: #051013; border-color: var(--x-cyan); font-weight: 600; }
+
+.nx-debrief { min-height: 100%; }
+.nx-debrief__tabs {
+  position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;
+  padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: rgba(4, 9, 12, 0.92); border-bottom: 1px solid var(--x-faint);
+}
+.nx-debrief__tab {
+  min-height: 44px; padding: 8px 18px; font: inherit; font-size: 15px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+  color: var(--x-dim); background: transparent; border: 1px solid transparent; border-bottom: 2px solid transparent;
+}
+.nx-debrief__tab[aria-selected='true'] { color: var(--x-ink); border-bottom-color: var(--x-cyan); }
+.nx-debrief__panel { outline: none; }
+
+/* Mission layout: the experience ribbon owns the top; the classic HUD steps aside. */
+body.nx-mission #hud > #telemetry .gauges { display: none; }
+body.nx-mission #hud > #topright { top: max(96px, calc(env(safe-area-inset-top) + 86px)); }
+body.nx-mission #hud > #topright #profile-btn { display: none; }
+body.nx-overlay .x-tel,
+body.nx-overlay .x-sys,
+body.nx-overlay .x-radio,
+body.nx-overlay #mission-bar-root,
+body.nx-overlay .nx-camera-host,
+body.nx-overlay #hud { visibility: hidden; }
+body.nx-mission #hud > #radio { display: none; }
+#mission-bar-root .m-power,
+#mission-bar-root .m-exposure { display: none; }
+#mission-bar-root .m-bar { background: var(--x-glass); border: 1px solid var(--x-faint); border-top: 2px solid var(--x-cyan); }
+.nx-camera-host {
+  position: fixed; z-index: 21; right: max(12px, env(safe-area-inset-right)); bottom: calc(184px + env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+.nx-camera-host .nx-camera { justify-content: flex-end; }
+@media (max-width: 900px), (max-height: 520px) {
+  .nx-camera-host { bottom: auto; top: max(150px, calc(env(safe-area-inset-top) + 140px)); }
+  .nx-intro p { font-size: 15px; }
+}
