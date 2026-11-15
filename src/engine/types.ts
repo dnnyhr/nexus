@@ -2,8 +2,11 @@
 // Contrato preparado antes del arranque. Cambios coordinados por integrador.
 // Todo es JSON serializable: sin clases, funciones ni Date dentro del estado.
 
+import type { Circuit } from '../game/config';
 import type { GameState } from '../game/state';
 import type { PowerReport } from '../game/sim';
+
+export type { Circuit };
 
 /** Paso fijo de simulación en segundos de juego. Igual al SIM_STEP actual de main.ts. */
 export const STEP = 0.25;
@@ -42,7 +45,9 @@ export interface DesignCheck {
 
 export type Command =
   | { type: 'setGrowLights'; value: number } // 0-100
-  | { type: 'setPower'; system: 'heating' | 'processor' | 'robots'; on: boolean }
+  | { type: 'setPower'; system: 'heating' | 'processor' | 'robots' | 'greenhouse'; on: boolean }
+  /** Orden de alimentación cuando falta potencia: permutación completa de los cinco circuitos. */
+  | { type: 'setPriority'; order: Circuit[] }
   | { type: 'irrigate' }
   | { type: 'adjustClimate'; dir: 1 | -1 }
   | { type: 'harvest' }
@@ -149,7 +154,19 @@ export interface MissionMetrics {
   secondsLightsReduced: number;
   secondsSheltered: number;
   secondsShortage: number;
+  /** Segundos con soporte vital sin energía suficiente (por falta o por prioridad). */
+  secondsLifeSupportUnpowered: number;
+  /** Segundos con calefacción pedida y cortada por potencia. */
+  secondsHeatingShed: number;
+  /** Segundos con luces de cultivo recortadas por potencia (no por decisión de brillo). */
+  secondsLightsShed: number;
+  /** Salud mínima de la tripulación, incluido el estado inicial. */
+  minCrewHealth: number;
 }
+
+export type MissionResource = 'o2' | 'water' | 'food' | 'energy';
+export type MissionCause = 'crew' | 'processor' | 'lights' | 'heating' | 'shelter' | 'harvest' | 'solar' | 'irrigation' | 'climate' | 'storage';
+export type MissionLedger = Record<MissionResource, Record<MissionCause, number>>;
 
 export interface MissionState {
   version: 2;
@@ -163,6 +180,7 @@ export interface MissionState {
   game: GameState;
   lastPower: PowerReport;
   metrics: MissionMetrics;
+  ledger: MissionLedger;
   /** Exposición acumulada en unidades didácticas (u). No son mSv ni dosis real. */
   exposure: number;
   /** Segundos seguidos con cada recurso vital en 0. */
@@ -206,6 +224,10 @@ export interface Summary {
   secondsLightsReduced: number;
   secondsSheltered: number;
   secondsShortage: number;
+  secondsLifeSupportUnpowered: number;
+  secondsHeatingShed: number;
+  secondsLightsShed: number;
+  minCrewHealth: number;
   /** 2-4 frases «sacrificaste X para sostener Y», generadas desde samples y events, nunca escritas a mano. */
   tradeoffs: string[];
 }

@@ -1,4 +1,4 @@
-import { SCENARIO_1, type MissionState } from '../../engine';
+import { MISSION_SPEEDS, SCENARIO_1, type MissionSpeed, type MissionState } from '../../engine';
 import { capacity } from '../../game/sim';
 import { el, setText } from '../dom';
 import { tx } from './texts';
@@ -7,19 +7,21 @@ import './mission.css';
 export interface MissionBarOptions {
   getState(): MissionState;
   isPaused(): boolean;
-  getSpeed(): 1 | 2;
+  getSpeed(): MissionSpeed;
   onTogglePause(): void;
-  onSpeed(s: 1 | 2): void;
+  onSpeed(s: MissionSpeed): void;
+  /** Skip quiet time up to the next scenario warning, start or end. */
+  onSkip?(): void;
   onOpenCommander(): void;
 }
 
-export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { update(): void; destroy(): void } {
+export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { update(force?: boolean): void; destroy(): void } {
   const listeners = new AbortController();
   const signal = listeners.signal;
   let destroyed = false;
   let lastRender = -Infinity;
   const pause = el('button.m-btn', { type: 'button' });
-  const speeds = ([1, 2] as const).map((speed) => {
+  const speeds = MISSION_SPEEDS.map((speed) => {
     const button = el('button.m-btn', { type: 'button', 'aria-pressed': 'false' }, `${speed}x`);
     button.addEventListener('click', () => {
       if (opts.getState().phase !== 'running') return;
@@ -29,6 +31,14 @@ export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { u
     return button;
   });
   const commander = el('button.m-btn', { type: 'button' }, tx('barCommander'));
+  const skip = el('button.m-btn', { type: 'button', title: tx('barSkipHint') }, tx('barSkip')) as HTMLButtonElement;
+  skip.hidden = !opts.onSkip;
+  skip.addEventListener('click', () => {
+    if (opts.getState().phase !== 'running' || opts.isPaused()) return;
+    opts.onSkip?.();
+    lastRender = -Infinity;
+    update();
+  }, { signal });
   const status = el('strong.m-status', { role: 'status' });
   const clock = el('span.m-clock');
   const exposure = el('span.m-exposure');
@@ -50,7 +60,7 @@ export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { u
   const powerText = el('p.m-power-text');
   const shortage = el('p.m-shortage');
   const node = el('section.m-bar', {},
-    el('div.m-controls', {}, pause, ...speeds, commander, status, clock, exposure),
+    el('div.m-controls', {}, pause, ...speeds, skip, commander, status, clock, exposure),
     next, timeline,
     el('div.m-windows', {}, ...windows),
     el('div.m-power', {},
@@ -81,8 +91,8 @@ export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { u
   }, { signal });
   root.append(node);
 
-  function update(): void {
-    if (destroyed || performance.now() - lastRender < 250) return;
+  function update(force = false): void {
+    if (destroyed || (!force && performance.now() - lastRender < 250)) return;
     lastRender = performance.now();
     const ms = opts.getState();
     const ended = ms.phase !== 'running';
@@ -91,8 +101,9 @@ export function mountMissionBar(root: HTMLElement, opts: MissionBarOptions): { u
     pause.setAttribute('aria-pressed', String(paused));
     pause.disabled = ended;
     commander.disabled = ended;
+    skip.disabled = ended || paused;
     speeds.forEach((button, i) => {
-      button.setAttribute('aria-pressed', String(opts.getSpeed() === i + 1));
+      button.setAttribute('aria-pressed', String(opts.getSpeed() === MISSION_SPEEDS[i]));
       button.disabled = ended;
     });
     setText(status, tx(ended ? 'barEnded' : paused ? 'barPaused' : 'barRunning'));

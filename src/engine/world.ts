@@ -1,191 +1,111 @@
-import { CREW, ENERGY } from '../game/config';
-import { solarMastsOutput } from '../game/damage';
-import { capacity, clamp, lifeSupportPercent, step, stepGreenhouse, type PowerReport } from '../game/sim';
+import { CREW, ENERGY, PROCESSOR } from '../game/config';
+import { processorFactor } from '../game/damage';
+import { capacity, clamp, resolvePower, step, stepGreenhouse, type PowerOptions } from '../game/sim';
 import type { GameState } from '../game/state';
 import { protection } from '../game/storm';
+import { RESOURCES } from './ledger';
+import { crewRoutine } from './routine';
 import { MISSION_RULES } from './mission1';
-import { STEP, SAMPLE_EVERY, type EventKind, type Failure, type MissionState, type Sample, type Scenario, type ScenarioEvent } from './types';
+import { darknessAt, figure, sample, scenarioEvents, syncStorm, updateMinimum } from './observation';
+import { SAMPLE_EVERY, STEP, type FailureCode, type MissionState } from './types';
 
-// One fixed step of the mission world. Daylight and the storm come from the scenario, not
-// from the free-mode day cycle; nothing random, no rescue, no impacts, no render callbacks.
-
-const EPS = 1e-9;
-
-export function isDarkAt(scenario: Scenario, t: number): boolean {
-  return scenario.events.some((e) => e.kind === 'darkness' && t >= e.startAt - EPS && t < e.endAt - EPS);
-}
-
-function stormAt(scenario: Scenario, t: number): ScenarioEvent | undefined {
-  return scenario.events.find((e) => e.kind === 'storm' && t >= e.warnAt - EPS && t < e.endAt - EPS);
+function closeMission(ms: MissionState): void {
+  let code: FailureCode | null = null;
+  let explanation = '';
+  for (const r of ['o2', 'water', 'food'] as const) {
+    if (ms.depleted[r] > ms.scenario.depletionGrace) {
+      code = `${r}_depleted`;
+      explanation = `${r} agotado durante ${figure(ms.depleted[r])} s; margen ${figure(ms.scenario.depletionGrace)} s`;
+      break;
+    }
+  }
+  if (ms.exposure > ms.scenario.exposureLimit) {
+    code = 'exposure_exceeded';
+    explanation = `Exposición ${figure(ms.exposure)} u supera límite ${figure(ms.scenario.exposureLimit)} u`;
+  }
+  if (ms.game.crewHealth <= 0) {
+    code = 'crew_lost';
+    explanation = `Salud ${figure(ms.game.crewHealth)} %; cortes de energía ${figure(ms.metrics.secondsShortage)} s`;
+  }
+  if (code) {
+    ms.phase = 'failed';
+    ms.failure = { code, t: ms.t, title: 'Misión fallida', explanation };
+    ms.events.push({ t: ms.t, kind: 'failure', text: explanation });
+  } else if (ms.t >= ms.scenario.duration) {
+    ms.phase = 'victory';
+    ms.events.push({ t: ms.t, kind: 'victory', text: `Misión completada en ${figure(ms.t)} s; exposición ${figure(ms.exposure)} u` });
+  }
 }
 
 /**
- * Power for the mission: the free-mode rules (life support first, then heating, processor,
- * lights) with one adaptation: each greenhouse level draws the grow lights again.
+ * Mission rules on top of the shared power resolver: the batteries deliver limited power, each
+ * greenhouse level lights more area, and farming stops in the shelter.
  */
-function missionPower(s: GameState, dt: number, isDay: boolean): PowerReport {
-  const generation = isDay ? ENERGY.landerSolar + solarMastsOutput(s) * ENERGY.solarPerMast : 0;
-  const farm = Math.max(1, s.levels.greenhouse) * MISSION_RULES.lightsDrawPerLevel;
-  const want = {
-    lights: s.levels.greenhouse > 0 ? (s.power.growLights / 100) * ENERGY.growLightsMaxDraw * farm : 0,
-    processor: s.levels.processor > 0 && s.power.processor && !s.sheltered ? ENERGY.processorDraw : 0,
-    heating: s.power.heating && !isDay ? ENERGY.heatingDraw : 0,
-  };
-  let budget = dt > 0 ? s.res.energy / dt + generation - ENERGY.lifeSupportDraw : generation - ENERGY.lifeSupportDraw + (s.res.energy > 0 ? Infinity : 0);
-  const lifeSupportPowered = budget >= 0;
-  const on = { lights: 0, robots: false, processor: false, heating: false };
-  if (want.heating > 0 && budget >= want.heating) { on.heating = true; budget -= want.heating; }
-  if (want.processor > 0 && budget >= want.processor) { on.processor = true; budget -= want.processor; }
-  if (want.lights > 0 && budget > 0) on.lights = s.power.growLights * Math.min(1, budget / want.lights);
-  const lightsDraw = want.lights > 0 ? want.lights * (on.lights / Math.max(1, s.power.growLights)) : 0;
-  const demand = ENERGY.lifeSupportDraw + (on.heating ? want.heating : 0) + (on.processor ? want.processor : 0) + lightsDraw;
-  const shortage = !lifeSupportPowered || (want.heating > 0 && !on.heating) || (want.processor > 0 && !on.processor) || on.lights < s.power.growLights - 0.5;
-  if (dt > 0) s.res.energy = clamp(s.res.energy + (generation - demand) * dt, 0, capacity(s).energy);
-  return { generation, demand, running: { ...on }, shortage, lifeSupportPowered };
-}
-
-/** The power balance right now, without changing anything (for the start and the bar). */
-export function previewPower(g: GameState, scenario: Scenario, t: number): PowerReport {
-  return missionPower(structuredClone(g), 0, !isDarkAt(scenario, t));
-}
-
-export function darknessAt(ms: MissionState): { isDark: boolean; secondsLeft: number } {
-  const dark = ms.scenario.events.find((e) => e.kind === 'darkness' && ms.t < e.endAt - EPS);
-  if (!dark) return { isDark: false, secondsLeft: 0 };
-  const isDark = ms.t >= dark.startAt - EPS;
-  return { isDark, secondsLeft: (isDark ? dark.endAt : dark.startAt) - ms.t };
-}
-
-/** The scenario event in progress or the next one, or null when none is left. */
-export function nextEvent(ms: MissionState): ScenarioEvent | null {
-  return ms.scenario.events.filter((e) => e.endAt > ms.t + EPS).sort((a, b) => a.warnAt - b.warnAt)[0] ?? null;
-}
-
-const pct = (v: number, cap: number) => (cap > 0 ? (v / cap) * 100 : 0);
-
-export function makeSample(ms: MissionState): Sample {
-  const g = ms.game;
-  const cap = capacity(g);
+export function missionPowerOptions(s: GameState): Required<PowerOptions> {
   return {
-    t: ms.t,
-    o2: pct(g.res.o2, cap.o2),
-    water: pct(g.res.water, cap.water),
-    food: pct(g.res.food, cap.food),
-    energy: pct(g.res.energy, cap.energy),
-    exposure: ms.exposure,
-    crewHealth: g.crewHealth,
-    lights: ms.lastPower.running.lights,
-    plantGrowth: g.plant.growth,
-    sheltered: g.sheltered,
-    isDark: isDarkAt(ms.scenario, ms.t),
+    dischargeLimit: MISSION_RULES.stationDischarge + MISSION_RULES.dischargePerBattery * s.counts.battery,
+    lightsDrawScale: s.levels.greenhouse * MISSION_RULES.agriculturalDrawPerLevel,
+    lightsSuspended: s.sheltered,
   };
 }
 
-const EVENT_TEXT: Record<string, (e: ScenarioEvent) => string> = {
-  darkness_warning: (e) => `Aviso: en ${e.startAt - e.warnAt} s se va el Sol durante ${e.endAt - e.startAt} s.`,
-  darkness_start: () => 'Se fue el Sol: los paneles no dan energía.',
-  darkness_end: () => 'Volvió el Sol: los paneles cargan la batería.',
-  storm_warning: (e) => `Aviso: tormenta solar en ${e.startAt - e.warnAt} s${e.inspiredBy ? `, como la fulguración ${e.inspiredBy.class} del ${e.inspiredBy.peak.slice(0, 10)} (NASA DONKI)` : ''}.`,
-  storm_start: () => 'Llegó la tormenta: fuera del refugio la radiación sube rápido.',
-  storm_end: () => 'Terminó la tormenta solar.',
-};
-
-export function emit(ms: MissionState, kind: EventKind, text: string): void {
-  ms.events.push({ t: ms.t, kind, text });
-}
-
-/** Keep the free-mode storm fields in sync so the 3D scene and HUD can show the scenario storm. */
-function showStorm(ms: MissionState): void {
-  const e = stormAt(ms.scenario, ms.t);
-  const st = ms.game.storm;
-  if (!e) {
-    Object.assign(st, { phase: 'none', timeLeft: 0, strength: 0, flare: null });
-    return;
-  }
-  const active = ms.t >= e.startAt - EPS;
-  Object.assign(st, {
-    phase: active ? 'active' : 'warning',
-    timeLeft: (active ? e.endAt : e.startAt) - ms.t,
-    strength: e.strength ?? 1,
-    flare: e.inspiredBy ? { ...e.inspiredBy } : null,
-  });
-}
-
-function fail(ms: MissionState, code: Failure['code'], title: string, explanation: string): void {
-  ms.phase = 'failed';
-  ms.failure = { code, t: ms.t, title, explanation };
-  emit(ms, 'failure', title);
-}
-
-/** Advance exactly STEP seconds. Does nothing once the mission is over. */
 export function worldStep(ms: MissionState): void {
   if (ms.phase !== 'running') return;
-  const g = ms.game;
-  const sc = ms.scenario;
-  const t0 = ms.t;
-  const dark = isDarkAt(sc, t0);
-  showStorm(ms);
-
-  // Power, crew, processor, greenhouse.
-  const wasShort = ms.lastPower.shortage;
+  crewRoutine(ms);
+  const s = ms.game;
+  const previous = ms.t;
+  const before = { ...s.res };
+  const totalsBefore = RESOURCES.map(r => Object.values(ms.ledger[r]).reduce((sum, v) => sum + v, 0));
+  const wasDead = s.plant.dead;
+  const wasShortage = ms.lastPower.shortage;
   const wasPowered = ms.lastPower.lifeSupportPowered;
-  const report = missionPower(g, STEP, !dark);
-  step(g, STEP, report.running);
-  const cap = capacity(g);
-  g.res.o2 = clamp(g.res.o2 - CREW.o2PerSecond * (MISSION_RULES.crewRate.o2 - 1) * STEP, 0, cap.o2);
-  g.res.water = clamp(g.res.water - CREW.waterPerSecond * (MISSION_RULES.crewRate.water - 1) * STEP, 0, cap.water);
-  g.res.food = clamp(g.res.food - CREW.foodPerSecond * (MISSION_RULES.crewRate.food - 1) * STEP, 0, cap.food);
-  const growth = g.plant.growth;
-  const wasDead = g.plant.dead;
-  stepGreenhouse(g, STEP, !dark, report.running);
-  // In the shelter nobody tends the farm: the plant still drifts, but it does not grow.
-  if (g.sheltered) g.plant.growth = growth;
-  if (!report.lifeSupportPowered) g.crewHealth = clamp(g.crewHealth - MISSION_RULES.unpoweredHealthLoss * STEP, 0, 100);
-
-  // Storm exposure: outside rate times what the current place does not stop.
-  const storm = sc.events.find((e) => e.kind === 'storm' && t0 >= e.startAt - EPS && t0 < e.endAt - EPS);
-  if (storm) ms.exposure += MISSION_RULES.stormRate * (storm.strength ?? 1) * (1 - protection(g)) * STEP;
-
-  // Metrics, per step.
-  if (report.running.lights < g.power.growLights - 0.5) ms.metrics.secondsLightsReduced += STEP;
-  if (g.sheltered) ms.metrics.secondsSheltered += STEP;
-  if (report.shortage) ms.metrics.secondsShortage += STEP;
-  for (const k of ['o2', 'water', 'food'] as const) ms.depleted[k] = g.res[k] <= 0 ? ms.depleted[k] + STEP : 0;
+  const isDay = !darknessAt(ms).isDark;
+  syncStorm(ms);
+  const options = missionPowerOptions(s);
+  const scale = options.lightsDrawScale;
+  const report = resolvePower(s, STEP, isDay, options);
+  const shed = report.shed ?? [];
+  report.shortage = shed.length > 0;
   ms.lastPower = report;
-  ms.t = Math.round((t0 + STEP) / STEP) * STEP;
-  ms.metrics.minLifeSupport = Math.min(ms.metrics.minLifeSupport, lifeSupportPercent(g));
-
-  // Events, once each, when the step crosses their boundary.
-  for (const e of sc.events) {
-    for (const [at, suffix] of [[e.warnAt, 'warning'], [e.startAt, 'start'], [e.endAt, 'end']] as const) {
-      if (t0 < at - EPS && ms.t >= at - EPS) emit(ms, `${e.kind}_${suffix}` as EventKind, EVENT_TEXT[`${e.kind}_${suffix}`](e));
-    }
+  ms.ledger.energy.solar += report.generation * STEP;
+  const supportCause = s.sheltered ? 'shelter' : 'crew';
+  ms.ledger.energy[supportCause] -= Math.min(ENERGY.lifeSupportDraw * STEP, Math.max(0, (report.available ?? 0) * STEP));
+  if (report.running.heating) ms.ledger.energy.heating -= ENERGY.heatingDraw * STEP;
+  if (report.running.processor) ms.ledger.energy.processor -= ENERGY.processorDraw * STEP;
+  ms.ledger.energy.lights -= report.running.lights / 100 * ENERGY.growLightsMaxDraw * scale * STEP;
+  for (const r of ['o2', 'water', 'food'] as const) ms.ledger[r].crew -= CREW[`${r}PerSecond`] * STEP;
+  if (s.crewHealth > 0 && report.running.processor && s.levels.processor && !s.sheltered) {
+    const used = Math.min(s.res.regolith, PROCESSOR.regolithPerSecond * (1 + 0.5 * (s.levels.processor - 1)) * processorFactor(s) * STEP);
+    ms.ledger.o2.processor += used * PROCESSOR.o2PerRegolith;
   }
-  if (report.shortage && !wasShort) emit(ms, 'power_shortage', 'No alcanzó la energía: se apagaron cosas.');
-  if (!report.shortage && wasShort) emit(ms, 'power_restored', 'La energía alcanza otra vez.');
-  if (!report.lifeSupportPowered && wasPowered) emit(ms, 'life_support_unpowered', 'El soporte vital se quedó sin energía.');
-  if (g.plant.dead && !wasDead) emit(ms, 'plant_dead', 'La planta murió.');
-  showStorm(ms);
-
-  // Failure first; victory only at the end with nothing failed.
-  const names = { o2: 'aire', water: 'agua', food: 'comida' } as const;
-  const empty = (['o2', 'water', 'food'] as const).find((k) => ms.depleted[k] > sc.depletionGrace);
-  if (g.crewHealth <= 0) {
-    const why = ms.metrics.secondsShortage > 0 && !report.lifeSupportPowered
-      ? 'el soporte vital se quedó sin energía'
-      : 'se acabó el aire, el agua o la comida';
-    fail(ms, 'crew_lost', 'La tripulación no aguantó', `La tripulación no aguantó en el segundo ${Math.round(ms.t)}: ${why}.`);
-  } else if (ms.exposure > sc.exposureLimit) {
-    fail(ms, 'exposure_exceeded', 'Demasiada radiación', `La radiación llegó a ${ms.exposure.toFixed(1)} de ${sc.exposureLimit} en el segundo ${Math.round(ms.t)}${g.sheltered ? '' : ', fuera del refugio durante la tormenta'}.`);
-  } else if (empty) {
-    fail(ms, `${empty}_depleted`, `Se acabó el ${names[empty]}`, `El ${names[empty]} se acabó y no volvió en ${sc.depletionGrace} s (segundo ${Math.round(ms.t)}).`);
-  } else if (ms.t >= sc.duration - EPS) {
-    ms.phase = 'victory';
-    emit(ms, 'victory', `¡Misión cumplida! Llegaste al segundo ${sc.duration} con ${ms.exposure.toFixed(1)} de radiación.`);
+  step(s, STEP, report.running);
+  const growth = s.plant.growth;
+  stepGreenhouse(s, STEP, isDay, report.running);
+  if (s.sheltered) s.plant.growth = growth;
+  if (!report.lifeSupportPowered) s.crewHealth = clamp(s.crewHealth - MISSION_RULES.unpoweredHealthLoss * STEP, 0, 100);
+  const storm = ms.scenario.events.find(e => e.kind === 'storm' && e.startAt <= previous && previous < e.endAt);
+  if (storm) ms.exposure += MISSION_RULES.outsideExposurePerSecond * (storm.strength ?? 0) * (1 - protection(s)) * STEP;
+  for (const [index, r] of RESOURCES.entries()) {
+    const accounted = Object.values(ms.ledger[r]).reduce((sum, v) => sum + v, 0) - totalsBefore[index];
+    ms.ledger[r].storage += s.res[r] - before[r] - accounted;
   }
-
-  // Samples every SAMPLE_EVERY seconds, and always the last one.
-  if (Math.floor(ms.t / SAMPLE_EVERY + EPS) > Math.floor(t0 / SAMPLE_EVERY + EPS) || ms.phase !== 'running') {
-    if (ms.samples[ms.samples.length - 1]?.t !== ms.t) ms.samples.push(makeSample(ms));
-  }
+  ms.t = previous + STEP;
+  s.time = ms.t;
+  for (const r of ['o2', 'water', 'food'] as const) ms.depleted[r] = s.res[r] <= 0 ? ms.depleted[r] + STEP : 0;
+  updateMinimum(ms);
+  if (!s.sheltered && s.power.growLights < MISSION_RULES.reducedLightsBelow) ms.metrics.secondsLightsReduced += STEP;
+  if (s.sheltered) ms.metrics.secondsSheltered += STEP;
+  if (report.shortage) ms.metrics.secondsShortage += STEP;
+  if (!report.lifeSupportPowered) ms.metrics.secondsLifeSupportUnpowered += STEP;
+  if (shed.includes('heating')) ms.metrics.secondsHeatingShed += STEP;
+  if (shed.includes('greenhouse')) ms.metrics.secondsLightsShed += STEP;
+  ms.metrics.minCrewHealth = Math.min(ms.metrics.minCrewHealth, s.crewHealth);
+  if (!wasDead && s.plant.dead) ms.events.push({ t: ms.t, kind: 'plant_dead', text: `Cultivo muerto; estrés ${figure(s.plant.stress)} %` });
+  if (!wasShortage && report.shortage) ms.events.push({ t: ms.t, kind: 'power_shortage', text: `Potencia insuficiente: batería ${figure(s.res.energy / capacity(s).energy * 100)} %, luces efectivas ${figure(report.running.lights)} %; cortes acumulados ${figure(ms.metrics.secondsShortage)} s` });
+  if (wasShortage && !report.shortage) ms.events.push({ t: ms.t, kind: 'power_restored', text: 'Potencia restablecida' });
+  if (wasPowered && !report.lifeSupportPowered) ms.events.push({ t: ms.t, kind: 'life_support_unpowered', text: 'Soporte vital sin energía' });
+  scenarioEvents(ms, previous);
+  syncStorm(ms);
+  closeMission(ms);
+  if (ms.t % SAMPLE_EVERY === 0 || ms.phase !== 'running') ms.samples.push(sample(ms));
 }

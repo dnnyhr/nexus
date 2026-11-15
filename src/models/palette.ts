@@ -10,15 +10,15 @@ const flat = (color: number, extra: THREE.MeshLambertMaterialParameters = {}) =>
   new THREE.MeshLambertMaterial({ color, flatShading: true, side: THREE.DoubleSide, ...extra });
 
 export const COLORS = {
-  hull: 0xf5f2ec,
-  hullShade: 0xbdb8ae,
-  structure: 0x8a8780,
-  darkMetal: 0x3a3b3d,
-  solarCell: 0x2b3440,
+  hull: 0xeeece6,
+  hullShade: 0xa6aaad,
+  structure: 0x7b858c,
+  darkMetal: 0x30383f,
+  solarCell: 0x243d57,
   glass: 0x1e2226,
   glassLit: 0xffc98a,
-  regolith: 0x8e8a82,
-  regolithDark: 0x6b6862,
+  regolith: 0x77756f,
+  regolithDark: 0x504f4c,
   regolithPiled: 0xa39e94,
   bandHabitat: 0xa65a45,
   bandIndustry: 0x9c8556,

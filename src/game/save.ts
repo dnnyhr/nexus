@@ -80,7 +80,7 @@ export function simulateOffline(s: GameState, elapsedSeconds: number): OfflineRe
   const before = { regolith: s.res.regolith, materials: s.res.materials, o2: s.res.o2, harvests: s.stats.harvests };
   const cap = capacity(s);
   const step = 60;
-  const run = { processor: s.power.processor, robots: s.power.robots, heating: s.power.heating, lights: s.power.growLights * 0.5 };
+  const run = { processor: s.power.processor, robots: s.power.robots, heating: s.power.heating, lights: (s.power.greenhouse ? s.power.growLights : 0) * 0.5 };
   for (let t = 0; t < seconds; t += step) {
     const dt = Math.min(step, seconds - t);
     if (s.power.robots && s.levels.collectorRobot > 0) {

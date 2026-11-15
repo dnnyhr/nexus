@@ -4,3 +4,9 @@ dist/
 .DS_Store
 *.log
 .worktrees/
+/.commandcode/
+/.codex/
+/.agents/
+/.impeccable/
+/AGENTS.md
+/CLAUDE.md
