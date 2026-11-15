@@ -18,7 +18,7 @@ import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
 import { Hud } from './ui/hud';
-import { getLang, setPlayerName, t, type StringKey } from './ui/i18n';
+import { getLang, onLangChange, setPlayerName, t, type StringKey } from './ui/i18n';
 import { loadProfile } from './game/profile';
 import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
@@ -144,6 +144,14 @@ const hud = new Hud({
   jump: () => player.jump(),
   dig: () => dig(),
 });
+// Page title and the "turn your phone" notice live outside the HUD: keep them translated too.
+const pageTexts = () => {
+  document.title = t('gameTitle');
+  const hint = document.getElementById('rotate-hint');
+  if (hint) hint.textContent = t('rotatePhone');
+};
+pageTexts();
+onLangChange(pageTexts);
 // First time here: ask the astronaut's name (it can be changed any time in Profile).
 if (!profile) hud.openProfile();
 
@@ -398,12 +406,13 @@ function checkMissions(): void {
 if (away && away.seconds > 60) {
   const h = Math.floor(away.seconds / 3600);
   const m = Math.round((away.seconds % 3600) / 60);
-  hud.radioText(t('welcomeBack', {
+  const greenhouse = state.levels.greenhouse > 0;
+  hud.radioText(() => t('welcomeBack', {
     time: h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`,
     mat: Math.max(0, away.materials),
     o2: Math.max(0, away.o2),
     harvest: away.harvests ? t('welcomeHarvest', { n: away.harvests }) : '',
-    plant: state.levels.greenhouse ? t('welcomePlant', { stress: away.plantStress }) : '',
+    plant: greenhouse ? t('welcomePlant', { stress: away.plantStress }) : '',
   }), true);
 } else {
   hud.radio(currentMission(state));
@@ -430,9 +439,9 @@ let shower = activeShower(new Date());
 let impactsSeen = 0;
 setInterval(() => {
   shower = activeShower(new Date());
-  hud.setShower(shower ? shower.shower.name[getLang()] : null);
+  hud.setShower(shower ? shower.shower.name : null);
 }, 1000);
-hud.setShower(shower ? shower.shower.name[getLang()] : null);
+hud.setShower(shower ? shower.shower.name : null);
 
 // ---- Solar storms with real space weather ---------------------------------------------------
 let weather: SpaceWeather = snapshotWeather();
@@ -448,17 +457,22 @@ function shelterObject(): THREE.Object3D | null {
 
 function stormStep(): void {
   const ev = stepStorm(state, SIM_STEP, state.mission >= STORMS_FROM, weather.flares, weather.live ? weather.protons.flux : 0);
-  const shelterWord = t(state.levels.station ? 'habitatWord' : 'landerWord');
   if (ev === 'warning') {
     const f = state.storm.flare;
     const secs = Math.round(state.storm.timeLeft);
-    hud.radioText(f
-      ? t('stormWarnFlare', { date: new Date(f.peak).toLocaleDateString(getLang()), cls: f.class, s: secs, shelter: shelterWord })
-      : t('stormWarnLive', { flux: weather.protons.flux.toFixed(1), n: radiationScale(weather.protons.flux), shelter: shelterWord }));
+    const habitat = state.levels.station > 0;
+    const flux = weather.protons.flux;
+    hud.radioText(() => {
+      const shelter = t(habitat ? 'habitatWord' : 'landerWord');
+      return f
+        ? t('stormWarnFlare', { date: new Date(f.peak).toLocaleDateString(getLang()), cls: f.class, s: secs, shelter })
+        : t('stormWarnLive', { flux: flux.toFixed(1), n: radiationScale(flux), shelter });
+    });
   }
   if (ev === 'end') {
     if (state.sheltered) state.sheltered = false;
-    hud.radioText(t('stormEnd', { d: state.dose.toFixed(1) }));
+    const dose = state.dose.toFixed(1);
+    hud.radioText(() => t('stormEnd', { d: dose }));
   }
 }
 
@@ -494,8 +508,11 @@ function maybeImpact(): void {
   poke(obj, clock.elapsedTime);
   hud.float(topOf(obj), t('impact'), true);
   if (impactsSeen++ === 0 && state.levels.antenna) {
-    hud.radioText(t('impactNews'));
-    if (shower) hud.radioText(t('showerNews', { name: shower.shower.name[getLang()] }));
+    hud.radioText(() => t('impactNews'));
+    if (shower) {
+      const names = shower.shower.name;
+      hud.radioText(() => t('showerNews', { name: names[getLang()] }));
+    }
   }
 }
 if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
@@ -636,7 +653,7 @@ renderer.setAnimationLoop(() => {
     maybeImpact();
     stormStep();
     if (stepRescue(state, SIM_STEP)) {
-      hud.radioText(t('rescueNews', { mat: RESCUE.materials }));
+      hud.radioText(() => t('rescueNews', { mat: RESCUE.materials }));
       drops.drop(new THREE.Vector3(-14, 0, 15.5));
     }
   }
