@@ -27,6 +27,15 @@ function withDefaults<T>(defaults: T, saved: unknown): T {
   return out as T;
 }
 
+/** A saved game from any source (storage or a save card), with missing fields filled in. */
+export function restoreState(saved: unknown): GameState | null {
+  if (typeof saved !== 'object' || saved === null) return null;
+  const o = saved as Record<string, unknown>;
+  // Just enough shape to be a NEXUS game, so a random JSON is not taken for one.
+  if (typeof o.time !== 'number' || typeof o.mission !== 'number' || typeof o.res !== 'object' || typeof o.levels !== 'object') return null;
+  return withDefaults(newGame(), saved);
+}
+
 export function saveGame(s: GameState, now = Date.now()): boolean {
   s.savedAt = now;
   try {
@@ -41,7 +50,7 @@ export function loadGame(): GameState | null {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
-    return withDefaults(newGame(), JSON.parse(raw));
+    return restoreState(JSON.parse(raw));
   } catch {
     return null;
   }
