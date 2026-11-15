@@ -1,7 +1,6 @@
 import type { Command, CommandResult } from '../engine/types';
 import { build, checkBuild, currentLevel, nextCost } from '../game/build';
-import { ENERGY, POWER, PROCESSOR, type BuildingKind, type Circuit } from '../game/config';
-import { movePriority, priorityOf } from '../game/power';
+import { ENERGY, PROCESSOR, type BuildingKind } from '../game/config';
 import { adjustClimate, capacity, carryMax, digYield, harvest, inRange, irrigate, replant, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
@@ -32,10 +31,6 @@ export interface PanelContext {
   /** Mission mode: nothing is built, upgraded or reset during operation. */
   mission?: boolean;
 }
-
-const CIRCUIT_LABEL: Record<Circuit, StringKey> = {
-  lifeSupport: 'lifeSupport', heating: 'heating', processor: 'processor', robots: 'robots', greenhouse: 'greenhouse',
-};
 
 /** Run an action: as a command in mission mode, as before in free mode. Says why when it fails. */
 function act(ctx: PanelContext, cmd: Command, free: () => boolean, fail: string): boolean {
@@ -313,41 +308,6 @@ export function makeBuildMenu(ctx: PanelContext): Panel {
   return { el: panel, update };
 }
 
-/** Ranked circuits with up/down buttons. Rows stay put; only their contents follow the order. */
-function priorityList(ctx: PanelContext, ups: Updater[]): HTMLElement {
-  const s = ctx.s;
-  const setOrder = (order: Circuit[]) => {
-    if (ctx.dispatch) {
-      const r = ctx.dispatch({ type: 'setPriority', order });
-      if (!r.ok && r.reason) ctx.say(r.reason, true);
-    } else {
-      s.power.priority = order;
-    }
-  };
-  const title = el('p.label');
-  const hint = el('p.fact');
-  ups.push(() => { setText(title, t('sysPriority')); setText(hint, t('sysPriorityHint')); });
-  const rows = POWER.circuits.map((_, i) => {
-    const name = el('span');
-    const up = el('button.t-btn', { onclick: () => setOrder(movePriority(priorityOf(s), priorityOf(s)[i], -1)) }, '▲');
-    const down = el('button.t-btn', { onclick: () => setOrder(movePriority(priorityOf(s), priorityOf(s)[i], 1)) }, '▼');
-    const row = el('div.toggle', {}, name, el('span', {}, up, ' ', down));
-    ups.push(() => {
-      const c = priorityOf(s)[i];
-      const shed = ctx.power().shed?.includes(c) ?? false;
-      const tag = c === 'lifeSupport' ? ` · ${t('sysCritical')}` : '';
-      setText(name, `${i + 1}. ${t(CIRCUIT_LABEL[c])}${tag}${shed ? ` · ${t('sysShed')}` : ''}`);
-      row.classList.toggle('off', shed);
-      up.disabled = i === 0;
-      down.disabled = i === POWER.circuits.length - 1;
-      up.setAttribute('aria-label', t('sysUp', { x: t(CIRCUIT_LABEL[c]) }));
-      down.setAttribute('aria-label', t('sysDown', { x: t(CIRCUIT_LABEL[c]) }));
-    });
-    return row;
-  });
-  return el('div', {}, title, ...rows, hint);
-}
-
 /** Power panel: what stays on, especially at night when the battery must last. */
 export function makePowerPanel(ctx: PanelContext): Panel {
   const ups: Updater[] = [];
@@ -379,7 +339,6 @@ export function makePowerPanel(ctx: PanelContext): Panel {
     el('div.toggle', {}, el('span', {}, t('growLights'), ' ', lightsVal)),
     slider,
     shortage,
-    priorityList(ctx, ups),
     para(() => t('factNight'), ups, 'fact'),
   );
   const art = powerArt({ s, power: ctx.power });

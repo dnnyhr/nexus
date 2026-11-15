@@ -13,7 +13,6 @@ export interface TitleOptions {
   onCadetLaunch(): void;
   onCadetDesign(): void;
   onSimulator(): void;
-  onProgress(): void;
   onLoadPng(): void;
 }
 
@@ -62,12 +61,11 @@ export function mountTitle(root: HTMLElement, opts: TitleOptions): TitleHandle {
       mode('cadet', t('nxModeCadet'), t('nxModeCadetDesc'), t('nxPlay'), () => go('missions'), [el('span.nx-chip.nx-chip--go', {}, t('nxRecommended'))]),
       mode('sim', t('nxModeSim'), saved === null ? t('nxModeSimDesc') : `${t('nxModeSimDesc')} ${t('nxModeSimSaved', { n: saved + 1 })}`,
         t(saved === null ? 'nxOpen' : 'nxContinue'), () => opts.onSimulator()),
-      mode('lab', t('nxModeLab'), t('nxModeLabDesc'), t('nxSoonShort'), null, [el('span.nx-chip', {}, t('nxSoon'))]),
     )];
   }
 
   function missions(): HTMLElement[] {
-    const card = el('button.nx-mission', { type: 'button' }, el('strong', {}, t('nxMission1')), el('span', {}, t('nxMission1Meta')));
+    const card = el('button.nx-mission-card', { type: 'button' }, el('strong', {}, t('nxMission1')), el('span', {}, t('nxMission1Meta')));
     card.addEventListener('click', () => go('brief'), { signal: events.signal });
     return [el('div.nx-panel', {}, el('h2.nx-panel__title', {}, t('nxChooseMission')), card, back('home'))];
   }
@@ -116,11 +114,9 @@ export function mountTitle(root: HTMLElement, opts: TitleOptions): TitleHandle {
       b.addEventListener('click', () => setLang(lang), { signal: events.signal });
       return b;
     });
-    const progress = el('button.nx-link', { type: 'button' }, t('nxProgress'));
-    progress.addEventListener('click', () => opts.onProgress(), { signal: events.signal });
     const load = el('button.nx-link', { type: 'button' }, getLang() === 'es' ? 'Cargar PNG' : 'Load PNG');
     load.addEventListener('click', opts.onLoadPng, { signal: events.signal });
-    return [profile(), progress, load, el('span.nx-title__spacer'), el('span.nx-langs', { role: 'group', 'aria-label': 'Idioma / Language' }, ...langs)];
+    return [profile(), load, el('span.nx-title__spacer'), el('span.nx-langs', { role: 'group', 'aria-label': 'Idioma / Language' }, ...langs)];
   }
 
   function go(next: View): void {
