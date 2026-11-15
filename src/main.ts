@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { CYCLE } from './game/config';
+import { CYCLE, ENERGY } from './game/config';
 import { build, checkBuild, nextCost } from './game/build';
 import type { BuildingKind } from './game/config';
 import { damageOf, impact, impactChance, repair, repairCost } from './game/damage';
@@ -8,25 +8,36 @@ import { activeShower } from './game/meteors';
 import { protection, stepStorm } from './game/storm';
 import { stepRescue } from './game/rescue';
 import { RESCUE, ROVER } from './game/config';
-import { loadSpaceWeather, radiationScale, snapshotWeather, SOURCES, type SpaceWeather } from './data/spaceweather';
+import { radiationScale, snapshotWeather, SOURCES, toSpaceWeather, type SpaceWeather } from './data/spaceweather';
+import { loadTelemetry, type SpaceTelemetry } from './data/telemetry';
 import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
 import { carryMax, collectByHand, deliverRegolith, resolvePower, robotUnload, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { fixedStepClock } from './game/loop';
-import { createMissionRunner, darknessAt, startMission, summarize, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type Summary } from './engine';
-import { mountPrepare, mountStartMenu, type Mounted } from './ui/mission/prepare';
+import { CADET_DESIGN, createMissionRunner, darknessAt, missionPowerOptions, project, startMission, summarize, type Circuit, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type MissionState, type Summary } from './engine';
+import { mountPrepare, type Mounted } from './ui/mission/prepare';
 import { mountMissionBar } from './ui/mission/missionBar';
 import { mountCommander, type CommanderHandle } from './ui/mission/commander';
-import { mountReport, type ReportHandle } from './ui/mission/report';
+import { mountReport } from './ui/mission/report';
 import { commandText } from './ui/mission/commanderTexts';
 import './ui/mission/report.css';
+import {
+  mountCommanderRadio, mountControlCenter, mountSystemsHud, mountTelemetryRibbon, systemsFromGame, telemetryFromGame,
+  type CommanderRadioHandle, type ControlCenterHandle, type RadioCall, type SystemsHudHandle, type TelemetryRibbonHandle,
+} from './ui/experience';
+import { compareFlightPlans, mountFlightReview, type FlightComparison } from './ui/flightreview';
+import { mountPassport } from './ui/passport';
+import { mountCadetIntro, type CadetIntroHandle } from './ui/shell/cadetIntro';
+import { mountDebrief, type DebriefHandle } from './ui/shell/debrief';
+import { TacticalCamera } from './scene/camera';
+import { mountCameraControl } from './scene/cameraControl';
 import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
 import { Hud } from './ui/hud';
-import { getLang, setPlayerName, t, type StringKey } from './ui/i18n';
+import { getLang, getPlayerName, setPlayerName, t, type StringKey } from './ui/i18n';
 import { loadProfile } from './game/profile';
 import type { PanelKind } from './ui/panels';
 import { BaseView } from './scene/base';
@@ -80,6 +91,9 @@ if (matchMedia('(pointer: coarse)').matches) {
   controls.dampingFactor = 0.18;
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
 }
+
+// Tactical views (follow, isometric, top) share the same camera and orbit controls.
+const cameraRig = new TacticalCamera(camera, controls);
 
 const light = createLighting(scene, 34);
 const terrain = createTerrain();
@@ -411,8 +425,8 @@ function startFree(): void {
   hud.setMode('free');
   syncWorld();
   colliders = base.colliders();
-  refreshWeather();
   setInterval(refreshWeather, 10 * 60 * 1000);
+  mountCamera();
   hud.setShower(shower ? shower.shower.name[getLang()] : null);
   // First time here: ask the astronaut's name (it can be changed any time in Profile).
   if (!profile) hud.openProfile();
@@ -457,7 +471,10 @@ setInterval(() => {
 
 // ---- Solar storms with real space weather ---------------------------------------------------
 let weather: SpaceWeather = snapshotWeather();
-const refreshWeather = () => loadSpaceWeather().then((w) => (weather = w));
+/** Real space weather with provenance (NASA DONKI, NOAA GOES/RTSW). Never an input of the mission engine. */
+let telemetry: SpaceTelemetry | null = null;
+const refreshWeather = () => loadTelemetry().then((tel) => { telemetry = tel; weather = toSpaceWeather(tel); });
+refreshWeather();
 const STORMS_FROM = MISSIONS.findIndex((m) => m.id === 'battery');
 
 /** The habitat once built; until then the lander is the only shelter. */
@@ -566,6 +583,7 @@ function resize(): void {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  cameraRig.resize();
 }
 window.addEventListener('resize', resize);
 resize();
@@ -632,26 +650,38 @@ function adaptQuality(dt: number): void {
   }
 }
 
-// ---- Mission 1: menu, preparation, operation, commander, report, retry ----------------------
+// ---- Control Center, Cadet briefing, Mission 1, debrief and retry ---------------------------
 
 const overlay = el('div', { id: 'mission-overlay' });
 Object.assign(overlay.style, {
-  position: 'fixed', inset: '0', zIndex: '30', overflowY: 'auto', display: 'none',
-  background: 'rgba(5, 5, 6, 0.55)', backdropFilter: 'blur(6px)', webkitBackdropFilter: 'blur(6px)',
+  position: 'fixed', inset: '0', zIndex: '93', overflowY: 'auto', display: 'none',
+  background: 'rgba(5, 5, 6, 0.6)', backdropFilter: 'blur(6px)', webkitBackdropFilter: 'blur(6px)',
 });
 const barRoot = el('div', { id: 'mission-bar-root' });
 Object.assign(barRoot.style, {
-  position: 'fixed', top: 'max(8px, env(safe-area-inset-top))', left: 'max(8px, env(safe-area-inset-left))',
-  width: 'min(540px, calc(100vw - 16px))', zIndex: '20', pointerEvents: 'none',
+  position: 'fixed', left: '50%', transform: 'translateX(-50%)', bottom: 'max(8px, env(safe-area-inset-bottom))',
+  width: 'min(600px, calc(100vw - 16px))', zIndex: '20', pointerEvents: 'none',
 });
-document.body.append(barRoot, overlay);
+const cameraHost = el('div.nx-camera-host');
+document.body.append(barRoot, cameraHost, overlay);
 const showOverlay = (on: boolean) => { overlay.style.display = on ? '' : 'none'; };
+/** While a full-screen view owns the screen, the mission HUD steps out of the way. */
+const coverHud = (on: boolean) => document.body.classList.toggle('nx-overlay', on);
 
+let center: ControlCenterHandle | null = null;
+let intro: CadetIntroHandle | null = null;
 let screen: Mounted | null = null;
 let missionBar: { update(): void; destroy(): void } | null = null;
+let ribbon: TelemetryRibbonHandle | null = null;
+let systems: SystemsHudHandle | null = null;
+let radio: CommanderRadioHandle | null = null;
+let cameraUi: { update(): void; destroy(): void } | null = null;
 let commander: CommanderHandle | null = null;
-let report: ReportHandle | null = null;
+let debrief: DebriefHandle | null = null;
 let previousSummary: Summary | null = null;
+let comparison: FlightComparison | undefined;
+let chosenPriority: Circuit[] | null = null;
+const flights: MissionState[] = [];
 let ended = false;
 let eventsSeen = 0;
 let lastShortageRadio = -Infinity;
@@ -660,21 +690,72 @@ function dispatch(cmd: Command): CommandResult {
   return runner ? runner.dispatch(cmd) : { ok: false, reason: 'Sin misión en curso' };
 }
 
-function showMenu(): void {
-  showOverlay(true);
-  screen = mountStartMenu(overlay, {
-    hasFreeSave: !!loaded,
-    onMission: () => { screen?.destroy(); showPrepare(); },
-    onFree: () => { screen?.destroy(); screen = null; showOverlay(false); startFree(); },
+/** Say why an action from a mission panel was refused, next to the astronaut. */
+function refusal(r: CommandResult): void {
+  if (!r.ok && r.reason) hud.float(player.position.clone().add(new THREE.Vector3(0, 2.6, 0)), r.reason, true);
+}
+
+function mountCamera(): void {
+  if (!cameraUi) cameraUi = mountCameraControl(cameraHost, cameraRig);
+}
+
+function showCenter(): void {
+  center?.destroy();
+  center = mountControlCenter(document.body, {
+    getGame: () => state,
+    hasFreeSave: () => !!loaded,
+    missionReady: true,
+    // Laboratory crises are not connected to the engine yet: shown as in preparation, never playable.
+    labReady: false,
+    onCadet: () => { leaveCenter(); showCadetIntro(); },
+    onSimulator: () => { leaveCenter(); startFree(); },
+    onLab: () => {},
+    closable: false,
+    initialOpen: true,
+  });
+}
+
+function leaveCenter(): void {
+  center?.destroy();
+  center = null;
+}
+
+function showCadetIntro(): void {
+  intro = mountCadetIntro(document.body, {
+    getTelemetry: () => telemetry,
+    onStart: (priority) => { intro?.destroy(); intro = null; chosenPriority = priority; startMissionMode(CADET_DESIGN); },
+    onDesign: (priority) => { intro?.destroy(); intro = null; chosenPriority = priority; showPrepare(CADET_DESIGN); },
+    onBack: () => { intro?.destroy(); intro = null; showCenter(); },
   });
 }
 
 function showPrepare(initial?: Design, previous: Summary | null = null): void {
   showOverlay(true);
+  coverHud(true);
   screen = mountPrepare(overlay, {
     initial, previous,
     onConfirm: (design) => { screen?.destroy(); screen = null; showOverlay(false); startMissionMode(design); },
-    onBack: () => { screen?.destroy(); screen = null; if (mode === 'menu') showMenu(); else location.reload(); },
+    onBack: () => { screen?.destroy(); screen = null; showOverlay(false); if (mode === 'menu') showCadetIntro(); else location.reload(); },
+  });
+}
+
+function missionTelemetry() {
+  const ms = runner!.mission;
+  return telemetryFromGame(ms.game, ms.lastPower, Date.now(), {
+    dark: darknessAt(ms).isDark,
+    exposure: ms.exposure,
+    exposureLimit: ms.scenario.exposureLimit,
+    storm: ms.game.storm.phase !== 'none',
+  });
+}
+
+function missionSystems() {
+  const ms = runner!.mission;
+  const scale = missionPowerOptions(ms.game).lightsDrawScale;
+  return systemsFromGame(ms.game, ms.lastPower, {
+    dark: darknessAt(ms).isDark,
+    available: ms.lastPower.available,
+    lightsDraw: (ms.lastPower.running.lights / 100) * ENERGY.growLightsMaxDraw * scale,
   });
 }
 
@@ -682,8 +763,9 @@ function showPrepare(initial?: Design, previous: Summary | null = null): void {
 function startMissionMode(design: Design): void {
   epoch++;
   closeCommander();
-  report?.destroy();
-  report = null;
+  debrief?.destroy();
+  debrief = null;
+  comparison = undefined;
   const ms = startMission(design);
   runner = createMissionRunner(ms);
   state = ms.game;
@@ -691,7 +773,12 @@ function startMissionMode(design: Design): void {
   ended = false;
   eventsSeen = 0;
   lastShortageRadio = -Infinity;
+  // The order chosen in the briefing is the first logged command, so replay and review include it.
+  if (chosenPriority) dispatch({ type: 'setPriority', order: chosenPriority });
   power = ms.lastPower;
+  showOverlay(false);
+  coverHud(false);
+  document.body.classList.add('nx-mission');
   hud.setState(state);
   hud.setMode('mission');
   hud.setShower(null);
@@ -700,8 +787,10 @@ function startMissionMode(design: Design): void {
   base.parkRover(state.rover.x, state.rover.z, state.rover.rot);
   player.position.set(state.player.x, 0, state.player.z);
   player.unstick(colliders);
-  camera.position.set(state.player.x + 11, 13, state.player.z + 14);
-  controls.target.set(state.player.x, 0.8, state.player.z);
+  if (cameraRig.mode === 'follow') {
+    camera.position.set(state.player.x + 11, 13, state.player.z + 14);
+    controls.target.set(state.player.x, 0.8, state.player.z);
+  }
   missionBar?.destroy();
   missionBar = mountMissionBar(barRoot, {
     getState: () => runner!.mission,
@@ -710,7 +799,26 @@ function startMissionMode(design: Design): void {
     onTogglePause: togglePause,
     onSpeed: (v) => { if (runner) runner.speed = v; },
     onOpenCommander: openCommander,
+    onSkip: () => { runner?.skipToNextStop(); },
   });
+  ribbon?.destroy();
+  ribbon = mountTelemetryRibbon(document.body, {
+    getSnapshot: missionTelemetry,
+    onOpenPower: () => systems?.setCollapsed(false),
+    onOpenCommander: openCommander,
+  });
+  systems?.destroy();
+  systems = mountSystemsHud(document.body, {
+    getSnapshot: missionSystems,
+    onBreaker: (system, on) => refusal(dispatch({ type: 'setPower', system, on })),
+    onLights: (value) => refusal(dispatch({ type: 'setGrowLights', value })),
+    onPriority: (order) => refusal(dispatch({ type: 'setPriority', order })),
+    canCommand: () => !!runner && runner.canDispatch(),
+    initialCollapsed: false,
+  });
+  radio?.destroy();
+  radio = mountCommanderRadio(document.body);
+  mountCamera();
 }
 
 function togglePause(): void {
@@ -728,9 +836,11 @@ function openCommander(): void {
   active.paused = true;
   active.blocked = true;
   hud.close();
+  coverHud(true);
   const close = () => {
     commander?.destroy();
     commander = null;
+    coverHud(false);
     active.blocked = false;
     active.paused = wasPaused;
     focusBack?.focus();
@@ -739,8 +849,16 @@ function openCommander(): void {
     getState: () => active.mission,
     onClose: close,
     onConfirm: (plan) => {
+      // Both futures are projected from this same checkpoint before anything is applied.
+      try {
+        comparison = compareFlightPlans(active.mission, plan, { kind: 'endOfMission' }, project);
+      } catch {
+        comparison = undefined;
+      }
       const results = active.confirm(plan);
-      results.forEach((r, i) => { if (!r.ok) hud.radioText(`${commandText(plan[i])}: ${r.reason ?? ''}`, true); });
+      results.forEach((r, i) => {
+        if (!r.ok) radio?.push({ text: `${commandText(plan[i])}: ${r.reason ?? ''}`, priority: 'warning', at: active.mission.t });
+      });
       close();
     },
   });
@@ -750,44 +868,66 @@ function openCommander(): void {
 }
 let closeCommander = (): void => {};
 
-const RADIO_EVENTS = new Set<MissionEvent['kind']>([
-  'darkness_warning', 'darkness_start', 'darkness_end', 'storm_warning', 'storm_start', 'storm_end',
-  'harvest', 'plant_dead', 'life_support_unpowered',
-]);
+const RADIO: Partial<Record<MissionEvent['kind'], Omit<RadioCall, 'text'>>> = {
+  darkness_warning: { priority: 'warning', hintKey: 'nxHintDarkWarn', whyKey: 'sciPolarWhy' },
+  darkness_start: { priority: 'warning', hintKey: 'nxHintDarkWarn' },
+  darkness_end: { priority: 'routine' },
+  storm_warning: { priority: 'critical', hintKey: 'nxHintStormWarn', whyKey: 'sciStormWhy' },
+  storm_start: { priority: 'critical', hintKey: 'nxHintStormWarn', whyKey: 'sciShieldWhy' },
+  storm_end: { priority: 'routine', hintKey: 'nxHintStormEnd' },
+  harvest: { priority: 'routine', whyKey: 'sciPlantsWhy' },
+  plant_dead: { priority: 'warning', hintKey: 'nxHintPlantDead', whyKey: 'sciPlantsWhy' },
+  life_support_unpowered: { priority: 'critical', hintKey: 'nxHintLifeSupport' },
+  power_shortage: { priority: 'warning', hintKey: 'nxHintShortage' },
+};
 
 function radioEvent(e: MissionEvent): void {
-  if (RADIO_EVENTS.has(e.kind)) hud.radioText(e.text, e.kind === 'harvest' || e.kind === 'plant_dead');
-  else if (e.kind === 'power_shortage' && e.t - lastShortageRadio >= 30) {
+  const call = RADIO[e.kind];
+  if (!call || !radio) return;
+  if (e.kind === 'power_shortage') {
+    if (e.t - lastShortageRadio < 30) return;
     lastShortageRadio = e.t;
-    hud.radioText(e.text, true);
   }
+  // A critical call replaces older routine traffic instead of waiting behind it.
+  if (call.priority === 'critical') radio.clear();
+  radio.push({ ...call, text: e.text, at: e.t });
 }
 
-/** Once per frame in mission mode: radio for new events, the bar, and the report exactly once. */
+/** Once per frame in mission mode: radio for new events, the HUD, and the debrief exactly once. */
 function missionFrame(active: MissionRunner): void {
   const ms = active.mission;
   for (; eventsSeen < ms.events.length; eventsSeen++) radioEvent(ms.events[eventsSeen]);
   missionBar?.update();
+  ribbon?.update();
+  systems?.update();
   if (ms.phase === 'running' || ended) return;
   ended = true;
   closeCommander();
   active.blocked = true;
   hud.close();
-  showOverlay(true);
-  report = mountReport(overlay, {
-    getState: () => ms,
-    previous: previousSummary,
-    onRetry: (design) => {
-      previousSummary = summarize(ms);
-      report?.destroy();
-      report = null;
-      showPrepare(design, previousSummary);
-    },
-    onMenu: () => location.reload(),
-  });
+  keys.clear();
+  flights.push(structuredClone(ms));
+  showDebrief(ms);
 }
 
-/** Behind the menu the camera drifts slowly around the base. */
+function showDebrief(ms: MissionState): void {
+  const retry = (design: Design) => {
+    previousSummary = summarize(ms);
+    debrief?.destroy();
+    debrief = null;
+    showPrepare(design, previousSummary);
+  };
+  const menu = () => location.reload();
+  showOverlay(true);
+  coverHud(true);
+  debrief = mountDebrief(overlay, [
+    { id: 'result', labelKey: 'nxTabResult', mount: (root) => mountReport(root, { getState: () => ms, previous: previousSummary, onRetry: retry, onMenu: menu }) },
+    { id: 'review', labelKey: 'nxTabReview', mount: (root) => mountFlightReview(root, { getState: () => ms, comparison, weather, onRetry: retry, onMenu: menu, onPassport: () => debrief?.show('passport') }) },
+    { id: 'passport', labelKey: 'nxTabPassport', mount: (root) => mountPassport(root, { name: getPlayerName(), missions: flights, onBack: () => debrief?.show('review') }) },
+  ]);
+}
+
+/** Behind the Control Center the camera drifts slowly around the base. */
 function menuOrbit(dt: number): void {
   const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.06);
   camera.position.copy(controls.target).add(offset);
@@ -826,9 +966,6 @@ renderer.setAnimationLoop(() => {
   const az = sunAzimuth(state.time);
   light.sun.position.set(Math.cos(az) * 40, 4 + (1 - night) * 3, Math.sin(az) * 40);
 
-  if (mode === 'menu') menuOrbit(dt);
-  else cameraTurn(dt);
-  // The astronaut moves; the camera follows (keeping the angle the player chose).
   colliders = base.colliders();
   const input = live ? moveInput() : new THREE.Vector2();
   if (state.rover.driving) {
@@ -841,9 +978,15 @@ renderer.setAnimationLoop(() => {
   }
   animateModel(player.obj, clock.elapsedTime, dt);
   const focus = state.rover.driving ? base.rover().position : player.position;
-  const follow = new THREE.Vector3(focus.x, 0.8, focus.z).sub(controls.target).multiplyScalar(Math.min(1, dt * 4));
-  controls.target.add(follow);
-  camera.position.add(follow);
+  if (mode === 'menu') {
+    menuOrbit(dt);
+    controls.update();
+  } else {
+    // Q / E turn the camera only when no tactical transition is running.
+    if (!cameraRig.transitioning) cameraTurn(dt);
+    cameraRig.setEnabled(!(runner && runner.blocked && mode === 'mission'));
+    cameraRig.update(dt, focus);
+  }
   updatePrompt();
   updateMarker(clock.elapsedTime);
 
@@ -860,8 +1003,7 @@ renderer.setAnimationLoop(() => {
     exposed: !state.sheltered,
   }, clock.elapsedTime);
   hud.update(dt);
-  controls.update();
   renderer.render(scene, camera);
 });
 
-showMenu();
+showCenter();
