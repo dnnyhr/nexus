@@ -66,25 +66,35 @@ controls.screenSpacePanning = false;
 controls.enablePan = false;
 // Touch screens: OrbitControls turns by drag distance over the screen *height*, so on a
 // phone in landscape a short drag spun the camera ~100° and kept spinning. Here a one-finger
-// drag turns the camera only sideways, follows the finger exactly (a full-width swipe is
-// about half a turn) and stops when the finger stops. Two fingers still zoom.
+// drag follows the finger exactly and stops when the finger stops: sideways turns around
+// the astronaut (a full-width swipe is about half a turn), up and down tilts the view
+// within the same limits as the mouse. Two fingers still zoom.
 const touchScreen = matchMedia('(pointer: coarse)').matches;
 if (touchScreen) {
   controls.enableRotate = false;
   controls.zoomSpeed = 0.8;
   controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
-  const fingers = new Map<number, number>(); // pointerId -> last x
-  canvas.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') fingers.set(e.pointerId, e.clientX); });
+  const fingers = new Map<number, { x: number; y: number }>(); // pointerId -> last position
+  canvas.addEventListener('pointerdown', (e) => { if (e.pointerType === 'touch') fingers.set(e.pointerId, { x: e.clientX, y: e.clientY }); });
   canvas.addEventListener('pointermove', (e) => {
     const last = fingers.get(e.pointerId);
-    if (last === undefined) return;
-    fingers.set(e.pointerId, e.clientX);
+    if (!last) return;
+    fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (fingers.size !== 1) return; // pinching: zoom only
-    turnCamera(((e.clientX - last) / Math.max(1, canvas.clientWidth)) * Math.PI);
+    turnCamera(((e.clientX - last.x) / Math.max(1, canvas.clientWidth)) * Math.PI);
+    tiltCamera(((e.clientY - last.y) / Math.max(1, canvas.clientHeight)) * 1.2);
   });
   for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
     canvas.addEventListener(ev, (e) => fingers.delete((e as PointerEvent).pointerId));
   }
+}
+
+/** Tilt the camera (radians, + = drag down: look more from above), kept within the limits. */
+function tiltCamera(angle: number): void {
+  const offset = camera.position.clone().sub(controls.target);
+  const sph = new THREE.Spherical().setFromVector3(offset);
+  sph.phi = Math.max(controls.minPolarAngle, Math.min(controls.maxPolarAngle, sph.phi - angle));
+  camera.position.copy(controls.target).add(offset.setFromSpherical(sph));
 }
 
 /** Turn the camera around the astronaut (radians, + = drag to the right). */
