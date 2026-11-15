@@ -1,3 +1,23 @@
+/* Palette shared by the title menu, the briefing and the flight sequences. */
+:root {
+  --x-ink: #f5f2ec;
+  --x-dim: rgba(245, 242, 236, 0.62);
+  --x-faint: rgba(245, 242, 236, 0.14);
+  --x-line: rgba(245, 242, 236, 0.32);
+  --x-cyan: #f5f2ec;
+  --x-amber: #f2b54a;
+  --x-danger: #c8553d;
+  --x-plant: #8fae6e;
+  --x-glass: rgba(10, 10, 12, 0.86);
+  --x-glass-strong: rgba(7, 8, 11, 0.95);
+  --x-radius: 2px;
+}
+
+[hidden] { display: none !important; }
+
+/* Music button in the top bar. */
+#topright .t-btn.x-bgm { min-width: 44px; min-height: 44px; }
+
 /* Integration shell: title menu, debrief tabs and the mission layout around the HUD.
    Uses the experience palette defined on :root by src/ui/experience/experience.css. */
 
@@ -13,54 +33,27 @@
 .nx-debrief__tab[aria-selected='true'] { color: var(--x-ink); border-bottom-color: var(--x-cyan); }
 .nx-debrief__panel { outline: none; }
 
-/* Mission layout: the experience ribbon owns the top; the classic HUD steps aside. */
-body.nx-mission #hud > #telemetry .gauges { display: none; }
-body.nx-mission #hud > #topright { top: max(96px, calc(env(safe-area-inset-top) + 86px)); }
-body.nx-mission #hud > #topright #profile-btn { display: none; }
-body.nx-overlay .x-tel,
-body.nx-overlay .x-sys,
-body.nx-overlay .x-radio,
+/* Mission layout: the classic HUD stays (gauges, radio, buttons); the mission bar sits at the
+   bottom between the gauges and the counters. Full-screen views hide what is behind them. */
 body.nx-overlay #mission-bar-root,
-body.nx-overlay .nx-camera-host,
 body.nx-overlay #hud { visibility: hidden; }
-body.nx-mission #hud > #radio { display: none; }
-#mission-bar-root .m-power,
-#mission-bar-root .m-exposure { display: none; }
-#mission-bar-root .m-bar { background: var(--x-glass); border: 1px solid var(--x-faint); border-top: 2px solid var(--x-cyan); }
-.nx-camera-host {
-  position: fixed; z-index: 21; right: max(12px, env(safe-area-inset-right)); bottom: calc(184px + env(safe-area-inset-bottom));
-  pointer-events: none;
-}
-.nx-camera-host .nx-camera { justify-content: flex-end; }
-@media (max-width: 900px), (max-height: 520px) {
-  .nx-camera-host { bottom: auto; top: max(150px, calc(env(safe-area-inset-top) + 140px)); }
-}
-
-/* Mission columns: radio on the right under the buttons, systems on the left between the
-   ribbon and the counters, so nothing overlaps at 1280×720 or larger. */
-body.nx-mission .x-radio {
-  left: auto;
-  right: max(12px, env(safe-area-inset-right));
-  top: max(146px, calc(env(safe-area-inset-top) + 136px));
-  width: min(380px, calc(100vw - 24px));
-}
-body.nx-mission .x-sys {
-  top: max(96px, calc(env(safe-area-inset-top) + 86px));
-  bottom: calc(110px + env(safe-area-inset-bottom));
-  max-height: none;
-  overflow-y: auto;
-  width: min(300px, calc(100vw - 24px));
-}
-body.nx-mission .x-sys.is-collapsed { bottom: auto; }
-body.nx-mission .x-sys__priority-row { padding-top: 1px; padding-bottom: 1px; }
-body.nx-mission .x-sys__priority-move { min-width: 30px; min-height: 28px; }
-.nx-camera-host .nx-camera button { min-height: 36px; padding: 6px 10px; font-size: 13px; }
-@media (max-width: 900px), (max-height: 520px) {
-  body.nx-mission .x-radio { top: auto; bottom: calc(150px + env(safe-area-inset-bottom)); }
+#mission-bar-root .m-power { display: none; }
+#mission-bar-root .m-bar { background: rgba(10, 10, 12, 0.88); border-top: 2px solid #f5f2ec; }
+/* Phones in landscape: a compact bar that fits between the gauges and the counters. */
+@media (max-height: 500px) {
+  #mission-bar-root { width: min(440px, calc(100vw - 430px)) !important; min-width: 290px; }
+  #mission-bar-root .m-bar { padding: 4px 8px; font-size: 12px; }
+  #mission-bar-root .m-controls { gap: 4px 6px; }
+  #mission-bar-root .m-btn { min-height: 34px; padding: 2px 9px; font-size: 12px; }
+  #mission-bar-root .m-windows,
+  #mission-bar-root .m-clock,
+  #mission-bar-root .m-exposure { display: none; }
+  #mission-bar-root .m-next { margin: 3px 0; }
+  #mission-bar-root .m-timeline { height: 10px; }
 }
 
 /* ---- Title menu: logo, three modes, quiet footer, over the 3D space scene ---------------- */
-body.nx-on-title #hud, body.nx-on-title #rotate-hint, body.nx-on-title .nx-camera-host, body.nx-on-title .nx-flight-btn { visibility: hidden; }
+body.nx-on-title #hud, body.nx-on-title #rotate-hint { visibility: hidden; }
 .nx-title {
   position: fixed; inset: 0; z-index: 80; display: grid; grid-template-rows: auto 1fr auto; gap: 18px;
   padding: max(28px, env(safe-area-inset-top)) max(28px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(28px, env(safe-area-inset-left));
@@ -105,12 +98,12 @@ body.nx-on-title #hud, body.nx-on-title #rotate-hint, body.nx-on-title .nx-camer
 .nx-panel__source { margin: 10px 0 0; font-size: 13px; color: var(--x-dim); }
 .nx-panel__actions { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
 .nx-panel__actions .nx-mode__go { margin-left: auto; min-width: 160px; }
-.nx-mission {
+.nx-mission-card {
   display: grid; gap: 4px; width: 100%; text-align: left; padding: 14px 16px; margin-bottom: 12px; cursor: pointer;
   color: var(--x-ink); background: rgba(0, 0, 0, 0.3); border: 1px solid var(--x-line); border-left: 2px solid var(--x-amber);
 }
-.nx-mission strong { font-size: 20px; font-weight: 600; }
-.nx-mission span { font-size: 14px; color: var(--x-dim); }
+.nx-mission-card strong { font-size: 20px; font-weight: 600; }
+.nx-mission-card span { font-size: 14px; color: var(--x-dim); }
 .nx-link { min-height: 40px; padding: 6px 4px; cursor: pointer; color: var(--x-dim); background: none; border: 0; font-size: 15px; letter-spacing: 0.04em; }
 .nx-link:hover { color: var(--x-ink); }
 .nx-title__foot { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
@@ -137,5 +130,4 @@ body.nx-on-title #hud, body.nx-on-title #rotate-hint, body.nx-on-title .nx-camer
   .nx-title__foot { grid-column: 1 / span 2; }
 }
 /* While a flight sequence plays, no game HUD is on screen. */
-body.nx-cinema .x-tel, body.nx-cinema .x-sys, body.nx-cinema .x-radio, body.nx-cinema .nx-camera-host,
-body.nx-cinema #mission-bar-root, body.nx-cinema #hud, body.nx-cinema .nx-flight-btn, body.nx-cinema .cinema-evacuate { visibility: hidden; }
+body.nx-cinema #mission-bar-root, body.nx-cinema #hud, body.nx-cinema .cinema-evacuate { visibility: hidden; }

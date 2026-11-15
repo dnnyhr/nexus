@@ -1,5 +1,5 @@
-import { el } from '../dom';
-import { onLangChange, t } from '../i18n';
+import { el } from './dom';
+import { onLangChange, t } from './i18n';
 
 const STORAGE_KEY = 'nexus:bgm-muted';
 const DEFAULT_SRC = `${import.meta.env.BASE_URL}audio/interstellar.mp3`;
