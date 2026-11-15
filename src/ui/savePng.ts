@@ -27,8 +27,10 @@ export function openPngSave(options: { current: PortableSave | null; image: HTML
   for (const kind of ['keydown', 'keyup', 'pointerdown', 'pointerup']) dialog.addEventListener(kind, event => event.stopPropagation());
   const title = el('h2', { id: 'png-save-title' }, text('Archivo de partidas', 'Save archive'));
   dialog.setAttribute('aria-labelledby', 'png-save-title');
-  dialog.append(title, el('p', {}, text('La imagen contiene tu progreso. Conserva el PNG original para recuperar la partida.', 'The image contains your progress. Keep the original PNG to restore your game.')), download,
-    el('hr'), el('label', {}, text('Recuperar desde PNG', 'Restore from PNG'), input), preview, status,
+  // From the title menu there is no game in progress: only the loading half is shown.
+  const saving = options.current ? [el('p', {}, text('La imagen contiene tu progreso. Conserva el PNG original para recuperar la partida.', 'The image contains your progress. Keep the original PNG to restore your game.')), download, el('hr')] : [];
+  dialog.append(title, ...saving,
+    el('label', {}, text('Recuperar desde PNG', 'Restore from PNG'), input), preview, status,
     el('p', {}, text('Cargar reemplaza la partida de ese modo. Cadete se recupera en pausa; Modo libre vuelve al instante guardado.', 'Loading replaces the game in that mode. Cadet resumes paused; Free mode restores the saved moment.')),
     el('div.png-save-actions', {}, close, confirm));
   document.body.append(dialog); dialog.showModal(); close.focus();
