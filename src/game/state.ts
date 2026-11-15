@@ -1,4 +1,4 @@
-import { CYCLE } from './config';
+import { CYCLE, POWER, type Circuit } from './config';
 
 // The whole game state is one plain, serializable object: easy to save, load and test.
 
@@ -16,8 +16,12 @@ export interface PowerSettings {
   heating: boolean;
   processor: boolean;
   robots: boolean;
+  /** Greenhouse breaker: open, the grow lights get no power whatever their brightness. */
+  greenhouse: boolean;
   /** Grow-light brightness 0-100: more light, more energy. */
   growLights: number;
+  /** Which circuit is fed first when power falls short (a permutation of POWER.circuits). */
+  priority: Circuit[];
 }
 
 export interface Plant {
@@ -104,7 +108,7 @@ export function newGame(now = Date.now()): GameState {
     res: { o2: 90, water: 90, food: 80, energy: 100, regolith: 0, materials: 60 },
     levels: { bag: 1, antenna: 0, station: 0, greenhouse: 0, processor: 0, collectorRobot: 0, harvesterRobot: 0, shield: 0 },
     counts: { solarMast: 0, battery: 0 },
-    power: { heating: true, processor: true, robots: true, growLights: 60 },
+    power: { heating: true, processor: true, robots: true, greenhouse: true, growLights: 60, priority: [...POWER.defaultPriority] },
     plant: { water: 50, light: 50, temp: 50, growth: 0, stress: 0, maxStressTime: 0, dead: false },
     damage: {},
     rover: { x: 9, z: 4, rot: -0.6, driving: false, ice: 0 },
