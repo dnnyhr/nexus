@@ -3,20 +3,176 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0A0A0B" />
-    <!-- Added to the home screen, the game opens full screen (the only way on iPhone). -->
-    <link rel="manifest" href="./manifest.webmanifest" />
+    <title>NEXUS: Último Horizonte · Construye una base en la Luna con datos reales de la NASA</title>
+    <meta name="description" content="Juego educativo gratis en el navegador: construye una base en el polo sur de la Luna, sobrevive a la oscuridad y a tormentas solares reales registradas por la NASA. Para niños de 7 a 12 años y para toda la familia. NASA Space Apps 2026." />
+    <link rel="canonical" href="https://nexus.xinocore.com/" />
+    <meta name="theme-color" content="#07080b" />
+    <meta name="color-scheme" content="dark" />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="NEXUS" />
-    <title>NEXUS: Último Horizonte</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NEXUS: Último Horizonte" />
+    <meta property="og:title" content="NEXUS: Último Horizonte · Una base en la Luna con datos reales de la NASA" />
+    <meta property="og:description" content="Construye, sobrevive a la oscuridad lunar y a tormentas solares reales. Gratis, en el navegador, en español e inglés." />
+    <meta property="og:url" content="https://nexus.xinocore.com/" />
+    <meta property="og:image" content="https://nexus.xinocore.com/media/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="La base lunar de NEXUS en el polo sur de la Luna, con la Tierra en el horizonte" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NEXUS: Último Horizonte" />
+    <meta name="twitter:description" content="Una base en la Luna con datos reales de la NASA. Juega gratis en el navegador." />
+    <meta name="twitter:image" content="https://nexus.xinocore.com/media/og.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "NEXUS: Último Horizonte",
+        "alternateName": "NEXUS: Last Horizon",
+        "url": "https://nexus.xinocore.com/",
+        "image": "https://nexus.xinocore.com/media/og.jpg",
+        "description": "Juego educativo en 3D: construye una base en el polo sur de la Luna y sobrevive a tormentas solares reales registradas por NASA DONKI.",
+        "genre": ["Educational", "Simulation", "Strategy"],
+        "gamePlatform": "Web browser",
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "inLanguage": ["es", "en"],
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "audience": { "@type": "PeopleAudience", "suggestedMinAge": 7 },
+        "author": { "@type": "Organization", "name": "LifePlants" },
+        "playMode": "SinglePlayer"
+      }
+    </script>
   </head>
   <body>
-    <canvas id="scene"></canvas>
-    <div id="rotate-hint">Gira el teléfono para jugar en horizontal</div>
-    <script type="module" src="/src/main.ts"></script>
+    <a class="skip" href="#mision" data-i18n="skip">Saltar al contenido</a>
+
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="NEXUS, inicio">
+        <img src="./brand/nexus-patch.svg" width="40" height="40" alt="" />
+        <span>NEXUS</span>
+      </a>
+      <nav aria-label="Secciones">
+        <a href="#mision" data-i18n="navMission">La misión</a>
+        <a href="#construye" data-i18n="navBuild">Construye</a>
+        <a href="#datos" data-i18n="navData">Datos NASA</a>
+      </nav>
+      <div class="bar-right">
+        <button class="lang" type="button" data-lang-toggle aria-label="Change language to English">EN</button>
+        <a class="cta cta-small" href="./app/" data-i18n="play">Jugar</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- Hero: the 3D base on the Moon, drawn with WebGL behind the text once the page has loaded. -->
+      <section class="hero" aria-labelledby="hero-title">
+        <canvas id="moon" aria-hidden="true"></canvas>
+        <div class="hero-shade" aria-hidden="true"></div>
+        <div class="hero-copy">
+          <p class="kicker"><span class="dot" aria-hidden="true"></span><span data-i18n="kicker">NASA Space Apps 2026 · Polo sur lunar</span></p>
+          <h1 id="hero-title">
+            <span class="h-line">NEXUS</span>
+            <span class="h-sub" data-i18n="heroSub">Último Horizonte</span>
+          </h1>
+          <p class="lede" data-i18n="lede">Construye una base en la Luna, sobrevive a la oscuridad y a tormentas solares reales registradas por la NASA. Aprende cómo vivirían los astronautas de Artemis, jugando.</p>
+          <div class="hero-actions">
+            <a class="cta" href="./app/"><span data-i18n="playNow">Jugar ahora</span> <span aria-hidden="true">→</span></a>
+            <a class="ghost" href="#mision" data-i18n="howTo">Cómo se juega</a>
+          </div>
+          <p class="fine" data-i18n="fine">Gratis · en el navegador · sin descargas ni cuentas · español e inglés</p>
+        </div>
+        <aside class="telemetry" aria-label="Datos del Sol en vivo" aria-live="polite">
+          <div><span class="t-label" data-i18n="tFlare">Última fulguración · NASA DONKI</span><strong id="t-flare">—</strong></div>
+          <div><span class="t-label" data-i18n="tProtons">Radiación · NOAA GOES</span><strong id="t-protons">—</strong></div>
+          <div><span class="t-label" data-i18n="tDelay">Señal Tierra–Luna</span><strong>1.3 s</strong></div>
+          <p class="t-note" id="t-note" data-i18n="tLoading">Conectando con los satélites…</p>
+        </aside>
+        <a class="scroll-cue" href="#mision" aria-label="Bajar"><span></span></a>
+      </section>
+
+      <!-- The story -->
+      <section id="mision" class="section story" aria-labelledby="story-title">
+        <svg class="trajectory" viewBox="0 0 1200 220" preserveAspectRatio="none" aria-hidden="true">
+          <path class="orbit" d="M0 180 C 300 20, 700 0, 1200 120" />
+          <path class="descent" d="M0 180 C 300 20, 700 0, 1200 120" />
+        </svg>
+        <p class="eyebrow" data-i18n="storyEyebrow">La misión · 2039</p>
+        <h2 id="story-title" data-i18n="storyTitle">La Tierra necesita un nuevo horizonte</h2>
+        <div class="story-grid">
+          <p class="reveal" data-i18n="story1">La Tierra atraviesa una grave crisis de energía y clima. El Proyecto Nexus envía a un astronauta al polo sur de la Luna para construir una base científica y abrir el camino a Marte.</p>
+          <p class="reveal" data-i18n="story2">Ese astronauta eres tú. Llegas solo con el módulo de aterrizaje. Todo lo demás lo construyes con tus manos: la antena, el hábitat, el invernadero, los paneles solares, los robots y el rover.</p>
+          <p class="reveal" data-i18n="story3">Desde la Tierra, a 1.3 segundos luz, el comandante Rivera te guía por radio y te pasa mediciones reales del Sol. Puede aconsejarte. Las decisiones son tuyas.</p>
+        </div>
+        <ol class="steps">
+          <li class="reveal"><span class="num">01</span><h3 data-i18n="s1t">Explora</h3><p data-i18n="s1">Camina, salta como en las misiones Apolo y excava regolito: el polvo y las rocas de la Luna.</p></li>
+          <li class="reveal"><span class="num">02</span><h3 data-i18n="s2t">Construye</h3><p data-i18n="s2">Convierte el regolito en oxígeno y materiales. Levanta tu base, nivel por nivel.</p></li>
+          <li class="reveal"><span class="num">03</span><h3 data-i18n="s3t">Sobrevive</h3><p data-i18n="s3">La oscuridad apaga tus paneles. Una tormenta solar real llega con aviso: corre al refugio.</p></li>
+          <li class="reveal"><span class="num">04</span><h3 data-i18n="s4t">Aprende</h3><p data-i18n="s4">Cada decisión cuesta algo. Si fallas, el juego te explica por qué y vuelves a intentarlo.</p></li>
+        </ol>
+      </section>
+
+      <!-- What you build -->
+      <section id="construye" class="section build" aria-labelledby="build-title">
+        <p class="eyebrow" data-i18n="buildEyebrow">Tu base</p>
+        <h2 id="build-title" data-i18n="buildTitle">Cada estructura cumple una función real</h2>
+        <div class="cards">
+          <article class="card reveal" data-art="station"><div class="art-slot"></div><h3 data-i18n="cStation">Hábitat</h3><p data-i18n="cStationP">El hogar de la tripulación y su refugio. Crece hasta 5 niveles y se cubre con tierra lunar para frenar la radiación.</p></article>
+          <article class="card reveal" data-art="greenhouse"><div class="art-slot"></div><h3 data-i18n="cGreen">Invernadero</h3><p data-i18n="cGreenP">Cultiva comida con agua, luz y temperatura justas. Si la planta se estresa, se marchita.</p></article>
+          <article class="card reveal" data-art="solarMast"><div class="art-slot"></div><h3 data-i18n="cSolar">Paneles solares</h3><p data-i18n="cSolarP">En el polo sur el Sol roza el horizonte y alumbra el 80 % del tiempo. Pero la oscuridad llega igual.</p></article>
+          <article class="card reveal" data-art="battery"><div class="art-slot"></div><h3 data-i18n="cBattery">Baterías</h3><p data-i18n="cBatteryP">Guardan la energía del Sol para la oscuridad. Sin ellas, tendrás que apagar cosas.</p></article>
+          <article class="card reveal" data-art="processor"><div class="art-slot"></div><h3 data-i18n="cProc">Procesador</h3><p data-i18n="cProcP">Casi la mitad de las rocas lunares es oxígeno. El procesador lo saca para respirar y construir.</p></article>
+          <article class="card reveal" data-art="rover"><div class="art-slot"></div><h3 data-i18n="cRover">Rover</h3><p data-i18n="cRoverP">Maneja hasta un cráter que nunca ve el Sol y trae hielo: allí está el agua de la Luna.</p></article>
+        </div>
+      </section>
+
+      <!-- Real data -->
+      <section id="datos" class="section data" aria-labelledby="data-title">
+        <p class="eyebrow" data-i18n="dataEyebrow">Datos reales</p>
+        <h2 id="data-title" data-i18n="dataTitle">El Sol del juego es el Sol de verdad</h2>
+        <p class="lead" data-i18n="dataLead">Cuando abres NEXUS, el juego consulta los satélites. Cada tormenta solar recrea una fulguración real registrada por la NASA, y su fuerza decide cuánto aviso tienes.</p>
+        <img class="flow-img reveal" src="./brand/storm-flow.svg" width="1280" height="330" loading="lazy" decoding="async" alt="Una fulguración M6.7 registrada por NASA DONKI se convierte en una tormenta del juego: aviso por radio, cuenta regresiva y la dosis afuera frente a la del refugio." />
+        <ul class="sources">
+          <li class="reveal"><strong>NASA DONKI</strong><span data-i18n="srcDonki">Fulguraciones solares de los últimos 60 días.</span><a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" rel="noopener" target="_blank">ccmc.gsfc.nasa.gov</a></li>
+          <li class="reveal"><strong>NOAA GOES</strong><span data-i18n="srcGoes">Protones medidos cada 5 minutos: la radiación de fondo.</span><a href="https://www.swpc.noaa.gov/products/goes-proton-flux" rel="noopener" target="_blank">swpc.noaa.gov</a></li>
+          <li class="reveal"><strong>IMO</strong><span data-i18n="srcImo">Lluvias de meteoros reales: más impactos en la base.</span><a href="https://www.imo.net/resources/calendar/" rel="noopener" target="_blank">imo.net</a></li>
+        </ul>
+      </section>
+
+      <!-- Two ways to play -->
+      <section class="section modes" aria-labelledby="modes-title">
+        <p class="eyebrow" data-i18n="modesEyebrow">Dos formas de jugar</p>
+        <h2 id="modes-title" data-i18n="modesTitle">Para chicos y no tan chicos</h2>
+        <div class="mode-grid">
+          <article class="mode reveal">
+            <h3 data-i18n="m1t">Modo libre</h3>
+            <p data-i18n="m1">Tu base sigue creciendo aunque cierres el juego. 14 misiones por radio te llevan del módulo de aterrizaje a una colonia.</p>
+          </article>
+          <article class="mode reveal">
+            <h3 data-i18n="m2t">Misión 1: La primera oscuridad</h3>
+            <p data-i18n="m2">300 créditos, 10 minutos. Elige qué llevar, pausa y pregunta «¿qué hago?», y al final descubre lo que aprendiste.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Final call -->
+      <section class="section final" aria-labelledby="final-title">
+        <img class="final-patch reveal" src="./brand/nexus-patch.svg" width="220" height="220" loading="lazy" decoding="async" alt="Parche de misión de NEXUS: una N parada sobre el polo sur lunar cuya diagonal es la trayectoria de descenso." />
+        <h2 id="final-title" data-i18n="finalTitle">Tu misión empieza ahora</h2>
+        <p data-i18n="finalP">Sin descargas, sin cuentas. Funciona en computadora y en teléfono en horizontal.</p>
+        <a class="cta cta-big" href="./app/"><span data-i18n="playNow">Jugar ahora</span> <span aria-hidden="true">→</span></a>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p data-i18n="footer1">Hecho por el equipo LifePlants (Managua) para el NASA Space Apps Challenge 2026 · reto «Build a Junior Astronaut Mission Trainer».</p>
+      <p data-i18n="footer2">Proyecto independiente: no usa logos ni insignias de la NASA. Usamos Claude Code (Anthropic) como asistente de programación.</p>
+      <p><a href="https://github.com/dnnyhr/nexus" rel="noopener" target="_blank">GitHub</a> · <a href="./app/" data-i18n="play">Jugar</a></p>
+    </footer>
+
+    <script type="module" src="/src/landing/main.ts"></script>
   </body>
 </html>
