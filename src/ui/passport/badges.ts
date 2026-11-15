@@ -3,6 +3,7 @@ import { capacity } from '../../game/sim';
 import { numberText } from '../flightreview/model';
 
 export type BadgeId = 'mission' | 'life' | 'energy' | 'harvest' | 'shelter';
+export type PassportEvidence = Pick<MissionState, 'game' | 't' | 'scenario' | 'exposure' | 'depleted' | 'phase' | 'failure' | 'log' | 'events' | 'samples' | 'metrics'>;
 
 export interface BadgeProgress {
   id: BadgeId;
@@ -12,7 +13,7 @@ export interface BadgeProgress {
   evidence: string;
 }
 
-export function verifiedCompletion(mission: MissionState): boolean {
+export function verifiedCompletion(mission: PassportEvidence): boolean {
   const cap = capacity(mission.game);
   const final = mission.samples.at(-1);
   const finite = [mission.t, mission.scenario.duration, mission.scenario.seed, mission.scenario.exposureLimit,
@@ -40,7 +41,7 @@ export function verifiedCompletion(mission: MissionState): boolean {
   });
 }
 
-function shelteredDuringStorm(mission: MissionState): boolean {
+function shelteredDuringStorm(mission: PassportEvidence): boolean {
   const storms = mission.scenario.events.filter(event => event.kind === 'storm' && event.endAt > event.startAt && event.endAt <= mission.t);
   return storms.some(storm => {
     if (!mission.events.some(event => event.kind === 'storm_start' && event.t === storm.startAt)
@@ -60,7 +61,7 @@ function shelteredDuringStorm(mission: MissionState): boolean {
   });
 }
 
-export function evaluateBadges(mission: MissionState): BadgeProgress[] {
+export function evaluateBadges(mission: PassportEvidence): BadgeProgress[] {
   const verified = verifiedCompletion(mission);
   const harvests = mission.events.filter(event => event.kind === 'harvest');
   const harvestCommands = mission.log.filter(entry => entry.ok && entry.cmd.type === 'harvest');
@@ -77,7 +78,7 @@ export function evaluateBadges(mission: MissionState): BadgeProgress[] {
   return definitions.map(([id, title, criterion, unlocked, detail]) => ({ id, title, criterion, unlocked, evidence: unlocked ? detail : 'Criterio pendiente de evidencia en un vuelo completado.' }));
 }
 
-export function collectBadges(missions: readonly MissionState[]): BadgeProgress[] {
+export function collectBadges(missions: readonly PassportEvidence[]): BadgeProgress[] {
   const definitions: BadgeProgress[] = [
     { id: 'mission', title: 'Primera oscuridad', criterion: 'Completar el escenario con victoria y registros finales coherentes.', unlocked: false, evidence: '' },
     { id: 'life', title: 'Soporte vital', criterion: 'Victoria con mínimo vital global ≥20 % durante todo el vuelo.', unlocked: false, evidence: '' },
