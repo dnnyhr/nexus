@@ -60,6 +60,8 @@ export const COLLECT = {
 export const GREENHOUSE = {
   optimalMin: 40,
   optimalMax: 60,
+  /** Regolith a collector robot brings per trip, by robot level (1-3). */
+  robotLoad: [8, 12, 16],
   waterDrift: -0.35,
   tempDayDrift: 0.18,
   tempNightDrift: -0.3,

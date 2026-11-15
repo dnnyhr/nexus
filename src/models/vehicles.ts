@@ -137,9 +137,11 @@ export function collectorRobot(): THREE.Group {
       bucket.rotation.x = keyframes(ph, [[0, 0], [0.25, -0.2], [0.45, 0.6], [0.7, 0.4], [0.85, -0.5], [1, 0]]);
       load.visible = ph > 0.4 && ph < 0.85;
     } else {
-      arm.rotation.x = approach(arm.rotation.x, -0.35, 4, dt);
-      bucket.rotation.x = approach(bucket.rotation.x, 0.15, 4, dt);
-      load.visible = false;
+      // Driving back loaded: bucket raised and full (userData.carrying set by the game).
+      const carrying = g.userData.carrying === true;
+      arm.rotation.x = approach(arm.rotation.x, carrying ? -0.5 : -0.35, 4, dt);
+      bucket.rotation.x = approach(bucket.rotation.x, carrying ? 0.45 : 0.15, 4, dt);
+      load.visible = carrying;
     }
   });
   return asModel(g, 'collector-robot', 1, 1);

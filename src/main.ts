@@ -11,7 +11,7 @@ import { RESCUE } from './game/config';
 import { loadSpaceWeather, radiationScale, snapshotWeather, SOURCES, type SpaceWeather } from './data/spaceweather';
 import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
-import { carryMax, collectByHand, deliverRegolith, tick, type PowerReport } from './game/sim';
+import { carryMax, collectByHand, deliverRegolith, robotUnload, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
 import { animateModel, findModel, poke } from './models/anim';
@@ -101,6 +101,12 @@ const hud = new Hud({
 });
 
 /** Buildings and build sites follow the state (and what the missions have unlocked). */
+// Collector robots deliver one bucket per trip to the processor.
+base.onRobotUnload = (robot) => {
+  const n = robotUnload(state);
+  hud.float(robot.position.clone().add(new THREE.Vector3(0, 1.8, 0)), n > 0 ? t('robotDelivered', { n }) : t('hopperFull'), n === 0);
+};
+
 function syncWorld(): void {
   base.sync(state);
   base.syncSites(state, unlocked(state));
@@ -382,7 +388,7 @@ function maybeImpact(): void {
     if (shower) hud.radioText(t('showerNews', { name: shower.shower.name[getLang()] }));
   }
 }
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
+if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its

@@ -76,6 +76,7 @@ const STRINGS = {
   bagInfo: { es: 'Bolsa nivel {n}: guarda {cap} de regolito y junta {dig} por excavación.', en: 'Bag level {n}: holds {cap} regolith and digs {dig} at a time.' },
   bagFull: { es: 'Bolsa llena · llévala al procesador', en: 'Bag full · take it to the processor' },
   deliverX: { es: 'Depositar regolito', en: 'Deliver regolith' },
+  robotDelivered: { es: 'Robot: +{n} regolito al procesador', en: 'Robot: +{n} regolith to the processor' },
   delivered: { es: '+{n} regolito al procesador', en: '+{n} regolith to the processor' },
   hopperFull: { es: 'El procesador está lleno', en: 'The processor is full' },
   dig: { es: 'Excavar', en: 'Dig' },
