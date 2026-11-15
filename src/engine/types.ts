@@ -151,6 +151,10 @@ export interface MissionMetrics {
   secondsShortage: number;
 }
 
+export type MissionResource = 'o2' | 'water' | 'food' | 'energy';
+export type MissionCause = 'crew' | 'processor' | 'lights' | 'heating' | 'shelter' | 'harvest' | 'solar' | 'irrigation' | 'climate' | 'storage';
+export type MissionLedger = Record<MissionResource, Record<MissionCause, number>>;
+
 export interface MissionState {
   version: 2;
   scenario: Scenario;
@@ -163,6 +167,7 @@ export interface MissionState {
   game: GameState;
   lastPower: PowerReport;
   metrics: MissionMetrics;
+  ledger: MissionLedger;
   /** Exposición acumulada en unidades didácticas (u). No son mSv ni dosis real. */
   exposure: number;
   /** Segundos seguidos con cada recurso vital en 0. */
