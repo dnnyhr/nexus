@@ -183,6 +183,8 @@ const STRINGS = {
   lunarDay: { es: 'Luz solar', en: 'Sunlight' },
   lunarNight: { es: 'Oscuridad', en: 'Darkness' },
   ok: { es: 'Entendido', en: 'Got it' },
+  gameTitle: { es: 'NEXUS: Último Horizonte', en: 'NEXUS: Last Horizon' },
+  rotatePhone: { es: 'Gira el teléfono para jugar en horizontal', en: 'Turn your phone sideways to play' },
   profile: { es: 'Perfil', en: 'Profile' },
   fullscreen: { es: 'Pantalla completa', en: 'Full screen' },
   exitFullscreen: { es: 'Salir de pantalla completa', en: 'Exit full screen' },
