@@ -71,6 +71,43 @@ function roundGauge(label: StringKey) {
   };
 }
 
+type FullscreenDoc = Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => Promise<void>; webkitFullscreenEnabled?: boolean };
+type FullscreenEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+
+/** Full-screen toggle (hidden where the browser cannot do it, like Safari on iPhone). */
+function fullscreenButton(): HTMLButtonElement | null {
+  const doc = document as FullscreenDoc;
+  if (!(doc.fullscreenEnabled || doc.webkitFullscreenEnabled)) return null;
+  const enter = '<path d="M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5" fill="none" stroke="currentColor" stroke-width="1.6"/>';
+  const exit = '<path d="M6 1v5H1M15 6h-5V1M10 15v-5h5M1 10h5v5" fill="none" stroke="currentColor" stroke-width="1.6"/>';
+  const btn = el('button.t-btn', { id: 'fullscreen-btn' });
+  const isFull = () => !!(doc.fullscreenElement || doc.webkitFullscreenElement);
+  const draw = () => {
+    btn.innerHTML = `<svg viewBox="0 0 16 16" aria-hidden="true">${isFull() ? exit : enter}</svg>`;
+    btn.setAttribute('aria-label', t(isFull() ? 'exitFullscreen' : 'fullscreen'));
+    btn.title = t(isFull() ? 'exitFullscreen' : 'fullscreen');
+  };
+  btn.addEventListener('click', async () => {
+    try {
+      if (isFull()) {
+        await (doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.());
+      } else {
+        const root = document.documentElement as FullscreenEl;
+        await (root.requestFullscreen?.({ navigationUI: 'hide' }) ?? root.webkitRequestFullscreen?.());
+        // Phones: keep it landscape while in full screen (ignored where not supported).
+        await (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.('landscape').catch(() => {});
+      }
+    } catch {
+      // The browser said no (for example, not from a user gesture): nothing to do.
+    }
+  });
+  document.addEventListener('fullscreenchange', draw);
+  document.addEventListener('webkitfullscreenchange', draw);
+  onLangChange(draw);
+  draw();
+  return btn;
+}
+
 export class Hud {
   private root = el('div', { id: 'hud' });
   private panel: { panel: Panel; anchor: THREE.Object3D | null; kind: string } | null = null;
@@ -142,6 +179,7 @@ export class Hud {
     this.stormBox.append(this.stormTitle, this.stormTime, this.stormInfo);
     this.dataBtn = el('button.t-btn', { onclick: () => this.toggleData() }, el('span', { 'data-label': 'nasaData' }, t('nasaData')));
     this.profileBtn = el('button.t-btn', { id: 'profile-btn', onclick: () => this.toggleProfile() });
+    const fullBtn = fullscreenButton();
     this.radioBox.append(
       el('div.from', {}, el('span.dot'), this.radioFrom),
       this.radioMsg,
@@ -149,7 +187,7 @@ export class Hud {
     );
 
     this.prompt.addEventListener('click', () => deps.action());
-    this.root.append(this.vignette, band, el('div', { id: 'topright' }, this.profileBtn, this.dataBtn, this.powerBtn, this.shelterBtn, langBox), this.stormBox, this.radioBox, this.prompt, this.hint, this.arrow, this.showerTag);
+    this.root.append(this.vignette, band, el('div', { id: 'topright' }, this.profileBtn, this.dataBtn, this.powerBtn, this.shelterBtn, langBox, fullBtn), this.stormBox, this.radioBox, this.prompt, this.hint, this.arrow, this.showerTag);
     document.body.append(this.root);
     this.joystick = new Joystick(this.root);
     // Touch buttons: hop (hold to keep hopping) and dig.

@@ -64,6 +64,14 @@ controls.minPolarAngle = 0.35;
 controls.maxPolarAngle = 1.3;
 controls.screenSpacePanning = false;
 controls.enablePan = false;
+// Touch screens: a finger drag is much bigger than a mouse drag, so turn slower and stop
+// sooner (no long spin after lifting the finger). Two fingers zoom.
+if (matchMedia('(pointer: coarse)').matches) {
+  controls.rotateSpeed = 0.45;
+  controls.zoomSpeed = 0.8;
+  controls.dampingFactor = 0.18;
+  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+}
 
 const light = createLighting(scene, 34);
 const terrain = createTerrain();
@@ -476,7 +484,14 @@ let downAt: { x: number; y: number } | null = null;
 canvas.addEventListener('pointerdown', (e) => (downAt = { x: e.clientX, y: e.clientY }));
 canvas.addEventListener('pointerup', (e) => {
   if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 8) return;
-  const ndc = new THREE.Vector2((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  tapAt(e.clientX, e.clientY);
+});
+// A quick tap on the joystick side of a touch screen still picks what is under it.
+hud.joystick.onTap = (x, y) => tapAt(x, y);
+
+/** Tap or click on the world: open what the astronaut is next to, or say to get closer. */
+function tapAt(x: number, y: number): void {
+  const ndc = new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
   const model = findModel(raycaster.intersectObject(base.group, true)[0]?.object ?? null);
   if (!model || model.userData.site) return hud.close();
@@ -489,7 +504,7 @@ canvas.addEventListener('pointerup', (e) => {
     const box = new THREE.Box3().setFromObject(model);
     hud.float(new THREE.Vector3((box.min.x + box.max.x) / 2, box.max.y + 0.3, (box.min.z + box.max.z) / 2), t('getCloser'), true);
   }
-});
+}
 let night = cyclePhase(state.time).isDay ? 0 : 1;
 
 /** At the lunar south pole the Sun circles the horizon once per lunar day. */
