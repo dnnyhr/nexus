@@ -1,0 +1,195 @@
+{
+  "dateUTC": "2026-11-15",
+  "scope": "Módulos y harness aislado; no flujo integrado, teléfono físico ni FPS de hardware",
+  "baselineCommit": "04feeba",
+  "engineCommit": "0c8379a889fde72ea4ae2268946d2f491ae857ac",
+  "implementationCommits": [
+    "288e319",
+    "0906bb1",
+    "2e96e64"
+  ],
+  "automated": {
+    "testFiles": 18,
+    "testsPassed": 167,
+    "build": "passed",
+    "diffCheck": "passed",
+    "designDetector": [],
+    "engineTypeCompatibility": {
+      "engineCommit": "0c8379a889fde72ea4ae2268946d2f491ae857ac",
+      "tscNoEmit": "passed",
+      "scope": "copia temporal con motor real; no runner integrado"
+    }
+  },
+  "functional": {
+    "data": {
+      "flights": {
+        "A": {
+          "phase": "victory",
+          "t": 600,
+          "harvests": 1,
+          "exposure": 3.840000000000003,
+          "metrics": {
+            "minLifeSupport": 25.00000000000403,
+            "secondsLightsReduced": 180,
+            "secondsSheltered": 60,
+            "secondsShortage": 108.75
+          },
+          "badges": [
+            "mission",
+            "life",
+            "harvest",
+            "shelter"
+          ]
+        },
+        "B": {
+          "phase": "victory",
+          "t": 600,
+          "harvests": 2,
+          "exposure": 1.4400000000000013,
+          "metrics": {
+            "minLifeSupport": 5.000000000002174,
+            "secondsLightsReduced": 0,
+            "secondsSheltered": 60,
+            "secondsShortage": 0
+          },
+          "badges": [
+            "mission",
+            "energy",
+            "harvest",
+            "shelter"
+          ]
+        },
+        "C": {
+          "phase": "failed",
+          "t": 535.75,
+          "harvests": 0,
+          "exposure": 40.13999999999995,
+          "metrics": {
+            "minLifeSupport": 12.497500000003297,
+            "secondsLightsReduced": 0,
+            "secondsSheltered": 0,
+            "secondsShortage": 148.5
+          },
+          "badges": []
+        }
+      },
+      "comparison": {
+        "from": 480,
+        "baseline": 535.75,
+        "alternative": 540
+      },
+      "focused": "flight-review"
+    },
+    "errors": [],
+    "mobile": [
+      "390x844",
+      "844x390"
+    ],
+    "checks": "replay A/B/C, badges, dated provenance, focus/keyboard, exactly-once retry, mobile scroll, empty history, failed review, charts 0/1"
+  },
+  "performance": [
+    {
+      "variant": "baseline",
+      "calls": 242,
+      "triangles": 54288,
+      "geometries": 135,
+      "programs": 7,
+      "lights": 3,
+      "meanMs": 280.54999999999995,
+      "p50Ms": 283.2999999999997,
+      "maxMs": 333.4000000000001,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    },
+    {
+      "variant": "new",
+      "calls": 242,
+      "triangles": 54288,
+      "geometries": 135,
+      "programs": 7,
+      "lights": 3,
+      "meanMs": 316.6666666666666,
+      "p50Ms": 316.6999999999998,
+      "maxMs": 366.6999999999998,
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)"
+    }
+  ],
+  "confirmation": {
+    "cameraSpaceAndEnter": "passed",
+    "keyboardEventsLeakedToWindow": 0,
+    "raycastingBothTacticalModes": "passed",
+    "documentOverflow": "none",
+    "pageErrors": [],
+    "captureDimensions": {
+      "review-desktop": {
+        "width": 1440,
+        "height": 900
+      },
+      "review-mobile": {
+        "width": 390,
+        "height": 844
+      },
+      "review-mobile-chart": {
+        "width": 390,
+        "height": 844
+      },
+      "review-mobile-alternatives": {
+        "width": 390,
+        "height": 844
+      },
+      "review-mobile-provenance": {
+        "width": 390,
+        "height": 844
+      },
+      "review-horizontal": {
+        "width": 844,
+        "height": 390
+      },
+      "passport-desktop": {
+        "width": 1440,
+        "height": 900
+      },
+      "passport-mobile": {
+        "width": 390,
+        "height": 844
+      },
+      "scene-baseline-day": {
+        "width": 1440,
+        "height": 900
+      },
+      "scene-baseline-night": {
+        "width": 1440,
+        "height": 900
+      },
+      "scene-new-day": {
+        "width": 1440,
+        "height": 900
+      },
+      "scene-new-night": {
+        "width": 1440,
+        "height": 900
+      },
+      "scene-isometric": {
+        "width": 1440,
+        "height": 900
+      },
+      "scene-top": {
+        "width": 1440,
+        "height": 900
+      },
+      "scene-top-mobile": {
+        "width": 844,
+        "height": 390
+      }
+    }
+  },
+  "review": {
+    "disposition": "ship",
+    "scope": "módulos/harness para integrador",
+    "materialFixesResolved": [
+      "teclado del control de cámara",
+      "salto por inercia",
+      "dimensiones del harness"
+    ]
+  },
+  "artifactsLocal": "/tmp/nexus-a4-qa/captures/"
+}
