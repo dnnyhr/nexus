@@ -90,3 +90,23 @@ IMO. Cada dato se cita dentro del juego, en la pantalla "Datos NASA".
 ### Tecnología
 
 Three.js, TypeScript y Vite. Se juega en el navegador, en horizontal y en español o inglés.
+
+
+## Trabajo consolidado: Misión 1
+
+NEXUS es repositorio de trabajo para integrar diseño de base, operación tycoon 3D y planificación de misión. Preparación disponible: [contrato y cinco agentes](docs/mision-1/README.md), [prompts para pegar](docs/mision-1/INICIO-5-AGENTES.txt) y [referencias educativas HailMary](docs/referencias/hailmary/README.md).
+
+Misión 1 todavía no está implementada. Se preparó contrato de tipos; motor, pantallas y conexión al juego se desarrollan en sus carriles. Modo libre sigue siendo experiencia ejecutable actual.
+
+El manifest existente no acredita funcionamiento offline completo; ese comportamiento requiere implementación y verificación separadas. Baseline de consolidación: 152 tests y build correctos en `01d79c6`; navegador y teléfono no verificados en esta preparación.
+
+### Desarrollo local
+
+```sh
+npm ci
+npm test
+npm run dev
+npm run build
+```
+
+No hace falta ejecutar ni instalar HailMary para trabajar en esta repo. Fuentes de referencia quedan fuera del runtime, con origen y hashes conservados. No se modificó main remoto ni producción.
