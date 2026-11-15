@@ -7,7 +7,7 @@ import type { GameState } from './state';
 // sends a supply drop of materials, so the player is never stuck.
 
 /** Where the mission points the player: a building slot, or an activity. */
-export type MissionTarget = BuildingKind | 'dig' | 'greenhouseUse';
+export type MissionTarget = BuildingKind | 'dig' | 'greenhouseUse' | 'iceCrater';
 
 export interface Mission {
   id: string;
@@ -36,6 +36,7 @@ export const MISSIONS: Mission[] = [
   { id: 'battery', from: 'radio', target: 'battery', unlocks: ['battery'], reward: 15, progress: count('battery') },
   { id: 'shield', from: 'radio', target: 'shield', unlocks: ['shield'], reward: 20, progress: level('shield') },
   { id: 'grow', from: 'radio', target: 'station', unlocks: ['harvesterRobot'], reward: 30, progress: (s) => ({ have: Math.min(2, s.levels.station), need: 2 }) },
+  { id: 'ice', from: 'radio', target: 'iceCrater', unlocks: [], reward: 30, progress: (s) => ({ have: Math.min(15, Math.floor(s.stats.iceDelivered)), need: 15 }) },
   // Last: free play towards a stable colony (never auto-completes).
   { id: 'colony', from: 'radio', target: 'station', unlocks: [], reward: 0, progress: (s) => ({ have: Math.min(5, s.levels.station), need: 6 }) },
 ];

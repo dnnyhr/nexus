@@ -3,9 +3,14 @@
 // Values are first guesses for the demo and are meant to be adjusted while play-testing.
 
 export const CYCLE = {
-  /** One full lunar day + night in real seconds (10 + 10 min). Real: ~29.5 Earth days. */
-  daySeconds: 600,
-  nightSeconds: 600,
+  /**
+   * Light and dark periods in real seconds. The base sits on a ridge near the lunar south
+   * pole, where Artemis plans to land: the Sun skims the horizon and lights these ridges more
+   * than 80 % of the year, so darkness is short and rare. (At the Apollo sites, near the
+   * equator, a lunar night lasts about 14 Earth days.)
+   */
+  daySeconds: 960,
+  nightSeconds: 240,
 };
 
 export const STORAGE = {
@@ -55,6 +60,8 @@ export const COLLECT = {
   /** Base bag size (level 1), kept for older code and tests. */
   carryMax: 12,
   robotPerSecond: 0.45,
+  /** Regolith a collector robot brings per trip, by robot level (1-3). */
+  robotLoad: [8, 12, 16],
 };
 
 export const GREENHOUSE = {
@@ -135,6 +142,16 @@ export const RESCUE = {
   refill: 0.45,
   materials: 30,
   healthAfter: 45,
+};
+
+/** Expedition rover. Ice from the permanently shadowed crater becomes water at the base. */
+export const ROVER = {
+  maxSpeed: 6,
+  accel: 4,
+  iceCargoMax: 30,
+  icePerScoop: 15,
+  /** Water gained per unit of ice delivered (melted and filtered). */
+  waterPerIce: 1,
 };
 
 export const OFFLINE = {

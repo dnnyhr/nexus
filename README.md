@@ -23,7 +23,7 @@ Every choice costs something, just like in real mission planning:
 
 - **Shelter or keep working?** A solar storm is coming. Sending the crew to the shelter protects them from radiation,
   but robots and the greenhouse stop.
-- **Where does the night's power go?** The lunar night lasts about 14 Earth days. Battery energy has to be split
+- **Where does the power go in the dark?** On the ridges near the south pole the Sun shines more than 80% of the year, but darkness still comes (near the equator a lunar night lasts about 14 Earth days). Battery energy has to be split
   between life support, heating, and the greenhouse lights.
 - **Grow or protect?** Regolith can become building material or radiation shielding, but not both.
 
@@ -77,7 +77,7 @@ comida. Desde la Tierra, los controladores de vuelo te envían mediciones reales
 
 - **¿Refugio o seguir trabajando?** Si llega una tormenta solar, el refugio protege de la radiación, pero los robots y
   el invernadero se detienen.
-- **¿A qué va la energía de la noche?** La noche lunar dura unos 14 días terrestres, y la batería se reparte entre el
+- **¿A qué va la energía en la oscuridad?** En las crestas del polo sur el Sol ilumina más del 80 % del año, pero la oscuridad llega igual (cerca del ecuador la noche dura unos 14 días terrestres), y la batería se reparte entre el
   soporte vital, la calefacción y las luces del invernadero.
 - **¿Crecer o protegerse?** El regolito sirve como material de construcción o como blindaje, pero no para las dos cosas.
 
