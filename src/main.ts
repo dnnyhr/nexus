@@ -141,6 +141,8 @@ const drops = new CargoDrops((at) => {
 scene.add(drops.group);
 
 const clock = new THREE.Clock();
+// Dev only: frame-by-frame capture for the trailer (each step advances exactly 1/30 s).
+const capture = { manual: false, pending: 0 };
 
 // ---- Modes: the start menu, free mode (the persistent base) and Mission 1 ---------------
 // The menu runs no economy. A mission takes over the game state while it runs and never
@@ -615,7 +617,7 @@ function maybeImpact(): void {
     }
   }
 }
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, hud, mission: () => mission, missionCmd: (c: Command) => missionCmd(c), missionSkip: (sec: number) => { for (let i = 0; i < sec / SIM_STEP && mission?.phase === 'running'; i++) { worldStep(mission); flushMissionEvents(); } }, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
+if (import.meta.env.DEV) Object.assign(window, { game: { capture, enterFree: () => enterFree(), startRun: (d: Design) => startRun(d), openCommander: () => openCommander(), light, cx, state, marker, player, base, hud, mission: () => mission, missionCmd: (c: Command) => missionCmd(c), missionSkip: (sec: number) => { for (let i = 0; i < sec / SIM_STEP && mission?.phase === 'running'; i++) { worldStep(mission); flushMissionEvents(); } }, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its
@@ -892,8 +894,15 @@ else showMenu();
 let acc = 0;
 let frame = 0;
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.1);
-  adaptQuality(dt);
+  let dt = Math.min(clock.getDelta(), 0.1);
+  if (capture.manual) {
+    if (capture.pending <= 0) return;
+    capture.pending--;
+    dt = 1 / 30;
+    clock.elapsedTime += dt;
+  } else {
+    adaptQuality(dt);
+  }
   renderer.shadowMap.needsUpdate = frame++ % 2 === 0;
   // Only free mode and a running, unpaused mission advance the simulation (the menu does not).
   acc += mode === 'free' ? dt : mode === 'mission' && !missionPaused ? dt * missionSpeed : 0;
