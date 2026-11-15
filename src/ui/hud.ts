@@ -138,7 +138,7 @@ export class Hud {
   private dataBtn: HTMLButtonElement;
   private profileBtn: HTMLButtonElement;
   dataPanel: (() => HTMLElement) | null = null;
-  private showerName: string | null = null;
+  private showerName: { es: string; en: string } | null = null;
   private rail = el('div.rail');
   private railDone = el('div.done-line');
   private nodes: HTMLElement[] = [];
@@ -149,8 +149,10 @@ export class Hud {
   private radioBox = el('div', { id: 'radio', class: 'hidden interactive' });
   private radioFrom = el('span.label');
   private radioMsg = el('div.msg');
-  private radioQueue: { from: string; text: string; delay: number }[] = [];
-  private radioTyping: { text: string; shown: number } | null = null;
+  // Radio texts are kept as functions, so a language switch retranslates the message on
+  // screen and the ones still waiting.
+  private radioQueue: { fromLander: boolean; text: () => string; delay: number }[] = [];
+  private radioTyping: { fromLander: boolean; text: () => string; shown: number } | null = null;
   private prompt = el('button', { id: 'prompt', class: 'hidden' });
   private promptAnchor: THREE.Vector3 | null = null;
   private hint = el('div.hint');
@@ -210,6 +212,7 @@ export class Hud {
 
     onLangChange(() => {
       markLang();
+      this.drawRadio();
       this.root.querySelectorAll<HTMLElement>('[data-label]').forEach((n) => setText(n, t(n.dataset.label as StringKey)));
       if (this.panel) this.reopen();
       this.refresh();
@@ -221,16 +224,17 @@ export class Hud {
 
   /** Queue a transmission. Radio messages arrive with the Earth-Moon delay (1.3 s). */
   radio(mission: Mission): void {
-    this.radioText(t(`m_${mission.id}_text` as StringKey), mission.from === 'lander');
+    this.radioText(() => t(`m_${mission.id}_text` as StringKey), mission.from === 'lander');
   }
 
-  radioText(text: string, fromLander = false): void {
-    this.radioQueue.push({ from: fromLander ? t('landerComputer') : t('radioFrom'), text, delay: fromLander ? 0.3 : 1.3 });
+  /** Pass a function (() => t(...)) so the message follows the language switch. */
+  radioText(text: string | (() => string), fromLander = false): void {
+    this.radioQueue.push({ fromLander, text: typeof text === 'string' ? () => text : text, delay: fromLander ? 0.3 : 1.3 });
     if (!this.radioTyping && this.radioBox.classList.contains('hidden')) this.nextRadio();
   }
 
   /** Active meteor shower shown under the lunar clock (null when none). */
-  setShower(name: string | null): void {
+  setShower(name: { es: string; en: string } | null): void {
     this.showerName = name;
   }
 
@@ -242,9 +246,16 @@ export class Hud {
       return;
     }
     this.radioBox.classList.remove('hidden');
-    setText(this.radioFrom, next.from);
-    setText(this.radioMsg, t('receiving'));
-    this.radioTyping = { text: next.text, shown: -next.delay * 60 };
+    this.radioTyping = { fromLander: next.fromLander, text: next.text, shown: -next.delay * 60 };
+    this.drawRadio();
+  }
+
+  /** Sender and message in the current language (also after a language switch). */
+  private drawRadio(): void {
+    const r = this.radioTyping;
+    if (!r) return;
+    setText(this.radioFrom, r.fromLander ? t('landerComputer') : t('radioFrom'));
+    setText(this.radioMsg, r.shown < 0 ? t('receiving') : r.text().slice(0, Math.floor(r.shown)));
   }
 
   // ---- Panels -------------------------------------------------------------------------
@@ -316,7 +327,8 @@ export class Hud {
     if (name === getPlayerName()) return;
     saveProfile({ name });
     setPlayerName(name);
-    this.radioText(this.deps.s.levels.antenna ? t('nameAckRadio') : t('nameAckLander'), !this.deps.s.levels.antenna);
+    const radio = !!this.deps.s.levels.antenna;
+    this.radioText(() => t(radio ? 'nameAckRadio' : 'nameAckLander'), !radio);
   }
 
   /** Solar storm alert: countdown, dose, and a red pulse when caught outside. */
@@ -486,7 +498,7 @@ export class Hud {
     setText(this.clockLabel, ph.isDay ? t('lunarDay') : t('lunarNight'));
     const sec = Math.ceil(ph.secondsLeft);
     setText(this.clockValue, `T−${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`);
-    setText(this.showerTag, this.showerName ? `${t('shower')} · ${this.showerName}` : '');
+    setText(this.showerTag, this.showerName ? `${t('shower')} · ${this.showerName[getLang()]}` : '');
     this.showerTag.style.display = this.showerName ? '' : 'none';
     setText(this.counts.mat, String(Math.floor(s.res.materials)));
     setText(this.counts.reg, String(Math.floor(s.res.regolith)));
@@ -508,7 +520,7 @@ export class Hud {
     // Radio typewriter.
     if (this.radioTyping) {
       this.radioTyping.shown += dt * 60;
-      if (this.radioTyping.shown >= 0) setText(this.radioMsg, this.radioTyping.text.slice(0, Math.floor(this.radioTyping.shown)));
+      if (this.radioTyping.shown >= 0) this.drawRadio();
     }
     if (this.promptAnchor && !this.prompt.classList.contains('hidden')) {
       const sp = this.toScreen(this.promptAnchor);
