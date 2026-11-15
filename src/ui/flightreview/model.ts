@@ -59,8 +59,12 @@ export function commandText(command: Command): string {
   switch (command.type) {
     case 'setGrowLights': return `Luces de cultivo → ${numberText(command.value)} %`;
     case 'setPower': {
-      const system = { heating: 'Calefacción', processor: 'Procesador', robots: 'Robots' }[command.system];
+      const system = { heating: 'Calefacción', processor: 'Procesador', robots: 'Robots', greenhouse: 'Invernadero' }[command.system];
       return `${system} → ${command.on ? 'encendido' : 'apagado'}`;
+    }
+    case 'setPriority': {
+      const names = { lifeSupport: 'Soporte vital', heating: 'Calefacción', processor: 'Procesador', robots: 'Robots', greenhouse: 'Invernadero' };
+      return `Prioridad eléctrica → ${command.order.map((c) => names[c]).join(' › ')}`;
     }
     case 'adjustClimate': return command.dir === 1 ? 'Subir temperatura' : 'Bajar temperatura';
     case 'irrigate': return 'Regar cultivo';
