@@ -134,10 +134,10 @@ const STRINGS = {
   // ---- Missions: radio text, short title (timeline) and objective (with progress) ----
   m_antenna_title: { es: 'Antena', en: 'Antenna' },
   m_antenna_goal: { es: 'Construye la antena', en: 'Build the antenna' },
-  m_antenna_text: { es: 'Bienvenido a la Luna. Sin antena no podemos hablar con la Tierra. Camina hasta el anillo naranja y constrúyela.', en: 'Welcome to the Moon. Without an antenna we can’t talk to Earth. Walk to the orange ring and build it.' },
+  m_antenna_text: { es: 'Te damos la bienvenida a la Luna, {player}. Sin antena no podemos hablar con la Tierra. Camina hasta el anillo naranja y constrúyela.', en: 'Welcome to the Moon, {player}. Without an antenna we can’t talk to Earth. Walk to the orange ring and build it.' },
   m_dig_title: { es: 'Regolito', en: 'Regolith' },
   m_dig_goal: { es: 'Excava regolito {have}/{need}', en: 'Dig regolith {have}/{need}' },
-  m_dig_text: { es: 'Aquí el comandante Rivera, desde la Tierra. ¡Te escuchamos! Para construir necesitas regolito: el polvo y las rocas de la Luna. Excava con clic derecho (o el botón Excavar) hasta llenar tu bolsa.', en: 'Commander Rivera here, from Earth. We hear you! To build you need regolith: the Moon’s dust and rocks. Dig with right click (or the Dig button) until your bag is full.' },
+  m_dig_text: { es: 'Aquí el comandante Rivera, desde la Tierra. ¡Te escuchamos, {player}! Para construir necesitas regolito: el polvo y las rocas de la Luna. Excava con clic derecho (o el botón Excavar) hasta llenar tu bolsa.', en: 'Commander Rivera here, from Earth. We hear you, {player}! To build you need regolith: the Moon’s dust and rocks. Dig with right click (or the Dig button) until your bag is full.' },
   m_processor_title: { es: 'Procesador', en: 'Processor' },
   m_processor_goal: { es: 'Construye el procesador', en: 'Build the processor' },
   m_processor_text: { es: 'Muy bien. Ahora construye el procesador: saca oxígeno y materiales del regolito. Más del 40 % de su peso es oxígeno.', en: 'Well done. Now build the processor: it gets oxygen and materials out of regolith. Over 40% of its weight is oxygen.' },
@@ -183,14 +183,21 @@ const STRINGS = {
   lunarDay: { es: 'Luz solar', en: 'Sunlight' },
   lunarNight: { es: 'Oscuridad', en: 'Darkness' },
   ok: { es: 'Entendido', en: 'Got it' },
+  profile: { es: 'Perfil', en: 'Profile' },
+  profileName: { es: 'Tu nombre de astronauta', en: 'Your astronaut name' },
+  profileHint: { es: 'Así te llamarán por radio desde la Tierra.', en: 'This is what Earth will call you on the radio.' },
+  defaultName: { es: 'Astronauta', en: 'Astronaut' },
+  saveName: { es: 'Guardar', en: 'Save' },
+  nameAckRadio: { es: 'Recibido, {player}. Así te llamaremos desde la Tierra.', en: 'Copy that, {player}. That is what we will call you from Earth.' },
+  nameAckLander: { es: 'Nombre registrado: {player}.', en: 'Name logged: {player}.' },
   rescueNews: {
     es: 'Aquí Rivera. La base está en emergencia y la tripulación corre peligro: te enviamos una cápsula de carga con oxígeno, agua, comida, energía y {mat} materiales. Consejo: repara primero lo que da energía, guarda batería para la noche y entra al refugio en las tormentas.',
     en: 'Rivera here. The base is in an emergency and the crew is in danger: we are sending a cargo pod with oxygen, water, food, power and {mat} materials. Tip: repair what makes power first, keep battery for the night and get in the shelter during storms.',
   },
   rescueLanded: { es: 'Cápsula de emergencia · +{mat} materiales', en: 'Emergency pod · +{mat} materials' },
   welcomeBack: {
-    es: 'Bienvenido de vuelta. Estuviste fuera {time}. Mientras tanto la base produjo {mat} materiales y {o2} de oxígeno{harvest}.{plant}',
-    en: 'Welcome back. You were away {time}. Meanwhile the base made {mat} materials and {o2} oxygen{harvest}.{plant}',
+    es: 'Hola de nuevo, {player}. Estuviste fuera {time}. Mientras tanto la base produjo {mat} materiales y {o2} de oxígeno{harvest}.{plant}',
+    en: 'Welcome back, {player}. You were away {time}. Meanwhile the base made {mat} materials and {o2} oxygen{harvest}.{plant}',
   },
   welcomePlant: { es: ' Tu planta tiene {stress} % de estrés: revísala.', en: ' Your plant is at {stress}% stress: check on it.' },
   welcomeHarvest: { es: ', y se cosecharon {n} plantas', en: ', and {n} plants were harvested' },
@@ -278,7 +285,20 @@ export function onLangChange(fn: () => void): void {
   listeners.add(fn);
 }
 
-/** Translate a key, filling {placeholders} from `vars`. */
+let playerName = '';
+
+/** The astronaut's name from the profile ('' uses the default "Astronaut"). */
+export function setPlayerName(name: string): void {
+  playerName = name;
+  listeners.forEach((fn) => fn());
+}
+
+export function getPlayerName(): string {
+  return playerName;
+}
+
+/** Translate a key, filling {placeholders} from `vars`; {player} is the astronaut's name. */
 export function t(key: StringKey, vars: Record<string, string | number> = {}): string {
-  return STRINGS[key][lang].replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
+  const all: Record<string, string | number> = { player: playerName || STRINGS.defaultName[lang], ...vars };
+  return STRINGS[key][lang].replace(/\{(\w+)\}/g, (_, k: string) => String(all[k] ?? ''));
 }
