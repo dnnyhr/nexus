@@ -119,17 +119,6 @@ if (!reduceMotion) {
   gsap.fromTo('.final-patch', { rotate: -25, scale: 0.7 }, { rotate: 0, scale: 1, ease: 'back.out(1.6)', duration: 1.2, scrollTrigger: { trigger: '.final', start: 'top 80%' } });
 }
 
-// ---- The trailer plays (muted) when it comes into view -----------------------------------
-const video = document.getElementById('promo') as HTMLVideoElement | null;
-if (video && 'IntersectionObserver' in window && !reduceMotion) {
-  new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (e.isIntersecting) void video.play().catch(() => {});
-      else video.pause();
-    }
-  }, { threshold: 0.5 }).observe(video);
-}
-
 // ---- WebGL Moon, loaded after the page has painted (and not when data is precious) -------
 const canvas = document.getElementById('moon') as HTMLCanvasElement | null;
 const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
