@@ -107,8 +107,32 @@ describe('mission mechanics', () => {
     const p = project(ms, [{ type: 'harvest' }], { kind: 'seconds', value: 0.25 });
     expect(p.events.filter(e => e.kind === 'harvest')).toHaveLength(1);
     expect(ms.game.stats.harvests).toBe(1);
-    const noHuman = project(ms, [], { kind: 'seconds', value: 10 });
-    expect(noHuman.events.filter(e => e.kind === 'harvest')).toHaveLength(0);
+    MISSION_RULES.routine.enabled = false;
+    try {
+      const noHuman = project(ms, [], { kind: 'seconds', value: 10 });
+      expect(noHuman.events.filter(e => e.kind === 'harvest')).toHaveLength(0);
+    } finally {
+      MISSION_RULES.routine.enabled = true;
+    }
+    const automated = project(ms, [], { kind: 'seconds', value: 10 });
+    const harvests = automated.events.filter(e => e.kind === 'harvest');
+    expect(harvests).toHaveLength(1);
+    expect(harvests[0].text).toContain('rutina automática');
+  });
+
+  it('the greenhouse routine waters and harvests by rule, never as a logged player command', () => {
+    const ms = startMission(emptyDesign());
+    advance(ms, 200);
+    expect(ms.log).toHaveLength(0);
+    expect(ms.ledger.water.irrigation).toBeLessThan(0);
+    expect(ms.game.plant.dead).toBe(false);
+    expect(ms.game.stats.harvests).toBeGreaterThanOrEqual(1);
+    expect(replay(ms.design, ms.log, ms.t)).toEqual(ms);
+    const shelter = startMission(emptyDesign());
+    applyCommand(shelter, { type: 'enterShelter' });
+    shelter.game.plant.water = 10;
+    worldStep(shelter);
+    expect(shelter.ledger.water.irrigation).toBe(0);
   });
 
   it('reports real reached horizon, plan rejections and partial final samples', () => {

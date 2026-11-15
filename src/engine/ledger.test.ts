@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { capacity } from '../game/sim';
-import { applyCommand, emptyDesign, startMission, worldStep } from './index';
+import { applyCommand, emptyDesign, MISSION_RULES, startMission, worldStep } from './index';
 import type { MissionState } from './types';
 
 function expectClosure(ms: MissionState, before: MissionState): void {
@@ -26,6 +26,30 @@ describe('causal ledger', () => {
   });
 
   it('closes intervals containing commands, darkness, saturation, shelter and harvests', () => {
+    MISSION_RULES.routine.enabled = false;
+    try {
+      closesIntervals();
+    } finally {
+      MISSION_RULES.routine.enabled = true;
+    }
+  });
+
+  it('attributes the automated greenhouse routine to irrigation and climate and still closes', () => {
+    const ms = startMission({ ...emptyDesign(), batteries: 1 });
+    const initial = structuredClone(ms);
+    for (let i = 0; i < 1600 && ms.phase === 'running'; i++) {
+      const before = structuredClone(ms);
+      worldStep(ms);
+      expectClosure(ms, before);
+    }
+    expectClosure(ms, initial);
+    expect(ms.ledger.water.irrigation).toBeLessThan(0);
+    expect(ms.log).toHaveLength(0);
+  });
+});
+
+function closesIntervals(): void {
+  {
     const ms = startMission({ ...emptyDesign(), greenhouse: 2, batteries: 1, processor: 1 });
     ms.game.res.energy = capacity(ms.game).energy;
     const initial = structuredClone(ms);
@@ -44,7 +68,10 @@ describe('causal ledger', () => {
     expect(ms.ledger.energy.shelter).toBeLessThan(0);
     expect(ms.ledger.water.irrigation).toBe(-2);
     expect(ms.ledger.energy.climate).toBe(-3);
-  });
+  }
+}
+
+describe('causal ledger (continued)', () => {
 
   it('records actual stored harvest instead of nominal yield at capacity', () => {
     const ms = startMission(emptyDesign());

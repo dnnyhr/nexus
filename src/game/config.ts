@@ -83,6 +83,12 @@ export const MISSION = {
    */
   stationDischarge: 1.2,
   dischargePerBattery: 0.8,
+  /**
+   * Automated greenhouse care, like the ISS Advanced Plant Habitat: every few seconds it waters,
+   * corrects temperature and harvests, paying the same water and energy as the manual actions.
+   * It cannot make power: with heating shed and an empty battery it can no longer heat.
+   */
+  routine: { enabled: true, every: 5, waterBelow: 38, tempMin: 42, tempMax: 58 },
   prices: {
     solarMasts: 40, batteries: 50, greenhouse: 60, processor: 50, shield: 40,
     reserveO2: 15, reserveWater: 15, reserveFood: 15,

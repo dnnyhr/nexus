@@ -4,6 +4,7 @@ import { capacity, clamp, resolvePower, step, stepGreenhouse, type PowerOptions 
 import type { GameState } from '../game/state';
 import { protection } from '../game/storm';
 import { RESOURCES } from './ledger';
+import { crewRoutine } from './routine';
 import { MISSION_RULES } from './mission1';
 import { darknessAt, figure, sample, scenarioEvents, syncStorm, updateMinimum } from './observation';
 import { SAMPLE_EVERY, STEP, type FailureCode, type MissionState } from './types';
@@ -50,6 +51,7 @@ export function missionPowerOptions(s: GameState): Required<PowerOptions> {
 
 export function worldStep(ms: MissionState): void {
   if (ms.phase !== 'running') return;
+  crewRoutine(ms);
   const s = ms.game;
   const previous = ms.t;
   const before = { ...s.res };
