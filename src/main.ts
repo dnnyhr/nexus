@@ -24,7 +24,6 @@ import { mountMissionBar } from './ui/mission/missionBar';
 import { mountCommander } from './ui/mission/commander';
 import { mountReport } from './ui/mission/report';
 import './ui/mission/report.css';
-import { mountBackgroundMusic } from './ui/backgroundMusic';
 import { mountTitle, type TitleHandle } from './ui/shell/titleScreen';
 import { createTitleScene } from './ui/shell/titleScene';
 import { CinematicDirector } from './scene/cinematics/director';
@@ -483,7 +482,6 @@ function startFree(restored?: GameState): void {
   hud.setShower(shower ? shower.shower.name : null);
   // First time here: ask the astronaut's name (it can be changed any time in Profile).
   if (!profile && !getPlayerName()) hud.openProfile();
-  bgm.play();
   if (away && away.seconds > 60) {
     const h = Math.floor(away.seconds / 3600);
     const m = Math.round((away.seconds % 3600) / 60);
@@ -726,7 +724,6 @@ document.body.append(barRoot, overlay);
 const showOverlay = (on: boolean) => { overlay.style.display = on ? '' : 'none'; };
 /** While a full-screen view owns the screen, the mission HUD steps out of the way. */
 const coverHud = (on: boolean) => document.body.classList.toggle('nx-overlay', on);
-const bgm = mountBackgroundMusic({ root: document.querySelector<HTMLElement>('#topright') ?? document.body });
 
 let title: TitleHandle | null = null;
 let screen: Mounted | null = null;
@@ -745,7 +742,6 @@ function dispatch(cmd: Command): CommandResult {
 
 /** Title menu over the 3D space scene. Leaving it fades out; it never runs the economy. */
 function showTitle(): void {
-  bgm.pause();
   mode = 'menu';
   document.body.classList.add('nx-on-title');
   titleScene.frame(camera);
@@ -816,7 +812,6 @@ function startMissionMode(design: Design, restored?: MissionState): void {
   barRoot.querySelector('.m-controls')?.insertBefore(evacuate, barRoot.querySelector('.m-status'));
   evacuate.hidden = false;
   controls.update();
-  bgm.play();
   // Earth launch, cislunar transit and touchdown; the camera ends on the exact gameplay pose.
   if (restored) { runner.paused = true; eventsSeen = ms.events.length; if (ms.phase !== 'running') { ended = true; showDebrief(ms); } }
   else playSequence('arrival', () => { canvas.focus({ preventScroll: true }); });
