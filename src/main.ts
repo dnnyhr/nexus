@@ -11,9 +11,17 @@ import { RESCUE, ROVER } from './game/config';
 import { loadSpaceWeather, radiationScale, snapshotWeather, SOURCES, type SpaceWeather } from './data/spaceweather';
 import { el } from './ui/dom';
 import { advanceMission, currentMission, MISSIONS, unlocked } from './game/missions';
-import { carryMax, collectByHand, deliverRegolith, robotUnload, tick, type PowerReport } from './game/sim';
+import { carryMax, collectByHand, deliverRegolith, resolvePower, robotUnload, tick, type PowerReport } from './game/sim';
 import { cyclePhase, newGame, type GameState } from './game/state';
 import { clearSave, loadGame, saveGame, simulateOffline } from './game/save';
+import { fixedStepClock } from './game/loop';
+import { createMissionRunner, darknessAt, startMission, summarize, type Command, type CommandResult, type Design, type MissionEvent, type MissionRunner, type Summary } from './engine';
+import { mountPrepare, mountStartMenu, type Mounted } from './ui/mission/prepare';
+import { mountMissionBar } from './ui/mission/missionBar';
+import { mountCommander, type CommanderHandle } from './ui/mission/commander';
+import { mountReport, type ReportHandle } from './ui/mission/report';
+import { commandText } from './ui/mission/commanderTexts';
+import './ui/mission/report.css';
 import { animateModel, findModel, poke } from './models/anim';
 import { animateSharedMaterials, setNightLevel } from './models/palette';
 import { CargoDrops, createMarker, Effects, Flashes } from './scene/fx';
@@ -77,17 +85,22 @@ const light = createLighting(scene, 34);
 const terrain = createTerrain();
 scene.add(createSky(), terrain);
 
-// Resume the saved game (simulating the time away), or start a new one.
+// The saved game is only shown behind the start menu; it runs, and catches up the time away,
+// once free mode is chosen. A mission swaps in its own state and never touches the save.
 const loaded = loadGame();
 // The astronaut's name (kept apart from the save, so a new game keeps it).
 const profile = loadProfile();
 if (profile) setPlayerName(profile.name);
-export const state: GameState = loaded ?? newGame();
-const away = loaded ? simulateOffline(state, (Date.now() - loaded.savedAt) / 1000) : null;
+export let state: GameState = loaded ?? newGame();
+type Mode = 'menu' | 'free' | 'mission';
+let mode: Mode = 'menu';
+let runner: MissionRunner | null = null;
+/** Bumped when the state is replaced, so deferred work started before cannot act on the new one. */
+let epoch = 0;
 const base = new BaseView();
 scene.add(base.group);
 
-let power: PowerReport = tick(state, 0);
+let power: PowerReport = resolvePower(structuredClone(state), SIM_STEP, cyclePhase(state.time).isDay);
 const fx = new Effects();
 scene.add(fx.group);
 const marker = createMarker();
@@ -110,23 +123,23 @@ const hud = new Hud({
   changed: () => syncWorld(),
   poke: (o) => { if (o) poke(o, clock.elapsedTime); },
   action: () => doAction(),
-  newGame: () => { clearSave(); resetting = true; location.reload(); },
+  newGame: () => { if (mode !== 'free') return; clearSave(); resetting = true; location.reload(); },
   jump: () => player.jump(),
   dig: () => dig(),
+  get dispatch() { return mode === 'mission' ? dispatch : undefined; },
 });
-// First time here: ask the astronaut's name (it can be changed any time in Profile).
-if (!profile) hud.openProfile();
 
 /** Buildings and build sites follow the state (and what the missions have unlocked). */
 // Collector robots deliver one bucket per trip to the processor.
 base.onRobotUnload = (robot) => {
+  if (mode !== 'free') return;
   const n = robotUnload(state);
   hud.float(robot.position.clone().add(new THREE.Vector3(0, 1.8, 0)), n > 0 ? t('robotDelivered', { n }) : t('hopperFull'), n === 0);
 };
 
 function syncWorld(): void {
   base.sync(state);
-  base.syncSites(state, unlocked(state));
+  base.syncSites(state, mode === 'mission' ? new Set() : unlocked(state));
 }
 syncWorld();
 
@@ -177,7 +190,7 @@ type Act =
 
 /** What F / the prompt would do right now: build here, deliver regolith, or use what is near. */
 function currentAct(): Act | null {
-  if (state.sheltered || player.isBusy()) return null;
+  if (mode === 'menu' || state.sheltered || player.isBusy()) return null;
   // Driving: scoop ice in the dark crater, unload it at the habitat or greenhouse, or get out.
   if (state.rover.driving) {
     const rv = base.rover();
@@ -194,7 +207,7 @@ function currentAct(): Act | null {
     return { type: 'shelter', obj: shelter };
   }
   const panel = near && panelKind(near);
-  if (near && panel === 'rover') return { type: 'board', obj: near };
+  if (near && panel === 'rover' && mode === 'free') return { type: 'board', obj: near };
   const key = near && base.keyOf(near);
   if (near && key && damageOf(state, key) > 0) return { type: 'repair', key, obj: near };
   if (near && panel === 'processor' && state.carried > 0) return { type: 'deliver', obj: near };
@@ -241,7 +254,12 @@ function doAction(): void {
     return;
   }
   if (act.type === 'shelter') {
-    state.sheltered = true;
+    if (mode === 'mission') {
+      const r = dispatch({ type: 'enterShelter' });
+      if (!r.ok) return hud.float(topOf(act.obj), r.reason ?? '', true);
+    } else {
+      state.sheltered = true;
+    }
     hud.close();
     hud.float(topOf(act.obj), t('inShelter', { p: Math.round(protection(state) * 100) }));
     return;
@@ -258,11 +276,14 @@ function doAction(): void {
     return;
   }
   if (act.type === 'deliver') {
-    const amount = deliverRegolith(state);
+    const before = state.carried;
+    const r = mode === 'mission' ? dispatch({ type: 'deliverRegolith' }) : null;
+    const amount = r ? before - state.carried : deliverRegolith(state);
     poke(act.obj, clock.elapsedTime);
-    hud.float(topOf(act.obj), amount > 0 ? t('delivered', { n: amount }) : t('hopperFull'), amount === 0);
+    hud.float(topOf(act.obj), amount > 0 ? t('delivered', { n: amount }) : r && !r.ok && r.reason ? r.reason : t('hopperFull'), amount === 0);
     return;
   }
+  if (mode !== 'free') return;
   const check = checkBuild(state, act.kind);
   if (!check.ok) {
     hud.float(topOf(act.obj), check.reason === 'materials' ? t('needMaterials', { n: Math.ceil((check.cost ?? 0) - state.res.materials) }) : t('maxed'), true);
@@ -283,20 +304,32 @@ function doAction(): void {
 
 /** Dig regolith into the bag, facing `towards` when given (right click on the ground). */
 function dig(towards?: THREE.Vector3): void {
-  if (state.sheltered || player.isBusy() || player.airborne) return;
+  if (mode === 'menu' || state.sheltered || player.isBusy() || player.airborne) return;
   if (towards) player.obj.rotation.y = Math.atan2(towards.x - player.position.x, towards.z - player.position.z);
   const head = player.position.clone().add(new THREE.Vector3(0, 2.4, 0));
   if (state.carried >= carryMax(state)) return hud.float(head, t('bagFull'), true);
+  const started = epoch;
   player.work(1.1, () => {
+    if (started !== epoch) return;
     const at = player.position.clone().add(new THREE.Vector3(Math.sin(player.obj.rotation.y) * 0.7, 0, Math.cos(player.obj.rotation.y) * 0.7));
-    const got = collectByHand(state);
+    const above = at.clone().add(new THREE.Vector3(0, 1.6, 0));
+    let got: number;
+    if (mode === 'mission') {
+      const before = state.carried;
+      const r = dispatch({ type: 'collectRegolith' });
+      got = state.carried - before;
+      if (!r.ok) return hud.float(above, r.reason ?? t('bagFull'), true);
+    } else {
+      got = collectByHand(state);
+    }
     fx.dust(at);
-    hud.float(at.clone().add(new THREE.Vector3(0, 1.6, 0)), got > 0 ? t('regolithGain', { n: got }) : t('bagFull'), got === 0);
+    hud.float(above, got > 0 ? t('regolithGain', { n: got }) : t('bagFull'), got === 0);
   });
 }
 
 /** Keep the action prompt next to what the astronaut would act on. */
 function updatePrompt(): void {
+  if (mode === 'menu') return hud.setPrompt(null);
   player.obj.userData.load = state.carried / carryMax(state);
   player.obj.userData.bagLevel = state.levels.bag;
   if (player.isBusy()) return hud.setPrompt(player.position.clone().add(new THREE.Vector3(0, 2.3, 0)), t('busy'));
@@ -336,6 +369,11 @@ function updateMarker(t: number): void {
     (marker.userData.chevron as THREE.Object3D).rotation.y = t * 3;
     return;
   }
+  if (mode !== 'free') {
+    marker.visible = false;
+    hud.setTarget(null, player.position);
+    return;
+  }
   const m = currentMission(state);
   const from = state.rover.driving ? base.rover().position : player.position;
   if (m.target === 'iceCrater') {
@@ -365,24 +403,38 @@ function checkMissions(): void {
   syncWorld();
   colliders = base.colliders();
 }
-if (away && away.seconds > 60) {
-  const h = Math.floor(away.seconds / 3600);
-  const m = Math.round((away.seconds % 3600) / 60);
-  hud.radioText(t('welcomeBack', {
-    time: h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`,
-    mat: Math.max(0, away.materials),
-    o2: Math.max(0, away.o2),
-    harvest: away.harvests ? t('welcomeHarvest', { n: away.harvests }) : '',
-    plant: state.levels.greenhouse ? t('welcomePlant', { stress: away.plantStress }) : '',
-  }), true);
-} else {
-  hud.radio(currentMission(state));
+/** Free mode: catch up the time away, then run the base as it always did. */
+function startFree(): void {
+  mode = 'free';
+  const away = loaded ? simulateOffline(state, (Date.now() - loaded.savedAt) / 1000) : null;
+  power = tick(state, 0);
+  hud.setMode('free');
+  syncWorld();
+  colliders = base.colliders();
+  refreshWeather();
+  setInterval(refreshWeather, 10 * 60 * 1000);
+  hud.setShower(shower ? shower.shower.name[getLang()] : null);
+  // First time here: ask the astronaut's name (it can be changed any time in Profile).
+  if (!profile) hud.openProfile();
+  if (away && away.seconds > 60) {
+    const h = Math.floor(away.seconds / 3600);
+    const m = Math.round((away.seconds % 3600) / 60);
+    hud.radioText(t('welcomeBack', {
+      time: h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`,
+      mat: Math.max(0, away.materials),
+      o2: Math.max(0, away.o2),
+      harvest: away.harvests ? t('welcomeHarvest', { n: away.harvests }) : '',
+      plant: state.levels.greenhouse ? t('welcomePlant', { stress: away.plantStress }) : '',
+    }), true);
+  } else {
+    hud.radio(currentMission(state));
+  }
 }
 
 // ---- Saving: every 30 s, and whenever the page is hidden or closed ------------------------
 let resetting = false;
 function save(): void {
-  if (resetting) return;
+  if (resetting || mode !== 'free') return;
   state.player = { x: player.position.x, z: player.position.z };
   const rv = base.rover();
   Object.assign(state.rover, { x: rv.position.x, z: rv.position.z, rot: rv.rotation.y });
@@ -400,15 +452,12 @@ let shower = activeShower(new Date());
 let impactsSeen = 0;
 setInterval(() => {
   shower = activeShower(new Date());
-  hud.setShower(shower ? shower.shower.name[getLang()] : null);
+  hud.setShower(mode === 'free' && shower ? shower.shower.name[getLang()] : null);
 }, 1000);
-hud.setShower(shower ? shower.shower.name[getLang()] : null);
 
 // ---- Solar storms with real space weather ---------------------------------------------------
 let weather: SpaceWeather = snapshotWeather();
 const refreshWeather = () => loadSpaceWeather().then((w) => (weather = w));
-refreshWeather();
-setInterval(refreshWeather, 10 * 60 * 1000);
 const STORMS_FROM = MISSIONS.findIndex((m) => m.id === 'battery');
 
 /** The habitat once built; until then the lander is the only shelter. */
@@ -468,7 +517,7 @@ function maybeImpact(): void {
     if (shower) hud.radioText(t('showerNews', { name: shower.shower.name[getLang()] }));
   }
 }
-if (import.meta.env.DEV) Object.assign(window, { game: { state, marker, player, base, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
+if (import.meta.env.DEV) Object.assign(window, { game: { get state() { return state; }, runner: () => runner, marker, player, base, camera, controls, renderer, scene, power: () => power, sync: () => { syncWorld(); colliders = base.colliders(); }, storm: () => { state.storm.nextIn = 0; state.mission = Math.max(state.mission, STORMS_FROM); }, forceImpact: () => { const m = state.mission; state.mission = Math.max(m, IMPACTS_FROM); const r = Math.random; Math.random = () => 0; maybeImpact(); Math.random = r; state.mission = m; } } });
 
 // ---- Tapping the world -------------------------------------------------------------------
 // A tap is a press and release without dragging the camera. Tapping a structure opens its
@@ -583,42 +632,212 @@ function adaptQuality(dt: number): void {
   }
 }
 
-let acc = 0;
+// ---- Mission 1: menu, preparation, operation, commander, report, retry ----------------------
+
+const overlay = el('div', { id: 'mission-overlay' });
+Object.assign(overlay.style, {
+  position: 'fixed', inset: '0', zIndex: '30', overflowY: 'auto', display: 'none',
+  background: 'rgba(5, 5, 6, 0.55)', backdropFilter: 'blur(6px)', webkitBackdropFilter: 'blur(6px)',
+});
+const barRoot = el('div', { id: 'mission-bar-root' });
+Object.assign(barRoot.style, {
+  position: 'fixed', top: 'max(8px, env(safe-area-inset-top))', left: 'max(8px, env(safe-area-inset-left))',
+  width: 'min(540px, calc(100vw - 16px))', zIndex: '20', pointerEvents: 'none',
+});
+document.body.append(barRoot, overlay);
+const showOverlay = (on: boolean) => { overlay.style.display = on ? '' : 'none'; };
+
+let screen: Mounted | null = null;
+let missionBar: { update(): void; destroy(): void } | null = null;
+let commander: CommanderHandle | null = null;
+let report: ReportHandle | null = null;
+let previousSummary: Summary | null = null;
+let ended = false;
+let eventsSeen = 0;
+let lastShortageRadio = -Infinity;
+
+function dispatch(cmd: Command): CommandResult {
+  return runner ? runner.dispatch(cmd) : { ok: false, reason: 'Sin misión en curso' };
+}
+
+function showMenu(): void {
+  showOverlay(true);
+  screen = mountStartMenu(overlay, {
+    hasFreeSave: !!loaded,
+    onMission: () => { screen?.destroy(); showPrepare(); },
+    onFree: () => { screen?.destroy(); screen = null; showOverlay(false); startFree(); },
+  });
+}
+
+function showPrepare(initial?: Design, previous: Summary | null = null): void {
+  showOverlay(true);
+  screen = mountPrepare(overlay, {
+    initial, previous,
+    onConfirm: (design) => { screen?.destroy(); screen = null; showOverlay(false); startMissionMode(design); },
+    onBack: () => { screen?.destroy(); screen = null; if (mode === 'menu') showMenu(); else location.reload(); },
+  });
+}
+
+/** Swap in a fresh mission state: HUD, buildings, colliders, astronaut and camera follow it. */
+function startMissionMode(design: Design): void {
+  epoch++;
+  closeCommander();
+  report?.destroy();
+  report = null;
+  const ms = startMission(design);
+  runner = createMissionRunner(ms);
+  state = ms.game;
+  mode = 'mission';
+  ended = false;
+  eventsSeen = 0;
+  lastShortageRadio = -Infinity;
+  power = ms.lastPower;
+  hud.setState(state);
+  hud.setMode('mission');
+  hud.setShower(null);
+  syncWorld();
+  colliders = base.colliders();
+  base.parkRover(state.rover.x, state.rover.z, state.rover.rot);
+  player.position.set(state.player.x, 0, state.player.z);
+  player.unstick(colliders);
+  camera.position.set(state.player.x + 11, 13, state.player.z + 14);
+  controls.target.set(state.player.x, 0.8, state.player.z);
+  missionBar?.destroy();
+  missionBar = mountMissionBar(barRoot, {
+    getState: () => runner!.mission,
+    isPaused: () => runner!.paused,
+    getSpeed: () => runner!.speed,
+    onTogglePause: togglePause,
+    onSpeed: (v) => { if (runner) runner.speed = v; },
+    onOpenCommander: openCommander,
+  });
+}
+
+function togglePause(): void {
+  if (!runner || runner.blocked || runner.mission.phase !== 'running') return;
+  runner.paused = !runner.paused;
+  missionBar?.update();
+}
+
+/** The commander pauses the mission; closing restores the pause state it found. */
+function openCommander(): void {
+  if (!runner || commander || runner.mission.phase !== 'running') return;
+  const active = runner;
+  const wasPaused = active.paused;
+  const focusBack = document.activeElement as HTMLElement | null;
+  active.paused = true;
+  active.blocked = true;
+  hud.close();
+  const close = () => {
+    commander?.destroy();
+    commander = null;
+    active.blocked = false;
+    active.paused = wasPaused;
+    focusBack?.focus();
+  };
+  commander = mountCommander(document.body, {
+    getState: () => active.mission,
+    onClose: close,
+    onConfirm: (plan) => {
+      const results = active.confirm(plan);
+      results.forEach((r, i) => { if (!r.ok) hud.radioText(`${commandText(plan[i])}: ${r.reason ?? ''}`, true); });
+      close();
+    },
+  });
+  closeCommander = close;
+  // Focus goes into the dialog, so Esc and Tab act there and not on the control that opened it.
+  document.querySelector<HTMLElement>('.c-commander button')?.focus();
+}
+let closeCommander = (): void => {};
+
+const RADIO_EVENTS = new Set<MissionEvent['kind']>([
+  'darkness_warning', 'darkness_start', 'darkness_end', 'storm_warning', 'storm_start', 'storm_end',
+  'harvest', 'plant_dead', 'life_support_unpowered',
+]);
+
+function radioEvent(e: MissionEvent): void {
+  if (RADIO_EVENTS.has(e.kind)) hud.radioText(e.text, e.kind === 'harvest' || e.kind === 'plant_dead');
+  else if (e.kind === 'power_shortage' && e.t - lastShortageRadio >= 30) {
+    lastShortageRadio = e.t;
+    hud.radioText(e.text, true);
+  }
+}
+
+/** Once per frame in mission mode: radio for new events, the bar, and the report exactly once. */
+function missionFrame(active: MissionRunner): void {
+  const ms = active.mission;
+  for (; eventsSeen < ms.events.length; eventsSeen++) radioEvent(ms.events[eventsSeen]);
+  missionBar?.update();
+  if (ms.phase === 'running' || ended) return;
+  ended = true;
+  closeCommander();
+  active.blocked = true;
+  hud.close();
+  showOverlay(true);
+  report = mountReport(overlay, {
+    getState: () => ms,
+    previous: previousSummary,
+    onRetry: (design) => {
+      previousSummary = summarize(ms);
+      report?.destroy();
+      report = null;
+      showPrepare(design, previousSummary);
+    },
+    onMenu: () => location.reload(),
+  });
+}
+
+/** Behind the menu the camera drifts slowly around the base. */
+function menuOrbit(dt: number): void {
+  const offset = camera.position.clone().sub(controls.target).applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.06);
+  camera.position.copy(controls.target).add(offset);
+}
+
+const freeClock = fixedStepClock(SIM_STEP);
 let frame = 0;
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.1);
   adaptQuality(dt);
   renderer.shadowMap.needsUpdate = frame++ % 2 === 0;
-  acc += dt;
-  while (acc >= SIM_STEP) {
-    power = tick(state, SIM_STEP);
-    acc -= SIM_STEP;
-    checkMissions();
-    maybeImpact();
-    stormStep();
-    if (stepRescue(state, SIM_STEP)) {
-      hud.radioText(t('rescueNews', { mat: RESCUE.materials }));
-      drops.drop(new THREE.Vector3(-14, 0, 15.5));
-    }
+  if (mode === 'free') {
+    freeClock.advance(dt, () => {
+      power = tick(state, SIM_STEP);
+      checkMissions();
+      maybeImpact();
+      stormStep();
+      if (stepRescue(state, SIM_STEP)) {
+        hud.radioText(t('rescueNews', { mat: RESCUE.materials }));
+        drops.drop(new THREE.Vector3(-14, 0, 15.5));
+      }
+    });
+  } else if (mode === 'mission' && runner) {
+    runner.advance(dt);
+    power = runner.mission.lastPower;
+    missionFrame(runner);
   }
+  // The astronaut only moves when the world is live: not behind the menu, a pause or an overlay.
+  const live = mode === 'free' || (mode === 'mission' && !!runner && runner.canDispatch());
+  const pdt = live ? dt : 0;
   // Day and night fade smoothly; the Sun moves along the horizon.
-  const { isDay } = cyclePhase(state.time);
+  const isDay = mode === 'mission' && runner ? !darknessAt(runner.mission).isDark : cyclePhase(state.time).isDay;
   night += ((isDay ? 0 : 1) - night) * Math.min(1, dt * 0.4);
   light.setNight(night);
   setNightLevel(night);
   const az = sunAzimuth(state.time);
   light.sun.position.set(Math.cos(az) * 40, 4 + (1 - night) * 3, Math.sin(az) * 40);
 
-  cameraTurn(dt);
+  if (mode === 'menu') menuOrbit(dt);
+  else cameraTurn(dt);
   // The astronaut moves; the camera follows (keeping the angle the player chose).
   colliders = base.colliders();
+  const input = live ? moveInput() : new THREE.Vector2();
   if (state.rover.driving) {
     const rv = base.rover();
-    driver.update(dt, moveInput(), colliders.filter((c) => c.obj !== rv));
+    driver.update(pdt, input, colliders.filter((c) => c.obj !== rv));
     // The astronaut sits in the driver's seat and rides along.
     player.sitAt(rv, DRIVER_SEAT);
   } else {
-    player.update(dt, moveInput(), colliders, state.sheltered, keys.has(' ') || hud.jumpHeld());
+    player.update(pdt, input, colliders, state.sheltered, live && (keys.has(' ') || hud.jumpHeld()));
   }
   animateModel(player.obj, clock.elapsedTime, dt);
   const focus = state.rover.driving ? base.rover().position : player.position;
@@ -633,7 +852,7 @@ renderer.setAnimationLoop(() => {
   fx.update(dt);
   flashes.update(dt);
   drops.update(dt);
-  hud.setStorm(state.storm.phase === 'none' ? null : {
+  hud.setStorm(mode !== 'free' || state.storm.phase === 'none' ? null : {
     phase: state.storm.phase,
     seconds: state.storm.timeLeft,
     label: state.storm.flare ? state.storm.flare.class : `S${radiationScale(weather.protons.flux)}`,
@@ -645,3 +864,4 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
+showMenu();
