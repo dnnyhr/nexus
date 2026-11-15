@@ -97,6 +97,8 @@ const TEXTS = {
   barRunning: { es: 'En marcha', en: 'Running' },
   barEnded: { es: 'Misión terminada', en: 'Mission over' },
   barCommander: { es: 'Comandante', en: 'Commander' },
+  barSkip: { es: 'Siguiente evento ⏭', en: 'Next event ⏭' },
+  barSkipHint: { es: 'Avanza sin esperar hasta el próximo aviso, inicio o fin. La simulación no se salta: corre los mismos pasos.', en: 'Fast-forward to the next warning, start or end. The simulation is not skipped: it runs the same steps.' },
   barClock: { es: '{t} / {d} s', en: '{t} / {d} s' },
   barExposure: { es: 'Exposición {x} u de {limit} u', en: 'Exposure {x} u of {limit} u' },
   barWindows: { es: 'Oscuridad {dStart}–{dEnd} s · Tormenta {sStart}–{sEnd} s', en: 'Darkness {dStart}–{dEnd} s · Storm {sStart}–{sEnd} s' },

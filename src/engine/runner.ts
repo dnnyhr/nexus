@@ -7,7 +7,8 @@ import { worldStep } from './world';
 // advance() with real frame time; inputs call dispatch(). Pause, overlays and speed live here,
 // outside MissionState, so they can never change what the simulation computes.
 
-export type MissionSpeed = 1 | 2;
+export type MissionSpeed = 1 | 2 | 4;
+export const MISSION_SPEEDS: readonly MissionSpeed[] = [1, 2, 4];
 
 export interface MissionRunner {
   readonly mission: MissionState;
@@ -24,6 +25,13 @@ export interface MissionRunner {
   dispatch(cmd: Command): CommandResult;
   /** The commander's confirmed plan: applied now, even while paused, in order, all logged. */
   confirm(plan: Command[]): CommandResult[];
+  /** Next scenario boundary (warning, start or end of an event) or the end of the mission. */
+  nextStop(): number;
+  /**
+   * Skip quiet time: run the same fixed steps up to nextStop() at once. Nothing is skipped in the
+   * simulation, only waiting. Refused while paused, blocked or closed. Returns the steps run.
+   */
+  skipToNextStop(): number;
 }
 
 const refused = (reason: string): CommandResult => ({ ok: false, reason });
@@ -40,7 +48,7 @@ export function createMissionRunner(mission: MissionState, opts: FixedStepOption
     get blocked() { return blocked; },
     set blocked(v: boolean) { blocked = v; clock.reset(); },
     get speed() { return speed; },
-    set speed(v: MissionSpeed) { speed = v === 2 ? 2 : 1; },
+    set speed(v: MissionSpeed) { speed = MISSION_SPEEDS.includes(v) ? v : 1; },
     canDispatch: () => !paused && !blocked && mission.phase === 'running',
     advance(realSeconds) {
       if (paused || blocked || mission.phase !== 'running') return 0;
@@ -57,6 +65,22 @@ export function createMissionRunner(mission: MissionState, opts: FixedStepOption
     },
     confirm(plan) {
       return plan.map((cmd) => applyCommand(mission, cmd));
+    },
+    nextStop() {
+      const t = mission.t;
+      const stops = mission.scenario.events.flatMap((e) => [e.warnAt, e.startAt, e.endAt]).filter((at) => at > t);
+      return Math.min(mission.scenario.duration, ...stops);
+    },
+    skipToNextStop() {
+      if (paused || blocked || mission.phase !== 'running') return 0;
+      const until = runner.nextStop();
+      let ran = 0;
+      while (mission.t < until && mission.phase === 'running') {
+        worldStep(mission);
+        ran++;
+      }
+      clock.reset();
+      return ran;
     },
   };
   return runner;
