@@ -23,6 +23,9 @@ export interface PanelContext {
   close(): void;
   /** Erase the save and start over (only the lander panel offers it). */
   newGame?(): void;
+  /** Save cards (lander panel): download the game as a PNG, or load one. */
+  exportGame?(): void;
+  importGame?(): void;
 }
 
 export interface Panel {
@@ -233,6 +236,12 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
         para(() => t('landerInfo'), ups),
         para(() => t('bagInfo', { n: s.levels.bag, cap: carryMax(s), dig: digYield(s) }), ups),
         el('div.row', {}, upgradeButton('bag', ctx, ups, 'upgradeBag')),
+        // Saved games: the lander's computer keeps the mission file.
+        el('h4.section', {}, t('savesTitle')),
+        para(() => t('savesInfo'), ups, 'fact'),
+        el('div.row', {},
+          actionButton('exportSave', () => ctx.exportGame?.(), ups),
+          actionButton('importSave', () => ctx.importGame?.(), ups)),
         el('div.row', {}, actionButton('newGame', () => { if (confirm(t('newGameConfirm'))) ctx.newGame?.(); }, ups)),
       );
       break;
