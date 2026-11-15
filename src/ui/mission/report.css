@@ -1,0 +1,86 @@
+/* Mission screens over the 3D base: menu, preparation, commander and report. */
+#mission-layer { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+#mission-layer > * { pointer-events: auto; }
+.m-screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  background: rgba(6, 7, 9, 0.72);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 12px;
+}
+.m-screen > .m-menu, .m-screen > .m-prepare { margin-block: auto; }
+.m-panel {
+  width: min(100%, 880px);
+  padding: 24px max(20px, env(safe-area-inset-right)) 24px max(20px, env(safe-area-inset-left));
+  background: #101114;
+  color: #fff;
+  font-family: 'Barlow Semi Condensed', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  border-top: 2px solid #fff;
+}
+.m-panel h2 { font-size: 30px; line-height: 1.15; margin: 0 0 14px; }
+.m-panel h3 { font-size: 20px; margin: 26px 0 10px; }
+.m-panel h2.m-win { color: #8fae6e; }
+.m-panel h2.m-fail { color: #e8604a; }
+.m-table-wrap { overflow-x: auto; }
+.m-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.m-table th, .m-table td { text-align: left; padding: 8px 10px; border-top: 1px solid #3a3c40; white-space: nowrap; }
+.m-table thead th { color: #c6c9cf; font-weight: 500; }
+.m-table tr.m-bad td:nth-child(2) { color: #e8604a; }
+.m-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; }
+.m-option { border-top: 2px solid #3a3c40; background: #17191d; padding: 12px 14px; }
+.m-option h3 { font-size: 18px; margin: 0 0 6px; }
+.m-option p { margin: 4px 0 10px; }
+.m-option.m-good { border-top-color: #8fae6e; }
+.m-option.m-bad { border-top-color: #e8604a; }
+.m-option .m-result { font-size: 17px; }
+.m-good .m-mark { color: #8fae6e; font-weight: 700; }
+.m-bad .m-mark { color: #e8604a; font-weight: 700; }
+.m-lessons { margin: 0; padding: 0; list-style: none; }
+.m-lessons li { padding: 10px 12px; margin: 8px 0; background: #17191d; border-left: 3px solid #8fae6e; font-size: 17px; }
+.m-tip { padding: 10px 12px; background: #17191d; border-left: 3px solid #f2b54a; font-size: 17px; }
+.m-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-top: 12px; }
+.m-stat { border-top: 1px solid #3a3c40; padding-top: 6px; }
+.m-stat span { display: block; color: #c6c9cf; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; }
+.m-stat strong { font-size: 24px; font-weight: 500; }
+.m-list { margin: 0; padding-left: 20px; }
+.m-list li { margin: 4px 0; }
+.m-chart { width: 100%; height: auto; display: block; background: #0b0c0e; }
+.m-chart .m-grid { stroke: #2a2c30; }
+.m-chart .m-axis { fill: #9a9da3; font-size: 11px; font-family: inherit; }
+.m-chart .m-band-dark { fill: #2a3140; opacity: 0.7; }
+.m-chart .m-band-storm { fill: #f2b54a; opacity: 0.16; }
+.m-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 6px; font-size: 14px; color: #c6c9cf; }
+.m-legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; }
+.m-legend i.m-dash { background: repeating-linear-gradient(90deg, #e8604a 0 5px, transparent 5px 9px); }
+.m-details { margin-top: 10px; }
+.m-details summary { cursor: pointer; color: #c6c9cf; }
+.m-timeline-list { margin: 0; padding-left: 0; list-style: none; max-height: 240px; overflow-y: auto; }
+.m-timeline-list li { display: grid; grid-template-columns: 64px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid #2a2c30; }
+.m-timeline-list span { color: #c6c9cf; }
+/* The mission bar sits at the top left, over the 3D base; the radio moves to the right. */
+#mission-layer > .m-bar { position: absolute; top: 0; left: 0; width: min(100%, 620px); background: rgba(16, 17, 20, 0.92); font-size: 15px; }
+body.mission-mode #hud .timeline,
+body.mission-mode #hud .hint,
+body.mission-mode #hud > .shower,
+body.mission-mode #hud #target-arrow { display: none !important; }
+body.mission-mode #hud #topright { top: auto; bottom: 168px; }
+body.mission-mode #hud #radio { left: auto; right: max(16px, env(safe-area-inset-right)); width: min(400px, calc(100vw - 660px)); min-width: 280px; }
+@media (max-width: 900px), (max-height: 500px) {
+  /* Phones: a compact bar (controls, clock, exposure, next event and the timeline). */
+  #mission-layer > .m-bar { width: 100%; padding-block: 6px; font-size: 14px; }
+  #mission-layer > .m-bar .m-windows,
+  #mission-layer > .m-bar .m-power-text,
+  #mission-layer > .m-bar .m-power > strong { display: none; }
+  #mission-layer > .m-bar .m-btn { min-height: 38px; padding: 6px 10px; }
+  #mission-layer > .m-bar .m-next { margin: 4px 0; }
+  #mission-layer > .m-bar .m-power { margin-top: 4px; }
+  body.mission-mode #hud #radio { top: auto; bottom: 214px; right: auto; left: max(12px, env(safe-area-inset-left)); width: min(420px, calc(100vw - 24px)); }
+  .m-panel { padding: 16px 14px; }
+  .m-panel h2 { font-size: 24px; }
+}
