@@ -63,6 +63,16 @@ export class Joystick {
     this.zone.addEventListener('pointercancel', end);
   }
 
+  reset(): void {
+    if (this.pointer !== null && this.zone.hasPointerCapture(this.pointer)) this.zone.releasePointerCapture(this.pointer);
+    this.pointer = null;
+    this.value.set(0, 0);
+    this.knob.style.transform = '';
+    this.base.classList.remove('active');
+    this.base.style.left = '';
+    this.base.style.top = '';
+  }
+
   private move(e: PointerEvent): void {
     if (Math.hypot(e.clientX - this.start.x, e.clientY - this.start.y) > TAP_MOVE) this.start.moved = true;
     const d = new THREE.Vector2(e.clientX - this.center.x, e.clientY - this.center.y);

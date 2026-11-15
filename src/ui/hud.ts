@@ -394,6 +394,11 @@ export class Hud {
     setText(costEl as HTMLElement, cost);
   }
 
+  resetInput(): void {
+    this.jumpDown = false;
+    this.joystick.reset();
+  }
+
   jumpHeld(): boolean {
     return this.jumpDown;
   }
