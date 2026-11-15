@@ -5,7 +5,7 @@ import { renderInsignia } from './insignia';
 import './passport.css';
 
 export { evaluateBadges, collectBadges, verifiedCompletion } from './badges';
-export type { BadgeId, BadgeProgress } from './badges';
+export type { BadgeId, BadgeProgress, PassportEvidence } from './badges';
 
 export interface PassportOptions {
   name: string;

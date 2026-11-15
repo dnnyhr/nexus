@@ -1,19 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { MissionState, Sample } from '../../engine/types';
+import type { Sample } from '../../engine/types';
 import { newGame } from '../../game/state';
-import { capacity, tick } from '../../game/sim';
-import { collectBadges, evaluateBadges, verifiedCompletion } from './badges';
+import { capacity } from '../../game/sim';
+import { collectBadges, evaluateBadges, verifiedCompletion, type PassportEvidence } from './badges';
 
-function flight(): MissionState {
+function flight(): PassportEvidence {
   const game = newGame(0);
   const cap = capacity(game);
   const final: Sample = { t: 600, o2: game.res.o2 / cap.o2 * 100, water: game.res.water / cap.water * 100,
     food: game.res.food / cap.food * 100, energy: game.res.energy / cap.energy * 100, exposure: 0, crewHealth: game.crewHealth,
     lights: 50, plantGrowth: 0, sheltered: false, isDark: false };
   return {
-    version: 2, game, t: 600, rng: 1, scenario: { id: 'mision-1', seed: 1, duration: 600, budget: 300, events: [], exposureLimit: 40, depletionGrace: 20 },
-    design: { solarMasts: 0, batteries: 0, greenhouse: 0, processor: 0, shield: 0, reserves: { o2: 0, water: 0, food: 0 } },
-    lastPower: tick(structuredClone(game), 0), metrics: { minLifeSupport: 50, secondsLightsReduced: 0, secondsSheltered: 0, secondsShortage: 0 },
+    game, t: 600, scenario: { id: 'mision-1', seed: 1, duration: 600, budget: 300, events: [], exposureLimit: 40, depletionGrace: 20 },
+    metrics: { minLifeSupport: 50, secondsLightsReduced: 0, secondsSheltered: 0, secondsShortage: 0 },
     exposure: 0, depleted: { o2: 0, water: 0, food: 0 }, phase: 'victory', failure: null, log: [],
     events: [{ kind: 'victory', t: 600, text: 'Misión completada' }], samples: [{ ...final, t: 0 }, final],
   };
@@ -35,7 +34,7 @@ describe('passport result evidence', () => {
   });
 
   it('rejects contradictory, incomplete, non-finite or out-of-range evidence', () => {
-    const mutations: ((mission: MissionState) => void)[] = [
+    const mutations: ((mission: PassportEvidence) => void)[] = [
       mission => { mission.t = 599; }, mission => { mission.exposure = 41; },
       mission => { mission.metrics.minLifeSupport = NaN; }, mission => { mission.samples = []; },
       mission => { mission.events = []; }, mission => { mission.samples.at(-1)!.energy = 99; },
