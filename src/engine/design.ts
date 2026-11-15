@@ -2,7 +2,7 @@ import { capacity, lifeSupportPercent } from '../game/sim';
 import { newGame } from '../game/state';
 import { emptyLedger } from './ledger';
 import { LIMITS, MISSION_RULES, PRICES, SCENARIO_1 } from './mission1';
-import { sample, syncStorm } from './observation';
+import { sample, scenarioEvents, syncStorm } from './observation';
 import { STEP, type Design, type DesignCheck, type MissionState, type Scenario } from './types';
 
 export function emptyDesign(): Design {
@@ -61,6 +61,7 @@ export function startMission(d: Design, scenario = SCENARIO_1): MissionState {
     log: [], events: [], samples: [],
   };
   syncStorm(ms);
+  scenarioEvents(ms, -STEP);
   ms.samples.push(sample(ms));
   return ms;
 }

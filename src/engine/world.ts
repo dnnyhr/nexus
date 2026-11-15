@@ -4,24 +4,8 @@ import { capacity, clamp, resolvePower, step, stepGreenhouse } from '../game/sim
 import { protection } from '../game/storm';
 import { RESOURCES } from './ledger';
 import { MISSION_RULES } from './mission1';
-import { darknessAt, figure, sample, syncStorm, updateMinimum } from './observation';
+import { darknessAt, figure, sample, scenarioEvents, syncStorm, updateMinimum } from './observation';
 import { SAMPLE_EVERY, STEP, type FailureCode, type MissionState } from './types';
-
-function scenarioEvents(ms: MissionState, previous: number): void {
-  for (const event of ms.scenario.events) {
-    for (const [at, suffix] of [[event.warnAt, 'warning'], [event.startAt, 'start'], [event.endAt, 'end']] as const) {
-      if (previous >= at || ms.t < at) continue;
-      const text = event.kind === 'darkness'
-        ? suffix === 'end'
-          ? `Fin de la oscuridad: batería ${figure(sample(ms).energy)} %, luces reducidas ${figure(ms.metrics.secondsLightsReduced)} s`
-          : suffix === 'warning' ? `Oscuridad prevista en ${figure(event.startAt - ms.t)} s` : 'Comienza la oscuridad'
-        : suffix === 'end'
-          ? `Fin de tormenta: exposición ${figure(ms.exposure)} u; refugio ${figure(ms.metrics.secondsSheltered)} s`
-          : suffix === 'warning' ? `Tormenta prevista en ${figure(event.startAt - ms.t)} s` : 'Comienza la tormenta';
-      ms.events.push({ t: at, kind: `${event.kind}_${suffix}`, text });
-    }
-  }
-}
 
 function closeMission(ms: MissionState): void {
   let code: FailureCode | null = null;
@@ -56,7 +40,7 @@ export function worldStep(ms: MissionState): void {
   const s = ms.game;
   const previous = ms.t;
   const before = { ...s.res };
-  const ledgerBefore = structuredClone(ms.ledger);
+  const totalsBefore = RESOURCES.map(r => Object.values(ms.ledger[r]).reduce((sum, v) => sum + v, 0));
   const wasDead = s.plant.dead;
   const wasShortage = ms.lastPower.shortage;
   const wasPowered = ms.lastPower.lifeSupportPowered;
@@ -66,6 +50,14 @@ export function worldStep(ms: MissionState): void {
   const powered = { ...s, power: { ...s.power, growLights: s.sheltered ? 0 : s.power.growLights * scale } };
   const report = resolvePower(powered, STEP, isDay);
   report.running.lights /= Math.max(1, scale);
+  report.demand = ENERGY.lifeSupportDraw + (report.running.heating ? ENERGY.heatingDraw : 0) +
+    (report.running.processor ? ENERGY.processorDraw : 0) +
+    (report.running.robots ? ENERGY.robotDraw * (s.levels.collectorRobot + s.levels.harvesterRobot) : 0) +
+    report.running.lights / 100 * ENERGY.growLightsMaxDraw * scale;
+  report.shortage = !report.lifeSupportPowered || (s.power.heating && !isDay && !report.running.heating) ||
+    (s.levels.processor > 0 && s.power.processor && !s.sheltered && !report.running.processor) ||
+    (!s.sheltered && report.running.lights < s.power.growLights - 1e-9);
+  s.res.energy = clamp(before.energy + (report.generation - report.demand) * STEP, 0, capacity(s).energy);
   ms.lastPower = report;
   ms.ledger.energy.solar += report.generation * STEP;
   const supportCause = s.sheltered ? 'shelter' : 'crew';
@@ -85,8 +77,8 @@ export function worldStep(ms: MissionState): void {
   if (!report.lifeSupportPowered) s.crewHealth = clamp(s.crewHealth - MISSION_RULES.unpoweredHealthLoss * STEP, 0, 100);
   const storm = ms.scenario.events.find(e => e.kind === 'storm' && e.startAt <= previous && previous < e.endAt);
   if (storm) ms.exposure += MISSION_RULES.outsideExposurePerSecond * (storm.strength ?? 0) * (1 - protection(s)) * STEP;
-  for (const r of RESOURCES) {
-    const accounted = Object.values(ms.ledger[r]).reduce((sum, v) => sum + v, 0) - Object.values(ledgerBefore[r]).reduce((sum, v) => sum + v, 0);
+  for (const [index, r] of RESOURCES.entries()) {
+    const accounted = Object.values(ms.ledger[r]).reduce((sum, v) => sum + v, 0) - totalsBefore[index];
     ms.ledger[r].storage += s.res[r] - before[r] - accounted;
   }
   ms.t = previous + STEP;

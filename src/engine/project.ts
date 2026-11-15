@@ -21,7 +21,7 @@ export function project(ms: MissionState, plan: Command[], horizon: Horizon): Pr
   const rejected: Projection['rejected'] = [];
   for (const cmd of plan) {
     const result = applyCommand(clone, cmd);
-    if (!result.ok) rejected.push({ cmd: structuredClone(cmd), reason: result.reason! });
+    if (!result.ok) rejected.push({ cmd: structuredClone(clone.log.at(-1)!.cmd), reason: result.reason! });
   }
   clone.samples = [sample(clone)];
   while (clone.t < until && clone.phase === 'running') worldStep(clone);
