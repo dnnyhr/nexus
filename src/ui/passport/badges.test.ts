@@ -12,7 +12,7 @@ function flight(): PassportEvidence {
     lights: 50, plantGrowth: 0, sheltered: false, isDark: false };
   return {
     game, t: 600, scenario: { id: 'mision-1', seed: 1, duration: 600, budget: 300, events: [], exposureLimit: 40, depletionGrace: 20 },
-    metrics: { minLifeSupport: 50, secondsLightsReduced: 0, secondsSheltered: 0, secondsShortage: 0 },
+    metrics: { minLifeSupport: 50, secondsLightsReduced: 0, secondsSheltered: 0, secondsShortage: 0, secondsLifeSupportUnpowered: 0, secondsHeatingShed: 0, secondsLightsShed: 0, minCrewHealth: 100 },
     exposure: 0, depleted: { o2: 0, water: 0, food: 0 }, phase: 'victory', failure: null, log: [],
     events: [{ kind: 'victory', t: 600, text: 'Misión completada' }], samples: [{ ...final, t: 0 }, final],
   };
