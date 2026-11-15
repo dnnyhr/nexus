@@ -4,6 +4,7 @@ import type { Command, CommandResult } from '../engine/types';
 import { adjustClimate, capacity, carryMax, digYield, harvest, inRange, irrigate, replant, type PowerReport } from '../game/sim';
 import { cyclePhase, type GameState } from '../game/state';
 import { el, setText } from './dom';
+import { panelArt, powerArt } from './panelArt';
 import { t, type StringKey } from './i18n';
 
 // Panels that open next to a 3D object when the player taps it. Each panel shows the real
@@ -266,6 +267,10 @@ export function makePanel(kind: PanelKind, ctx: PanelContext): Panel {
       break;
   }
 
+  // A live illustration of the object, right under the title.
+  const art = panelArt(kind, { s, power: ctx.power });
+  ups.push(art.update);
+  node!.insertBefore(art.node, node!.children[1] ?? null);
   const panel = el('div.panel.interactive', {}, node!);
   const update = () => ups.forEach((u) => u());
   update();
@@ -319,6 +324,9 @@ export function makePowerPanel(ctx: PanelContext): Panel {
     shortage,
     para(() => t('factNight'), ups, 'fact'),
   );
+  const art = powerArt({ s, power: ctx.power });
+  ups.push(art.update);
+  node.insertBefore(art.node, node.children[1] ?? null);
   const panel = el('div.panel.interactive', {}, node);
   const update = () => ups.forEach((u) => u());
   update();
