@@ -140,9 +140,16 @@ describe('game adapters', () => {
     const game = newGame(0);
     game.levels.greenhouse = 1;
     const snapshot = systemsFromGame(game, power);
-    expect(snapshot.breakers).toEqual({ heating: true, processor: true, robots: true });
+    expect(snapshot.breakers).toEqual({ heating: true, processor: true, robots: true, greenhouse: true });
     expect(snapshot.lights).toBe(60);
     expect(snapshot.lightsDraw).toBeCloseTo(0.54);
     expect(snapshot.energy).toBeCloseTo((100 / 120) * 100);
+    expect(snapshot.priority).toEqual(['lifeSupport', 'heating', 'processor', 'robots', 'greenhouse']);
+    game.power.greenhouse = false;
+    game.power.priority = ['lifeSupport', 'greenhouse', 'heating', 'processor', 'robots'];
+    const changed = systemsFromGame(game, { ...power, shed: ['heating'] });
+    expect(changed.breakers.greenhouse).toBe(false);
+    expect(changed.priority).toEqual(['lifeSupport', 'greenhouse', 'heating', 'processor', 'robots']);
+    expect(changed.shed).toEqual(['heating']);
   });
 });
