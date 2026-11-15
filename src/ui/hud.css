@@ -191,6 +191,23 @@
 .toggle .t-btn { min-width: 104px; min-height: 34px; padding: 6px 10px; }
 .toggle .t-btn.off { color: var(--dim); }
 input[type='range'].hw-range { width: 100%; accent-color: #fff; }
+#profile-name {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0 2px;
+  padding: 9px 10px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 16px; /* 16px or more: phones do not zoom in on focus */
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--faint);
+  border-radius: 2px;
+  outline: none;
+}
+#profile-name:focus { border-color: var(--line); }
+#profile-btn { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---- Floating feedback ---- */
 .float {
