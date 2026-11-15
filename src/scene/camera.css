@@ -1,5 +1,0 @@
-.nx-camera { display: flex; flex-wrap: wrap; gap: 4px; pointer-events: auto; font: inherit; }
-.nx-camera button { min-height: 44px; padding: 8px 12px; border: 1px solid #737b84; border-radius: 2px; background: #151c24; color: #f2f0eb; font: inherit; cursor: pointer; touch-action: manipulation; }
-.nx-camera button[aria-pressed="true"] { background: #f2f0eb; color: #151c24; border-color: #f2f0eb; }
-.nx-camera button:focus-visible { outline: 3px solid #f2b54a; outline-offset: 3px; }
-@media (hover: hover) { .nx-camera button:hover { border-color: #f2b54a; } }

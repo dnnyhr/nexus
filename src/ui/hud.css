@@ -382,3 +382,6 @@ input[type='range'].hw-range { width: 100%; accent-color: #fff; }
   .counts .label { font-size: 9px; letter-spacing: 0.08em; }
   .big { font-size: 18px; }
 }
+
+/* An open panel covers the right edge: the off-screen target arrow would draw on top of it. */
+#hud:has(.panel) #target-arrow { visibility: hidden; }
