@@ -1,5 +1,5 @@
 export * from './types';
-export { SCENARIO_1, SCENARIO_SOURCE, PRICES, LIMITS, MISSION_RULES } from './mission1';
+export { CADET_DESIGN, SCENARIO_1, SCENARIO_SOURCE, PRICES, LIMITS, MISSION_RULES } from './mission1';
 export { emptyDesign, checkDesign, startMission } from './design';
 export { applyToGame, applyCommand } from './commands';
 export { missionPowerOptions, worldStep } from './world';
