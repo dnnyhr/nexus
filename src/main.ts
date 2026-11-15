@@ -27,6 +27,7 @@ import {
   mountCommanderRadio, mountControlCenter, mountSystemsHud, mountTelemetryRibbon, systemsFromGame, telemetryFromGame,
   type CommanderRadioHandle, type ControlCenterHandle, type RadioCall, type SystemsHudHandle, type TelemetryRibbonHandle,
 } from './ui/experience';
+import { mountBackgroundMusic } from './ui/experience/backgroundMusic';
 import { compareFlightPlans, mountFlightReview, type FlightComparison } from './ui/flightreview';
 import { mountPassport } from './ui/passport';
 import { mountTitle, type TitleHandle } from './ui/shell/titleScreen';
@@ -454,6 +455,7 @@ function startFree(): void {
   hud.setShower(shower ? shower.shower.name[getLang()] : null);
   // First time here: ask the astronaut's name (it can be changed any time in Profile).
   if (!profile) hud.openProfile();
+  bgm.play();
   if (away && away.seconds > 60) {
     const h = Math.floor(away.seconds / 3600);
     const m = Math.round((away.seconds % 3600) / 60);
@@ -698,6 +700,7 @@ document.body.append(barRoot, cameraHost, overlay);
 const showOverlay = (on: boolean) => { overlay.style.display = on ? '' : 'none'; };
 /** While a full-screen view owns the screen, the mission HUD steps out of the way. */
 const coverHud = (on: boolean) => document.body.classList.toggle('nx-overlay', on);
+const bgm = mountBackgroundMusic({ root: document.querySelector<HTMLElement>('#topright') ?? document.body });
 
 let center: ControlCenterHandle | null = null;
 let title: TitleHandle | null = null;
@@ -732,6 +735,7 @@ function mountCamera(): void {
 
 /** Title menu over the 3D space scene. Leaving it fades out; it never runs the economy. */
 function showTitle(): void {
+  bgm.pause();
   mode = 'menu';
   document.body.classList.add('nx-on-title');
   titleScene.frame(camera);
@@ -881,6 +885,7 @@ function startMissionMode(design: Design): void {
   evacuate.hidden = false;
   cameraRig.setMode('follow');
   controls.update();
+  bgm.play();
   // Earth launch, cislunar transit and touchdown; the camera ends on the exact gameplay pose.
   playSequence('arrival', () => { canvas.focus({ preventScroll: true }); });
 }

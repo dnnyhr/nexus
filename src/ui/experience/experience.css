@@ -17,6 +17,19 @@
   display: none !important;
 }
 
+#topright .t-btn.x-bgm {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (max-width: 900px), (max-height: 520px) {
+  body.nx-mission #topright .x-bgm {
+    position: fixed;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+}
+
 body.x-cc-open .x-tel,
 body.x-cc-open .x-sys,
 body.x-cc-open .x-radio {
