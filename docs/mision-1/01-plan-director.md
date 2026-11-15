@@ -33,10 +33,10 @@ Asignación de 2–4 inferida de los worktrees activos; el usuario confirma. Nin
 
 ## Fases y gates
 
-1. **Base motor** (Agente 1): integrar A, B, C, D en `feat/mision-1` tras revisión. Gate: tests + build verdes. *Bloqueado: merges locales requieren autorización explícita del usuario.*
-2. **Circuitos eléctricos** (Agente 1): kernel listo en `src/game` (C1). Falta adaptarlo al motor (C2) y rebalancear la misión documentando el antes y el después.
-3. **Runner** (Agente 1): `src/engine/runner.ts` sobre `fixedStepClock` (C3). Gate: matriz 1/4/40 pasos por frame, 1x/2x y pausa, idéntica.
-4. **Conexión** (Agente 1): `main.ts` con modos `menu | free | mission` (C4). Gate: flujo completo en navegador de escritorio.
+1. **Base motor** (Agente 1) — hecho: A, B, C, D integrados con autorización (`046b4b0`…`9055cb3`).
+2. **Circuitos eléctricos** (Agente 1) — hecho: C1 `87529f3`, C2 `a03d120` (+ ajuste mínimo en C `b91d45a`).
+3. **Runner** (Agente 1) — hecho: C3 `16560b7`. Matriz 1/4/40 pasos por frame, 1x/2x y pausas: idéntica.
+4. **Conexión** (Agente 1) — hecho: C4 `8716f7b`. Flujo completo verificado en Chromium headless (ver abajo).
 5. **Pulido** (Agentes 2/3) contra el commit integrado. **QA** (Agente 4) sobre el producto real. QA del teléfono, por separado.
 
 ## Contratos
@@ -79,6 +79,26 @@ createMissionRunner(ms: MissionState): {
 - Módulos UI exponen `mount…(root, opts) → { update?(), destroy() }` y callbacks; nunca mutan `GameState` en misión.
 - Adaptadores en `main.ts`: `SystemsHudOptions.onBreaker/onLights/canCommand` → `dispatch`; snapshot desde `ms.lastPower`.
 - Misión no lee ni escribe `nexus.save.v1`, ni ejecuta tormentas aleatorias, impactos, rescate ni progreso offline. Exposición siempre en **u** desde `ms.exposure`; nunca `game.dose` ni mSv.
+
+## Verificación del integrador (2026-11-15, `8716f7b`)
+
+- Automatizado: 288/289 tests y build correctos. El único fallo es H-08 (textos).
+- Chromium headless (escritorio 1280×720, sin teléfono): menú → preparación → misión → pausa (P rechaza acciones sin log) → comandante (Esc restaura pausa) → prioridad desde el panel (`setPriority` en log) → informe una sola vez → reintento precargado → Modo libre. Sin errores de consola.
+- Save libre: idéntico byte a byte tras una misión completa con `visibilitychange`/`pagehide`. Modo libre reanuda la partida.
+- No verificado: teléfono real, emulación táctil, accesibilidad medida, instalación/offline.
+
+## Encargos abiertos por carril
+
+- **Agente 3 (UI/textos)**
+  - H-08: `commanderTexts.ts:206` y `:248` usan «dosis» aunque sea en negación, y la auditoría de D falla. Reformular sin «dosis» (p. ej. «Cifras didácticas en u; no son mediciones clínicas ni implican afiliación con NASA»). El test no se cambia.
+  - `missionBar.ts:70` corta la propagación de toda tecla salvo P con foco en la barra, incluidas Esc y Tab. La integración lo evita moviendo el foco al comandante; conviene limitar el corte a las teclas de juego.
+  - `SystemsHud`: añadir `greenhouse` a `BreakerSystem` y la prioridad (`movePriority`/`setPriority`). Agente 1 conecta los callbacks en `main.ts`.
+  - Mover `POWER_TEXT` de `panels.ts` a `i18n.ts`. CSS de las filas de prioridad: los ▲▼ salen apilados.
+  - Comandante: añadir el interruptor de invernadero y la prioridad al borrador (`commandText` ya los cubre).
+  - Informe: «Deslizá» (voseo) frente al español neutro del resto.
+- **Agente 2 (3D)**: `menuOrbit` en `main.ts` es un marcador simple; reemplazar con la cámara cinematográfica vía API exportada. La noche de misión sale de `darknessAt`.
+- **Agente 4 (QA)**: reejecutar `tests/mission/**` sobre `8716f7b`; ya existe el runner real (`createMissionRunner`) para la matriz de producto. QA de teléfono y accesibilidad pendientes.
+- **Producto**: el diseño base sin compras sigue ganando, así que la dificultad es permisiva. Con el límite de descarga, los cortes sin batería cubren toda la oscuridad (180 s). Calibrar con estudiantes antes de endurecer.
 
 ## Fuera de alcance de esta fase
 
