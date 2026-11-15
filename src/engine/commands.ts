@@ -1,67 +1,74 @@
+import { POWER } from '../game/config';
+import { isPriority } from '../game/power';
 import { adjustClimate, collectByHand, deliverRegolith, harvest, irrigate, replant } from '../game/sim';
 import type { GameState } from '../game/state';
-import { emit } from './world';
-import type { Command, CommandResult, MissionState } from './types';
+import { recordChange } from './ledger';
+import { figure, updateMinimum } from './observation';
+import type { Command, CommandResult, MissionCause, MissionState } from './types';
 
-const no = (reason: string): CommandResult => ({ ok: false, reason });
-const yes: CommandResult = { ok: true };
+const rejected = (reason: string): CommandResult => ({ ok: false, reason });
 
-/** Apply a player action to a game, with free-mode meaning (no log). */
-export function applyToGame(s: GameState, cmd: Command): CommandResult {
-  switch (cmd.type) {
-    case 'setGrowLights': {
-      if (typeof cmd.value !== 'number' || !Number.isFinite(cmd.value)) return no('Brillo no válido.');
-      s.power.growLights = Math.round(Math.min(100, Math.max(0, cmd.value)));
-      return yes;
-    }
-    case 'setPower':
-      if (!['heating', 'processor', 'robots'].includes(cmd.system)) return no('Sistema desconocido.');
-      s.power[cmd.system] = !!cmd.on;
-      return yes;
-    case 'irrigate':
-      if (s.plant.dead) return no('La planta está muerta: hay que replantar.');
-      return irrigate(s) ? yes : no('No hay agua suficiente para regar.');
-    case 'adjustClimate':
-      if (s.plant.dead) return no('La planta está muerta: hay que replantar.');
-      return adjustClimate(s, cmd.dir === -1 ? -1 : 1) ? yes : no('No hay energía suficiente para el clima.');
-    case 'harvest':
-      return harvest(s) > 0 ? yes : no(s.plant.dead ? 'La planta está muerta.' : 'La planta todavía no está lista.');
-    case 'replant':
-      return replant(s) ? yes : no(s.plant.dead ? 'Faltan materiales para replantar.' : 'La planta está viva: no hace falta replantar.');
-    case 'enterShelter':
-      if (s.sheltered) return no('Ya estás en el refugio.');
-      s.sheltered = true;
-      return yes;
-    case 'leaveShelter':
-      if (!s.sheltered) return no('No estás en el refugio.');
-      s.sheltered = false;
-      return yes;
-    case 'collectRegolith':
-      if (s.sheltered) return no('Desde el refugio no se puede excavar.');
-      return collectByHand(s) > 0 ? yes : no('La bolsa está llena.');
-    case 'deliverRegolith':
-      if (s.levels.processor === 0) return no('No hay procesador.');
-      if (s.carried <= 0) return no('La bolsa está vacía.');
-      return deliverRegolith(s) > 0 ? yes : no('El procesador está lleno.');
-    default:
-      return no('Comando desconocido.');
+function serializableCommand(cmd: Command): Command {
+  try {
+    return JSON.parse(JSON.stringify(cmd));
+  } catch {
+    return { type: 'invalid' } as unknown as Command;
   }
 }
 
-const OUTSIDE_WORK: Command['type'][] = ['irrigate', 'adjustClimate', 'harvest', 'replant', 'collectRegolith', 'deliverRegolith'];
-
-/** Apply a player action to the mission: validated, applied and logged at mission time. */
-export function applyCommand(ms: MissionState, cmd: Command): CommandResult {
-  let result: CommandResult;
-  if (ms.phase !== 'running') result = no('La misión terminó.');
-  else if (ms.game.sheltered && OUTSIDE_WORK.includes(cmd.type)) result = no('Desde el refugio no se puede atender la base: sal primero.');
-  else {
-    const food = ms.game.res.food;
-    result = applyToGame(ms.game, cmd);
-    if (result.ok && cmd.type === 'harvest') emit(ms, 'harvest', `Cosecha: +${Math.round(ms.game.res.food - food)} de comida.`);
-    if (result.ok && cmd.type === 'enterShelter') emit(ms, 'shelter_enter', 'Entraste al refugio: el cultivo y el procesador se detienen.');
-    if (result.ok && cmd.type === 'leaveShelter') emit(ms, 'shelter_leave', 'Saliste del refugio.');
+export function applyToGame(s: GameState, cmd: Command): CommandResult {
+  if (!cmd || typeof cmd !== 'object') return rejected('Comando inválido');
+  switch (cmd.type) {
+    case 'setGrowLights':
+      if (!Number.isFinite(cmd.value) || cmd.value < 0 || cmd.value > 100) return rejected('Luces fuera de rango');
+      s.power.growLights = cmd.value;
+      return { ok: true };
+    case 'setPower':
+      if ((cmd.system as string) === 'lifeSupport') return rejected('Soporte vital es carga crítica: no se desconecta; cambia su prioridad');
+      if (!POWER.switchable.includes(cmd.system) || typeof cmd.on !== 'boolean') return rejected('Sistema inválido');
+      s.power[cmd.system as 'heating' | 'processor' | 'robots' | 'greenhouse'] = cmd.on;
+      return { ok: true };
+    case 'setPriority':
+      if (!isPriority(cmd.order)) return rejected('Prioridad inválida: ordena los cinco circuitos sin repetir');
+      s.power.priority = [...cmd.order];
+      return { ok: true };
+    case 'enterShelter':
+      if (s.sheltered) return rejected('Ya estás en refugio');
+      s.sheltered = true;
+      return { ok: true };
+    case 'leaveShelter':
+      if (!s.sheltered) return rejected('Ya estás fuera del refugio');
+      s.sheltered = false;
+      return { ok: true };
+    case 'irrigate': return irrigate(s) ? { ok: true } : rejected('Sin agua suficiente o planta muerta');
+    case 'adjustClimate':
+      if (cmd.dir !== 1 && cmd.dir !== -1) return rejected('Dirección de clima inválida');
+      return adjustClimate(s, cmd.dir) ? { ok: true } : rejected('Sin energía suficiente o planta muerta');
+    case 'harvest': return harvest(s) > 0 ? { ok: true } : rejected('Cultivo no listo');
+    case 'replant': return replant(s) ? { ok: true } : rejected('Sin materiales o planta viva');
+    case 'collectRegolith':
+      if (s.sheltered) return rejected('No se puede cavar en refugio');
+      return collectByHand(s) > 0 ? { ok: true } : rejected('Bolsa llena');
+    case 'deliverRegolith':
+      if (s.sheltered) return rejected('No se puede entregar en refugio');
+      return deliverRegolith(s) > 0 ? { ok: true } : rejected('Sin procesador, carga o espacio');
+    default: return rejected('Comando desconocido');
   }
-  ms.log.push({ t: ms.t, cmd: structuredClone(cmd), ok: result.ok });
+}
+
+export function applyCommand(ms: MissionState, cmd: Command): CommandResult {
+  const before = { ...ms.game.res };
+  let result: CommandResult;
+  if (ms.phase !== 'running') result = rejected('Misión terminada');
+  else if (ms.game.sheltered && ['irrigate', 'adjustClimate', 'harvest', 'replant', 'collectRegolith', 'deliverRegolith'].includes(cmd?.type)) result = rejected('Acción suspendida en refugio');
+  else result = applyToGame(ms.game, cmd);
+  ms.log.push({ t: ms.t, cmd: serializableCommand(cmd), ok: result.ok });
+  if (result.ok) {
+    const cause: MissionCause = cmd.type === 'harvest' ? 'harvest' : cmd.type === 'irrigate' ? 'irrigation' : 'climate';
+    recordChange(ms, before, cause);
+    updateMinimum(ms);
+    if (cmd.type === 'harvest') ms.events.push({ t: ms.t, kind: 'harvest', text: `Cosecha ${ms.game.stats.harvests}: +${figure(ms.game.res.food - before.food)} alimento almacenado; soporte mínimo ${figure(ms.metrics.minLifeSupport)} %` });
+    if (cmd.type === 'enterShelter' || cmd.type === 'leaveShelter') ms.events.push({ t: ms.t, kind: cmd.type === 'enterShelter' ? 'shelter_enter' : 'shelter_leave', text: cmd.type === 'enterShelter' ? 'Entrada en refugio' : 'Salida del refugio' });
+  }
   return result;
 }

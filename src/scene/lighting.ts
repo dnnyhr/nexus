@@ -15,7 +15,7 @@ export interface Lighting {
 }
 
 export function createLighting(scene: THREE.Scene, shadowExtent = 12): Lighting {
-  const sun = new THREE.DirectionalLight(0xfff1dc, 2.6);
+  const sun = new THREE.DirectionalLight(0xffefdb, 2.25);
   sun.position.set(-16, 6, 9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -25,7 +25,11 @@ export function createLighting(scene: THREE.Scene, shadowExtent = 12): Lighting 
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
 
-  const bounce = new THREE.HemisphereLight(0x5b6476, 0x8a8172, 0.9);
+  const daySky = new THREE.Color(0x8994a7);
+  const nightSky = new THREE.Color(0x607aa3);
+  const dayGround = new THREE.Color(0x827668);
+  const nightGround = new THREE.Color(0x383c49);
+  const bounce = new THREE.HemisphereLight(daySky, dayGround, 0.8);
   const ambient = new THREE.AmbientLight(0xffffff, 0.12);
   scene.add(sun, sun.target, bounce, ambient);
 
@@ -34,12 +38,12 @@ export function createLighting(scene: THREE.Scene, shadowExtent = 12): Lighting 
     bounce,
     ambient,
     setNight(level) {
-      const t = THREE.MathUtils.clamp(level, 0, 1);
-      sun.intensity = THREE.MathUtils.lerp(2.6, 0.0, t);
-      bounce.intensity = THREE.MathUtils.lerp(0.9, 0.35, t);
-      bounce.color.setHex(t > 0.5 ? 0x3c4a66 : 0x5b6476);
-      bounce.groundColor.setHex(t > 0.5 ? 0x2c2a28 : 0x8a8172);
-      ambient.intensity = THREE.MathUtils.lerp(0.12, 0.06, t);
+      const t = Number.isFinite(level) ? THREE.MathUtils.clamp(level, 0, 1) : 0;
+      sun.intensity = THREE.MathUtils.lerp(2.25, 0.0, t);
+      bounce.intensity = THREE.MathUtils.lerp(0.8, 0.55, t);
+      bounce.color.lerpColors(daySky, nightSky, t);
+      bounce.groundColor.lerpColors(dayGround, nightGround, t);
+      ambient.intensity = THREE.MathUtils.lerp(0.12, 0.1, t);
     },
   };
 }

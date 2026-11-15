@@ -1,8 +1,10 @@
-// Mission engine: the only module the mission UI imports. See types.ts for the contract.
 export * from './types';
-export { SCENARIO_1, PRICES, LIMITS, MISSION_RULES } from './mission1';
+export { CADET_DESIGN, SCENARIO_1, SCENARIO_SOURCE, PRICES, LIMITS, MISSION_RULES } from './mission1';
 export { emptyDesign, checkDesign, startMission } from './design';
 export { applyToGame, applyCommand } from './commands';
-export { worldStep, darknessAt, nextEvent, isDarkAt } from './world';
-export { project, replay } from './project';
+export { missionPowerOptions, worldStep } from './world';
+export { project } from './project';
+export { replay } from './replay';
+export { darknessAt, nextEvent } from './observation';
 export { summarize } from './summary';
+export { createMissionRunner, MISSION_SPEEDS, type MissionRunner, type MissionSpeed } from './runner';

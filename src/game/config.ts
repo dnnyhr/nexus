@@ -45,6 +45,60 @@ export const ENERGY = {
   growLightsMaxDraw: 0.9,
 };
 
+/**
+ * Electrical circuits the player can switch and rank. When generation plus what the batteries
+ * can deliver falls short, circuits are fed in priority order and the rest are shed.
+ * Life support is a critical load: its breaker cannot be opened, only its rank changes.
+ */
+export type Circuit = 'lifeSupport' | 'heating' | 'processor' | 'robots' | 'greenhouse';
+
+export const POWER = {
+  circuits: ['lifeSupport', 'heating', 'processor', 'robots', 'greenhouse'] as readonly Circuit[],
+  /** The shedding order the game always had: grow lights go first, life support last. */
+  defaultPriority: ['lifeSupport', 'heating', 'processor', 'robots', 'greenhouse'] as readonly Circuit[],
+  /** Circuits whose breaker the player may open. */
+  switchable: ['heating', 'processor', 'robots', 'greenhouse'] as readonly Circuit[],
+};
+
+/**
+ * Mission 1 «Primera oscuridad». Free mode never reads this block.
+ * Reserves and energy are fractions of capacity; draws and rates are units per game second.
+ */
+export const MISSION = {
+  initialReserve: 0.5,
+  reservePerPack: 0.1,
+  /** Battery charge at start: stored energy, not capacity. */
+  initialEnergy: 0.5,
+  initialGrowLights: 50,
+  /** Lights set below this count as a deliberate reduction in the report. */
+  reducedLightsBelow: 50,
+  /** Each greenhouse level lights more growing area, so it draws more. */
+  agriculturalDrawPerLevel: 1,
+  /** Didactic exposure rate outside during a storm of strength 1 (u/s, not mSv). */
+  outsideExposurePerSecond: 0.8,
+  unpoweredHealthLoss: 0.3,
+  /**
+   * Most power the batteries can deliver at once (units/s): the station battery plus each
+   * extra one. Capacity says how long the base lasts; this says how much can run together.
+   */
+  stationDischarge: 1.2,
+  dischargePerBattery: 0.8,
+  /**
+   * Automated greenhouse care, like the ISS Advanced Plant Habitat: every few seconds it waters,
+   * corrects temperature and harvests, paying the same water and energy as the manual actions.
+   * It cannot make power: with heating shed and an empty battery it can no longer heat.
+   */
+  routine: { enabled: true, every: 5, waterBelow: 38, tempMin: 42, tempMax: 58 },
+  prices: {
+    solarMasts: 40, batteries: 50, greenhouse: 60, processor: 50, shield: 40,
+    reserveO2: 15, reserveWater: 15, reserveFood: 15,
+  },
+  limits: {
+    solarMasts: 3, batteries: 3, greenhouse: 2, processor: 1, shield: 3,
+    reserveO2: 5, reserveWater: 5, reserveFood: 5,
+  },
+};
+
 export const PROCESSOR = {
   regolithPerSecond: 0.5,
   /** More than 40 % of regolith by mass is oxygen bound in minerals. */

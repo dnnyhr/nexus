@@ -101,9 +101,11 @@ describe('mission 1: strategies', () => {
     expect(ms.failure?.explanation).toMatch(/\d/);
   });
 
-  it('an empty design that keeps everything on fails in the dark', () => {
+  it('an empty design sheds loads through the entire darkness under the current mission balance', () => {
     const ms = run(emptyDesign(), POLICY_B);
-    expect(ms.phase).toBe('failed');
+    expect(ms.metrics.secondsShortage).toBe(180);
+    expect(ms.metrics.secondsLightsShed).toBe(180);
+    expect(ms.phase).toBe('victory');
   });
 });
 

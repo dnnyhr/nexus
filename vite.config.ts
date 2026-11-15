@@ -4,7 +4,9 @@ import { defineConfig } from 'vite';
 // Relative base so the build works at any path (Netlify, a subdomain or GitHub Pages).
 // Pages: the landing (index.html), the game (app/index.html) and the model viewer (viewer.html).
 export default defineConfig({
-  base: './',
+  base: '/',
+  // Lane worktrees live inside the repo; their edits must not reload this dev server.
+  server: { watch: { ignored: ['**/.worktrees/**'] } },
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 900,

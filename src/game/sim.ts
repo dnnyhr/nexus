@@ -1,5 +1,6 @@
-import { COLLECT, CREW, DAMAGE, ENERGY, GREENHOUSE, PROCESSOR, STORAGE } from './config';
+import { COLLECT, CREW, DAMAGE, ENERGY, GREENHOUSE, POWER, PROCESSOR, STORAGE, type Circuit } from './config';
 import { batteriesCapacity, damageOf, processorFactor, solarMastsOutput } from './damage';
+import { priorityOf } from './power';
 import { cyclePhase, type GameState } from './state';
 
 // Simulation step. Mutates the state in place; `dt` is in game seconds.
@@ -36,7 +37,7 @@ export interface Running {
 }
 
 export function step(s: GameState, dt: number, running?: Running): void {
-  const run = running ?? { processor: s.power.processor, robots: s.power.robots, heating: s.power.heating, lights: s.power.growLights };
+  const run = running ?? { processor: s.power.processor, robots: s.power.robots, heating: s.power.heating, lights: s.power.greenhouse ? s.power.growLights : 0 };
   const cap = capacity(s);
   const active = s.crewHealth > 0; // with no healthy crew, production stops until recovered
 
@@ -107,44 +108,81 @@ export function deliverRegolith(s: GameState): number {
 
 // ---------------------------------------------------------------------------------------
 // Energy: solar masts produce only during the lunar day; the battery carries the night.
-// When the battery runs dry, systems are shed in order: grow lights, robots, processor,
-// heating. Life support is always last. This is the night trade-off the player manages.
+// When power falls short, circuits are fed in the player's priority order and the rest are
+// shed. The default order is the one the game always had: grow lights, robots, processor,
+// heating are shed in that order and life support is last. This is the night trade-off.
 
 export interface PowerReport {
   generation: number;
   demand: number;
+  /** Power that could be used this step: generation plus what the batteries can deliver. */
+  available?: number;
   running: Running;
   /** True when something the player turned on had to be shut off for lack of energy. */
   shortage: boolean;
   lifeSupportPowered: boolean;
+  /** Circuits that wanted power and did not get all of it, in POWER.circuits order. */
+  shed?: Circuit[];
 }
 
-export function resolvePower(s: GameState, dt: number, isDay: boolean): PowerReport {
+export interface PowerOptions {
+  /** Most the batteries can deliver per second (power, not capacity). Free mode has no limit. */
+  dischargeLimit?: number;
+  /** Multiplies the grow-light draw (the mission scales it with the greenhouse level). */
+  lightsDrawScale?: number;
+  /** Grow lights get no power (the mission suspends farming in the shelter). */
+  lightsSuspended?: boolean;
+}
+
+export function resolvePower(s: GameState, dt: number, isDay: boolean, opts: PowerOptions = {}): PowerReport {
   const generation = isDay ? ENERGY.landerSolar + solarMastsOutput(s) * ENERGY.solarPerMast : 0;
   const robotsCount = s.levels.collectorRobot + s.levels.harvesterRobot;
-  const want = {
-    lights: (s.power.growLights / 100) * ENERGY.growLightsMaxDraw * Math.min(1, s.levels.greenhouse),
+  const lights = s.power.greenhouse && !opts.lightsSuspended ? s.power.growLights : 0;
+  const want: Record<Circuit, number> = {
+    lifeSupport: ENERGY.lifeSupportDraw,
+    greenhouse: (lights / 100) * ENERGY.growLightsMaxDraw * Math.min(1, s.levels.greenhouse) * (opts.lightsDrawScale ?? 1),
     // Robots also park during a solar storm to protect their electronics.
     robots: s.power.robots && !s.sheltered && s.storm.phase !== 'active' && robotsCount > 0 ? ENERGY.robotDraw * robotsCount : 0,
     processor: s.levels.processor > 0 && s.power.processor && !s.sheltered ? ENERGY.processorDraw : 0,
     heating: s.power.heating && !isDay ? ENERGY.heatingDraw : 0,
   };
-  let budget = s.res.energy / dt + generation - ENERGY.lifeSupportDraw;
-  const lifeSupportPowered = budget >= 0;
+  const stored = s.res.energy / dt;
+  const limited = opts.dischargeLimit === undefined ? stored : Math.min(stored, Math.max(0, opts.dischargeLimit));
+  const available = limited + generation;
+  let budget = available;
+  let lifeSupportPowered = false;
   const on = { lights: 0, robots: false, processor: false, heating: false };
-  // Grant in reverse shedding order: heating first, lights last.
-  if (want.heating > 0 && budget >= want.heating) { on.heating = true; budget -= want.heating; }
-  if (want.processor > 0 && budget >= want.processor) { on.processor = true; budget -= want.processor; }
-  if (want.robots > 0 && budget >= want.robots) { on.robots = true; budget -= want.robots; }
-  if (want.lights > 0 && budget > 0) on.lights = s.power.growLights * Math.min(1, budget / want.lights);
+  for (const c of priorityOf(s)) {
+    if (c === 'lifeSupport') {
+      // A critical load: it takes its share even when that leaves nothing for the rest.
+      budget -= want.lifeSupport;
+      lifeSupportPowered = budget >= 0;
+    } else if (c === 'greenhouse') {
+      // LEDs dim: the greenhouse takes whatever part of its draw is left.
+      if (want.greenhouse > 0 && budget > 0) {
+        const share = Math.min(1, budget / want.greenhouse);
+        on.lights = lights * share;
+        budget -= want.greenhouse * share;
+      }
+    } else if (want[c] > 0 && budget >= want[c]) {
+      on[c] = true;
+      budget -= want[c];
+    }
+  }
 
   const demand = ENERGY.lifeSupportDraw + (on.heating ? want.heating : 0) + (on.processor ? want.processor : 0) +
-    (on.robots ? want.robots : 0) + (want.lights > 0 ? want.lights * (on.lights / Math.max(1, s.power.growLights)) : 0);
+    (on.robots ? want.robots : 0) + (want.greenhouse > 0 && lights > 0 ? want.greenhouse * (on.lights / lights) : 0);
   const shortage = (want.heating > 0 && !on.heating) || (want.processor > 0 && !on.processor) ||
-    (want.robots > 0 && !on.robots) || on.lights < s.power.growLights - 0.5;
+    (want.robots > 0 && !on.robots) || on.lights < lights - 0.5;
+  const shed = POWER.circuits.filter((c) =>
+    c === 'lifeSupport' ? !lifeSupportPowered
+      : c === 'greenhouse' ? want.greenhouse > 0 && on.lights < lights - 1e-9
+        : want[c] > 0 && !on[c]);
 
-  s.res.energy = clamp(s.res.energy + (generation - demand) * dt, 0, capacity(s).energy);
-  return { generation, demand, running: { ...on }, shortage, lifeSupportPowered };
+  // The batteries cannot give more than their discharge limit, even in a brownout.
+  const floor = opts.dischargeLimit === undefined ? 0 : Math.max(0, s.res.energy - limited * dt);
+  s.res.energy = clamp(s.res.energy + (generation - demand) * dt, floor, capacity(s).energy);
+  return { generation, demand, available, running: { ...on }, shortage, lifeSupportPowered, shed };
 }
 
 /** One full game update: time of day, power, resources. Returns the power report for the HUD. */
