@@ -106,6 +106,8 @@ El manifest no acredita arranque offline completo. Teléfono físico, Safari/iOS
 
 ### Desarrollo local
 
+**Partidas PNG:** durante el juego, abre **Partidas PNG → Guardar partida en PNG**. La imagen contiene captura y progreso recuperable. Para restaurar, selecciona **Cargar PNG** en el menú o importa desde **Partidas PNG**, revisa la tarjeta y confirma. Modo libre vuelve al instante guardado; Cadete se reconstruye con replay y se carga en pausa. Conserva el archivo PNG original.
+
 ```sh
 npm ci
 npm test

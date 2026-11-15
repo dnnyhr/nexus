@@ -14,6 +14,7 @@ export interface TitleOptions {
   onCadetDesign(): void;
   onSimulator(): void;
   onProgress(): void;
+  onLoadPng(): void;
 }
 
 export interface TitleHandle {
@@ -117,7 +118,9 @@ export function mountTitle(root: HTMLElement, opts: TitleOptions): TitleHandle {
     });
     const progress = el('button.nx-link', { type: 'button' }, t('nxProgress'));
     progress.addEventListener('click', () => opts.onProgress(), { signal: events.signal });
-    return [profile(), progress, el('span.nx-title__spacer'), el('span.nx-langs', { role: 'group', 'aria-label': 'Idioma / Language' }, ...langs)];
+    const load = el('button.nx-link', { type: 'button' }, getLang() === 'es' ? 'Cargar PNG' : 'Load PNG');
+    load.addEventListener('click', opts.onLoadPng, { signal: events.signal });
+    return [profile(), progress, load, el('span.nx-title__spacer'), el('span.nx-langs', { role: 'group', 'aria-label': 'Idioma / Language' }, ...langs)];
   }
 
   function go(next: View): void {
