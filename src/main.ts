@@ -48,6 +48,7 @@ import { deliverIce, scoopIce } from './game/rover';
 import '@fontsource/barlow-semi-condensed/400.css';
 import '@fontsource/barlow-semi-condensed/500.css';
 import '@fontsource/barlow-semi-condensed/600.css';
+import '@fontsource/barlow-semi-condensed/700.css';
 import './style.css';
 
 // Game entry: renderer, camera, world, and the loop that advances the simulation in fixed
