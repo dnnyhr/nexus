@@ -13,9 +13,20 @@
 </p>
 
 <p align="center">
-  <a href="https://nexus.xinocore.com"><strong>▶ Play now</strong></a>
-  &nbsp;·&nbsp; <a href="#español">Español</a>
-  &nbsp;·&nbsp; <a href="https://www.spaceappschallenge.org/2026/challenges/junior-astronaut-mission-trainer/">Space Apps 2026 challenge</a>
+  <a href="https://nexus.xinocore.com"><img alt="Play in the browser" src="https://img.shields.io/badge/%E2%96%B6%20play-nexus.xinocore.com-f2b54a?style=for-the-badge&labelColor=07080b"></a>
+  <a href="https://www.spaceappschallenge.org/2026/challenges/junior-astronaut-mission-trainer/"><img alt="NASA Space Apps Challenge 2026" src="https://img.shields.io/badge/Space%20Apps-2026-c8553d?style=for-the-badge&labelColor=07080b"></a>
+  <img alt="346 automated tests" src="https://img.shields.io/badge/tests-346%20passing-8fae6e?style=for-the-badge&labelColor=07080b">
+</p>
+
+<p align="center">
+  <a href="#mission-briefing">Mission</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#two-ways-to-play">Modes</a> ·
+  <a href="#how-to-play">How to play</a> ·
+  <a href="#real-data-live">Real data</a> ·
+  <a href="#for-teachers">For teachers</a> ·
+  <a href="#under-the-hood">Under the hood</a> ·
+  <a href="#español"><strong>Español</strong></a>
 </p>
 
 <p align="center">
@@ -43,6 +54,34 @@ system in one sentence and relays real measurements of the Sun. He can advise yo
 
 It plays in the browser, on a computer or a phone in landscape, with no download and no account, in Spanish and
 English. It is made to be easy to start for ages 7 to 12, and deep enough for older siblings, parents or a whole class.
+
+## Screenshots
+
+Real captures from the game in the browser, not renders.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screens/base-en.webp" alt="The base by day: lander, habitat, greenhouse, solar masts and rover, with a radio message from Commander Rivera."><br><sub><b>Your base, by day.</b> Commander Rivera radios the next mission from Earth.</sub></td>
+    <td width="50%"><img src="docs/screens/night-en.webp" alt="The same base in the dark: the solar masts are dark and the habitat windows glow."><br><sub><b>Darkness comes.</b> The panels stop; the battery has to last.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screens/storm-en.webp" alt="A solar storm warning on screen: class M3.5 flare, arriving in 23 seconds."><br><sub><b>A real solar storm.</b> A flare recorded by NASA, and seconds to reach the shelter.</sub></td>
+    <td><img src="docs/screens/energy-en.webp" alt="The power panel: heating, processor, robots and greenhouse switches and the grow lights slider."><br><sub><b>Split the power.</b> You decide what goes off when there is not enough.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screens/data-en.webp" alt="The NASA Data screen listing live GOES proton flux and recent DONKI flares with dates."><br><sub><b>Live NASA data.</b> Every number has a source and a time.</sub></td>
+    <td><img src="docs/screens/menu-en.webp" alt="The title menu over the Moon: Mission 1, Simulator and Load game."><br><sub><b>Pick your mission.</b> Mission 1, the simulator, or a game saved in a picture.</sub></td>
+  </tr>
+</table>
+
+## Two ways to play
+
+| | Mission 1 · *First darkness* | Simulator |
+|---|---|---|
+| **Length** | About 2 minutes | Open-ended; the base keeps working while you are away (up to 8 hours) |
+| **What happens** | One lunar night and one solar storm, with 300 credits to choose what to bring | 14 radio missions take you from the lander to a colony |
+| **Help** | Pause and ask the commander "what should I do?" | Commander Rivera explains each new system as it unlocks |
+| **At the end** | A report on what happened and why | Your base, exportable as a PNG save card |
 
 ## Every choice costs something
 
@@ -113,6 +152,22 @@ The Sun in the game is the real Sun. When the game starts it asks two services f
 Every number is credited inside the game, on the **NASA Data** screen, with its source and the time it was measured.
 Offline, the game uses a dated copy of the data and says so: stored data is never shown as live.
 
+## For teachers
+
+NEXUS is built to fit in a lesson: Mission 1 takes about two minutes, and every system teaches one real idea from
+lunar exploration.
+
+| In the game | The science behind it |
+|---|---|
+| The radio arrives 1.3 seconds late | The distance to the Moon, measured in light-time |
+| Solar masts work most of the time, then darkness comes | On the south pole ridges where Artemis plans to land, the Sun shines more than 80 % of the year |
+| The processor turns regolith into oxygen and materials | Almost half of lunar regolith, by weight, is oxygen |
+| The rover drives into a dark crater for ice | Craters that never get direct sunlight hold water ice |
+| Storms and the shelter, with your dose compared to the Space Station | The Moon has no atmosphere or global magnetic field to stop radiation |
+| The greenhouse competes with life support for water and power | Plants on the Space Station grow under LED light with controlled watering |
+
+No accounts and no personal data: the game is saved only on the device. No ads, no purchases, nothing to install.
+
 ## Save cards
 
 From the lander you can export your game as a picture: a mission file with your base as it looks right now, your name,
@@ -125,11 +180,13 @@ recompress photos drop the save.
 ```
 src/
 ├── data/     live NASA DONKI and NOAA GOES data, with a dated offline snapshot
+├── engine/   Mission 1: a deterministic, replayable mission with its own rules, ledger and report
 ├── game/     the simulation, in plain TypeScript: resources, power, greenhouse, missions,
 │             storms, damage, rescue, rover, saving (localStorage and PNG save cards)
 ├── models/   every 3D model, built from code with a shared kit, palette and animations
 ├── scene/    the 3D world: terrain, sky, polar lighting, the base, the astronaut, the rover
-└── ui/       the HUD, panels, radio, translations (ES / EN) and the touch joystick
+├── ui/       the HUD, panels, radio, translations (ES / EN) and the touch joystick
+└── landing/  the home page: live Sun data, screenshots and the 3D base in the hero
 ```
 
 - **Three.js, TypeScript and Vite.** A static site: nothing runs on a server, and there are no accounts.
@@ -139,7 +196,7 @@ src/
   it.
 - **Built for low-end phones.** The fixed parts of each building are merged into a single mesh (from 2,345 to 453
   draw calls per frame), and the resolution adapts to the frame rate.
-- **157 automated tests**, including audits that check every model for overlapping faces, see-through backs and
+- **346 automated tests**, including audits that check every model for overlapping faces, see-through backs and
   floating parts.
 
 Run it locally:
@@ -180,6 +237,8 @@ story and design decisions come from the team. Following the Space Apps rules, A
 <p align="center">
   <em>Construye una base en el polo sur de la Luna. El clima espacial real decide lo que pasa.</em><br>
   <a href="https://nexus.xinocore.com"><strong>▶ Jugar ahora</strong></a>
+  &nbsp;·&nbsp; <a href="#capturas">Capturas</a>
+  &nbsp;·&nbsp; <a href="#para-docentes">Para docentes</a>
 </p>
 
 ### La misión
@@ -196,6 +255,28 @@ cada sistema nuevo en una frase y te pasa mediciones reales del Sol. Puede acons
 
 Se juega en el navegador, en computadora o en el teléfono en horizontal, sin descargas ni cuentas, en español e inglés.
 Es fácil de empezar para niños de 7 a 12 años y tiene profundidad para hermanos mayores, padres o una clase entera.
+
+<a id="capturas"></a>
+
+### Capturas
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screens/base-es.webp" alt="La base de día: módulo de aterrizaje, hábitat, invernadero, paneles solares y rover, con un mensaje de radio del comandante Rivera."><br><sub><b>Tu base, de día.</b> El comandante Rivera manda la siguiente misión por radio.</sub></td>
+    <td width="50%"><img src="docs/screens/night-es.webp" alt="La misma base en la oscuridad: los paneles apagados y las ventanas del hábitat encendidas."><br><sub><b>Llega la oscuridad.</b> Los paneles se apagan y la batería tiene que aguantar.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screens/storm-es.webp" alt="Aviso de tormenta solar: fulguración clase M3.5, llega en 24 segundos."><br><sub><b>Tormenta solar real.</b> Una fulguración registrada por la NASA y segundos para llegar al refugio.</sub></td>
+    <td><img src="docs/screens/energy-es.webp" alt="El panel de energía: interruptores de calefacción, procesador, robots e invernadero, y el control de las luces de cultivo."><br><sub><b>Reparte la energía.</b> Tú decides qué se apaga cuando no alcanza.</sub></td>
+  </tr>
+</table>
+
+### Dos formas de jugar
+
+- **Misión 1 · Primera oscuridad** (unos 2 minutos): una noche lunar y una tormenta solar, con 300 créditos para elegir
+  qué llevar. Puedes pausar y preguntar «¿qué hago?», y al final un informe explica qué pasó y por qué.
+- **Simulador** (sin límite): 14 misiones por radio te llevan del módulo de aterrizaje a una colonia, y la base sigue
+  trabajando aunque cierres el juego (hasta 8 horas).
 
 ### Cada decisión cuesta algo
 
@@ -231,6 +312,23 @@ nombre y la fecha reales, tienes entre 20 y 35 segundos para llegar al refugio (
 al terminar, te dice la dosis que recibiste.
 Cada dato se cita en la pantalla **Datos NASA**; sin internet se usa una copia con su fecha y se avisa.
 
+<a id="para-docentes"></a>
+
+### Para docentes
+
+La Misión 1 cabe en cualquier clase, y cada sistema del juego enseña una idea real:
+
+| En el juego | La ciencia detrás |
+|---|---|
+| La radio llega 1.3 segundos tarde | La distancia a la Luna medida en tiempo de luz |
+| Los paneles funcionan casi siempre, pero llega la oscuridad | En las crestas del polo sur, donde quiere alunizar Artemis, el Sol alumbra más del 80 % del año |
+| El procesador saca oxígeno y materiales del regolito | Casi la mitad del peso del regolito lunar es oxígeno |
+| El rover va a un cráter oscuro a buscar hielo | En cráteres que nunca reciben luz solar directa hay hielo de agua |
+| Tormentas, refugio y tu dosis comparada con la Estación Espacial | La Luna no tiene atmósfera ni campo magnético global que frene la radiación |
+| El invernadero compite con el soporte vital por agua y energía | En la Estación Espacial las plantas crecen con luz LED y riego controlado |
+
+Sin cuentas ni datos personales: la partida se guarda solo en el dispositivo. Sin anuncios, compras ni instalación.
+
 ### Partidas en imagen
 
 Desde el módulo de aterrizaje puedes exportar tu partida como una imagen con tu base, tu nombre y tu misión. La partida
@@ -240,7 +338,7 @@ se pierde.
 ### Por dentro
 
 Three.js, TypeScript y Vite. Es un sitio estático, sin servidor ni cuentas. Los modelos 3D están hechos con código (sin
-archivos pesados), la simulación está separada de la escena y se prueba sola, y hay 157 pruebas automáticas, incluidas
+archivos pesados), la simulación está separada de la escena y se prueba sola, y hay 346 pruebas automáticas, incluidas
 las que revisan que ningún modelo tenga caras encimadas ni piezas flotando.
 
 ```bash
