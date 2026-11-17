@@ -44,7 +44,29 @@
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "audience": { "@type": "PeopleAudience", "suggestedMinAge": 7 },
         "author": { "@type": "Organization", "name": "LifePlants" },
-        "playMode": "SinglePlayer"
+        "playMode": "SinglePlayer",
+        "numberOfPlayers": { "@type": "QuantitativeValue", "value": 1 },
+        "screenshot": [
+          "https://nexus.xinocore.com/media/shots/base-es-1600.webp",
+          "https://nexus.xinocore.com/media/shots/night-es-1600.webp",
+          "https://nexus.xinocore.com/media/shots/storm-es-1600.webp",
+          "https://nexus.xinocore.com/media/shots/energy-es-1600.webp",
+          "https://nexus.xinocore.com/media/shots/data-es-1600.webp"
+        ],
+        "educationalUse": "Simulación educativa sobre exploración lunar, energía solar y clima espacial",
+        "learningResourceType": "Juego educativo"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          { "@type": "Question", "name": "¿Cuesta algo?", "acceptedAnswer": { "@type": "Answer", "text": "No. Es gratis, sin anuncios ni compras dentro del juego." } },
+          { "@type": "Question", "name": "¿En qué dispositivos funciona?", "acceptedAnswer": { "@type": "Answer", "text": "En cualquier navegador moderno: computadora, tablet o teléfono en horizontal. No hace falta instalar nada." } },
+          { "@type": "Question", "name": "¿Los datos de la NASA son de verdad?", "acceptedAnswer": { "@type": "Answer", "text": "Sí. Las tormentas recrean fulguraciones reales de NASA DONKI de los últimos 60 días, y la radiación de fondo viene de los satélites GOES de NOAA." } },
+          { "@type": "Question", "name": "¿Se guarda mi partida?", "acceptedAnswer": { "@type": "Answer", "text": "Sí, en el propio dispositivo, y se puede exportar como una imagen PNG para cargarla en otro equipo." } }
+        ]
       }
     </script>
   </head>
@@ -56,14 +78,17 @@
         <img src="./brand/nexus-patch.svg" width="40" height="40" alt="" />
         <span>NEXUS</span>
       </a>
-      <nav aria-label="Secciones">
-        <a href="#mision" data-i18n="navMission">La misión</a>
-        <a href="#construye" data-i18n="navBuild">Construye</a>
+      <nav id="site-nav" aria-label="Secciones">
+        <a href="#juego" data-i18n="navGame">El juego</a>
+        <a href="#misiones" data-i18n="navMissions">Misiones</a>
         <a href="#datos" data-i18n="navData">Datos NASA</a>
+        <a href="#educadores" data-i18n="navTeach">Educadores</a>
+        <a href="#faq" data-i18n="navFaq">Preguntas</a>
       </nav>
       <div class="bar-right">
         <button class="lang" type="button" data-lang-toggle aria-label="Change language to English">EN</button>
         <a class="cta cta-small" href="./app/" data-i18n="play">Jugar</a>
+        <button class="menu-btn" type="button" aria-expanded="false" aria-controls="site-nav" data-menu-toggle><span class="sr" data-i18n="menu">Menú</span><span class="bars" aria-hidden="true"></span></button>
       </div>
     </header>
 
@@ -81,7 +106,7 @@
           <p class="lede" data-i18n="lede">Construye una base en la Luna, sobrevive a la oscuridad y a tormentas solares reales registradas por la NASA. Aprende cómo vivirían los astronautas de Artemis, jugando.</p>
           <div class="hero-actions">
             <a class="cta" href="./app/"><span data-i18n="playNow">Jugar ahora</span> <span aria-hidden="true">→</span></a>
-            <a class="ghost" href="#mision" data-i18n="howTo">Cómo se juega</a>
+            <a class="ghost" href="#controles" data-i18n="howTo">Cómo se juega</a>
             <a class="ghost repo" href="https://github.com/dnnyhr/nexus" rel="noopener" target="_blank"><svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span data-i18n="repo">Ver repositorio</span></a>
           </div>
           <p class="fine" data-i18n="fine">Gratis · en el navegador · sin descargas ni cuentas · español e inglés</p>
@@ -93,6 +118,16 @@
           <p class="t-note" id="t-note" data-i18n="tLoading">Conectando con los satélites…</p>
         </aside>
         <a class="scroll-cue" href="#mision" aria-label="Bajar"><span></span></a>
+      </section>
+
+      <!-- The game in four numbers -->
+      <section class="stats" aria-label="NEXUS en números">
+        <dl>
+          <div class="stat"><dt data-i18n="stat1">misiones por radio</dt><dd>14</dd></div>
+          <div class="stat"><dt data-i18n="stat2">fuentes de datos reales</dt><dd>3</dd></div>
+          <div class="stat"><dt data-i18n="stat3">descargas, cuentas o anuncios</dt><dd>0</dd></div>
+          <div class="stat"><dt data-i18n="stat4">de retraso en la radio, como de verdad</dt><dd>1.3 s</dd></div>
+        </dl>
       </section>
 
       <!-- The story -->
@@ -116,6 +151,33 @@
         </ol>
       </section>
 
+
+      <!-- The game itself: real screenshots -->
+      <section id="juego" class="section gallery" aria-labelledby="gallery-title">
+        <p class="eyebrow" data-i18n="galEyebrow">Así se juega</p>
+        <h2 id="gallery-title" data-i18n="galTitle">Una base entera, construida por ti</h2>
+        <p class="lead" data-i18n="galLead">Capturas reales del juego, tal como se ve en el navegador. Nada de esto es un render: es la misma base que vas a levantar.</p>
+        <div class="viewer reveal">
+          <figure class="screen">
+            <img id="shot-main" data-shot="base" src="./media/shots/base-es-1600.webp" srcset="./media/shots/base-es-800.webp 800w, ./media/shots/base-es-1600.webp 1600w" sizes="(max-width: 1320px) 100vw, 1200px" width="1600" height="900" loading="lazy" decoding="async" alt="" />
+            <span class="corner tl" aria-hidden="true"></span><span class="corner tr" aria-hidden="true"></span>
+            <figcaption aria-live="polite">
+              <span class="cap-num" id="shot-num">01 / 06</span>
+              <strong id="shot-title"></strong>
+              <span id="shot-text"></span>
+            </figcaption>
+          </figure>
+          <div class="thumbs" role="group" aria-label="Capturas del juego" data-i18n-aria="galList">
+            <button type="button" class="thumb" data-thumb="base" aria-pressed="true"><img src="./media/shots/base-es-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="" /><span data-i18n="g1t">Tu base, de día</span></button>
+            <button type="button" class="thumb" data-thumb="night" aria-pressed="false"><img src="./media/shots/night-es-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="" /><span data-i18n="g2t">Llega la oscuridad</span></button>
+            <button type="button" class="thumb" data-thumb="storm" aria-pressed="false"><img src="./media/shots/storm-es-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="" /><span data-i18n="g3t">Tormenta solar real</span></button>
+            <button type="button" class="thumb" data-thumb="energy" aria-pressed="false"><img src="./media/shots/energy-es-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="" /><span data-i18n="g4t">Reparte la energía</span></button>
+            <button type="button" class="thumb" data-thumb="data" aria-pressed="false"><img src="./media/shots/data-es-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="" /><span data-i18n="g5t">Datos NASA en vivo</span></button>
+            <button type="button" class="thumb" data-thumb="menu" aria-pressed="false"><img src="./media/shots/menu-es-800.webp" width="800" height="450" loading="lazy" decoding="async" alt="" /><span data-i18n="g6t">Elige tu misión</span></button>
+          </div>
+        </div>
+      </section>
+
       <!-- What you build -->
       <section id="construye" class="section build" aria-labelledby="build-title">
         <p class="eyebrow" data-i18n="buildEyebrow">Tu base</p>
@@ -130,12 +192,36 @@
         </div>
       </section>
 
+
+      <!-- The mission chain -->
+      <section id="misiones" class="section missions" aria-labelledby="missions-title">
+        <p class="eyebrow" data-i18n="msEyebrow">14 misiones por radio</p>
+        <h2 id="missions-title" data-i18n="msTitle">Del módulo de aterrizaje a una colonia</h2>
+        <p class="lead" data-i18n="msLead">El comandante Rivera manda una misión a la vez y explica cada sistema nuevo en una frase. Trece construyen la base; la última la mantiene creciendo.</p>
+        <ol class="track">
+          <li class="reveal"><span class="m-num">01</span><h3 data-i18n="mt_antenna">Antena</h3><p data-i18n="mg_antenna">Construye la antena para hablar con la Tierra</p></li>
+          <li class="reveal"><span class="m-num">02</span><h3 data-i18n="mt_dig">Regolito</h3><p data-i18n="mg_dig">Excava 12 de regolito</p></li>
+          <li class="reveal"><span class="m-num">03</span><h3 data-i18n="mt_processor">Procesador</h3><p data-i18n="mg_processor">Construye el procesador</p></li>
+          <li class="reveal"><span class="m-num">04</span><h3 data-i18n="mt_materials">Materiales</h3><p data-i18n="mg_materials">Lleva regolito al procesador hasta tener 15 materiales</p></li>
+          <li class="reveal"><span class="m-num">05</span><h3 data-i18n="mt_solar">Energía</h3><p data-i18n="mg_solar">Instala un panel solar</p></li>
+          <li class="reveal"><span class="m-num">06</span><h3 data-i18n="mt_habitat">Hábitat</h3><p data-i18n="mg_habitat">Levanta el hábitat</p></li>
+          <li class="reveal"><span class="m-num">07</span><h3 data-i18n="mt_robot">Robot</h3><p data-i18n="mg_robot">Construye un robot recolector</p></li>
+          <li class="reveal"><span class="m-num">08</span><h3 data-i18n="mt_greenhouse">Invernadero</h3><p data-i18n="mg_greenhouse">Construye el invernadero</p></li>
+          <li class="reveal"><span class="m-num">09</span><h3 data-i18n="mt_harvest">Cosecha</h3><p data-i18n="mg_harvest">Cosecha tu primera planta</p></li>
+          <li class="reveal"><span class="m-num">10</span><h3 data-i18n="mt_battery">Batería</h3><p data-i18n="mg_battery">Construye una batería</p></li>
+          <li class="reveal"><span class="m-num">11</span><h3 data-i18n="mt_shield">Blindaje</h3><p data-i18n="mg_shield">Refuerza la berma de regolito del hábitat</p></li>
+          <li class="reveal"><span class="m-num">12</span><h3 data-i18n="mt_grow">Crecer</h3><p data-i18n="mg_grow">Mejora el hábitat a nivel 2</p></li>
+          <li class="reveal"><span class="m-num">13</span><h3 data-i18n="mt_ice">Hielo</h3><p data-i18n="mg_ice">Maneja el rover al cráter oscuro y trae 15 de hielo</p></li>
+          <li class="reveal"><span class="m-num">14</span><h3 data-i18n="mt_colony">Colonia</h3><p data-i18n="mg_colony">Haz crecer la base sin final</p></li>
+        </ol>
+      </section>
+
       <!-- Real data -->
       <section id="datos" class="section data" aria-labelledby="data-title">
         <p class="eyebrow" data-i18n="dataEyebrow">Datos reales</p>
         <h2 id="data-title" data-i18n="dataTitle">El Sol del juego es el Sol de verdad</h2>
         <p class="lead" data-i18n="dataLead">Cuando abres NEXUS, el juego consulta los satélites. Cada tormenta solar recrea una fulguración real registrada por la NASA, y su fuerza decide cuánto aviso tienes.</p>
-        <img class="flow-img reveal" src="./brand/storm-flow.svg" width="1280" height="330" loading="lazy" decoding="async" alt="Una fulguración M6.7 registrada por NASA DONKI se convierte en una tormenta del juego: aviso por radio, cuenta regresiva y la dosis afuera frente a la del refugio." />
+        <div class="flow-wrap reveal" tabindex="0" role="region" aria-label="Diagrama: de una fulguración real a una tormenta del juego"><img class="flow-img" src="./brand/storm-flow.svg" width="1280" height="330" loading="lazy" decoding="async" alt="Una fulguración M6.7 registrada por NASA DONKI se convierte en una tormenta del juego: aviso por radio, cuenta regresiva y la dosis afuera frente a la del refugio." /></div>
         <ul class="sources">
           <li class="reveal"><strong>NASA DONKI</strong><span data-i18n="srcDonki">Fulguraciones solares de los últimos 60 días.</span><a href="https://ccmc.gsfc.nasa.gov/tools/DONKI/" rel="noopener" target="_blank">ccmc.gsfc.nasa.gov</a></li>
           <li class="reveal"><strong>NOAA GOES</strong><span data-i18n="srcGoes">Protones medidos cada 5 minutos: la radiación de fondo.</span><a href="https://www.swpc.noaa.gov/products/goes-proton-flux" rel="noopener" target="_blank">swpc.noaa.gov</a></li>
@@ -154,8 +240,72 @@
           </article>
           <article class="mode reveal">
             <h3 data-i18n="m2t">Misión 1: La primera oscuridad</h3>
-            <p data-i18n="m2">300 créditos, 10 minutos. Elige qué llevar, pausa y pregunta «¿qué hago?», y al final descubre lo que aprendiste.</p>
+            <p data-i18n="m2">300 créditos, unos 2 minutos. Elige qué llevar, pausa y pregunta «¿qué hago?», y al final descubre lo que aprendiste.</p>
           </article>
+        </div>
+      </section>
+
+
+      <!-- Controls -->
+      <section id="controles" class="section controls" aria-labelledby="controls-title">
+        <p class="eyebrow" data-i18n="ctEyebrow">Cómo se juega</p>
+        <h2 id="controls-title" data-i18n="ctTitle">Aprendes a jugar en un minuto</h2>
+        <div class="ctl-grid">
+          <article class="ctl reveal">
+            <h3 data-i18n="ctDesk">Computadora</h3>
+            <dl>
+              <div><dt data-i18n="ctWalk">Caminar</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dd></div>
+              <div><dt data-i18n="ctLook">Mirar alrededor</dt><dd><kbd>Q</kbd><kbd>E</kbd> <span data-i18n="ctLookD">o arrastra con el ratón</span></dd></div>
+              <div><dt data-i18n="ctHop">Saltar</dt><dd><kbd class="wide" data-i18n="ctSpace">Espacio</kbd></dd></div>
+              <div><dt data-i18n="ctDig">Excavar regolito</dt><dd><kbd>R</kbd> <span data-i18n="ctDigD">o clic derecho</span></dd></div>
+              <div><dt data-i18n="ctUse">Construir, usar, subir al rover</dt><dd><kbd>F</kbd></dd></div>
+            </dl>
+          </article>
+          <article class="ctl reveal">
+            <h3 data-i18n="ctPhone">Teléfono o tablet, en horizontal</h3>
+            <dl>
+              <div><dt data-i18n="ctWalk">Caminar</dt><dd data-i18n="ctWalkT">Arrastra en la mitad izquierda</dd></div>
+              <div><dt data-i18n="ctLook">Mirar alrededor</dt><dd data-i18n="ctLookT">Arrastra en la mitad derecha; pellizca para acercar</dd></div>
+              <div><dt data-i18n="ctHop">Saltar</dt><dd data-i18n="ctHopT">Botón «Saltar»</dd></div>
+              <div><dt data-i18n="ctDig">Excavar regolito</dt><dd data-i18n="ctDigT">Botón «Excavar»</dd></div>
+              <div><dt data-i18n="ctUse">Construir, usar, subir al rover</dt><dd data-i18n="ctUseT">Toca el aviso flotante</dd></div>
+            </dl>
+          </article>
+        </div>
+      </section>
+
+      <!-- For teachers -->
+      <section id="educadores" class="section teach" aria-labelledby="teach-title">
+        <p class="eyebrow" data-i18n="teEyebrow">Para docentes y familias</p>
+        <h2 id="teach-title" data-i18n="teTitle">Ciencia de verdad, en una clase</h2>
+        <p class="lead" data-i18n="teLead">Hecho para niños de 7 a 12 años. La Misión 1 dura unos 2 minutos y cabe en cualquier clase; el modo libre da para semanas. Cada sistema del juego enseña una idea real de la exploración lunar.</p>
+        <ul class="facts">
+          <li class="reveal"><span class="f-big">1.3 s</span><h3 data-i18n="f1t">La luz tarda en llegar</h3><p data-i18n="f1">La radio de la Tierra llega con 1.3 segundos de retraso: la distancia a la Luna medida en tiempo.</p></li>
+          <li class="reveal"><span class="f-big">80 %</span><h3 data-i18n="f2t">Sol rasante en el polo</h3><p data-i18n="f2">En las crestas del polo sur, donde quiere alunizar Artemis, el Sol alumbra más del 80 % del año. Las baterías cubren el resto.</p></li>
+          <li class="reveal"><span class="f-big">O₂</span><h3 data-i18n="f3t">Aire sacado de las rocas</h3><p data-i18n="f3">Casi la mitad del peso del regolito es oxígeno. Procesarlo da aire para respirar y materiales para construir.</p></li>
+          <li class="reveal"><span class="f-big">H₂O</span><h3 data-i18n="f4t">Hielo en la sombra</h3><p data-i18n="f4">En cráteres que nunca reciben luz solar directa hay hielo de agua. El rover va a buscarlo.</p></li>
+          <li class="reveal"><span class="f-big">mSv</span><h3 data-i18n="f5t">La tormenta que no se ve</h3><p data-i18n="f5">La Luna no tiene atmósfera ni campo magnético. Al final de cada tormenta comparas tu dosis con la de un día en la Estación Espacial.</p></li>
+          <li class="reveal"><span class="f-big">LED</span><h3 data-i18n="f6t">Comer en la Luna</h3><p data-i18n="f6">Como en la Estación Espacial, las plantas crecen con luz LED y riego controlado, y compiten por agua y energía con el soporte vital.</p></li>
+        </ul>
+        <div class="promise reveal">
+          <p><strong data-i18n="pr1t">Sin cuentas ni datos personales.</strong> <span data-i18n="pr1">La partida se guarda solo en el dispositivo. No hay registro, anuncios ni compras.</span></p>
+          <p><strong data-i18n="pr2t">Funciona en las computadoras del aula.</strong> <span data-i18n="pr2">Es una página web: nada que instalar, y se adapta a equipos modestos.</span></p>
+          <p><strong data-i18n="pr3t">La partida viaja en una imagen.</strong> <span data-i18n="pr3">Exporta la base como PNG y sigue jugando en otro equipo o entrégala como tarea.</span></p>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq" class="section faq" aria-labelledby="faq-title">
+        <p class="eyebrow" data-i18n="fqEyebrow">Preguntas</p>
+        <h2 id="faq-title" data-i18n="fqTitle">Antes de despegar</h2>
+        <div class="qa">
+          <details><summary data-i18n="q1">¿Cuesta algo?</summary><p data-i18n="a1">No. Es gratis, sin anuncios ni compras dentro del juego.</p></details>
+          <details><summary data-i18n="q2">¿En qué dispositivos funciona?</summary><p data-i18n="a2">En cualquier navegador moderno: computadora, tablet o teléfono en horizontal. No hace falta instalar nada.</p></details>
+          <details><summary data-i18n="q3">¿Necesito internet para jugar?</summary><p data-i18n="a3">Solo para abrir la página. Si después no hay conexión, el juego usa una copia guardada de los datos del Sol y avisa de qué fecha es: nunca presenta datos viejos como si fueran en vivo.</p></details>
+          <details><summary data-i18n="q4">¿Los datos de la NASA son de verdad?</summary><p data-i18n="a4">Sí. Las tormentas recrean fulguraciones reales de NASA DONKI de los últimos 60 días, y la radiación de fondo viene de los satélites GOES de NOAA. Cada número tiene su fuente en la pantalla «Datos NASA».</p></details>
+          <details><summary data-i18n="q5">¿Qué pasa si me quedo sin oxígeno o sin comida?</summary><p data-i18n="a5">Fallar enseña sin castigar: la Tierra envía una cápsula de emergencia y sigues jugando. En la Misión 1, el informe final explica qué pasó y por qué.</p></details>
+          <details><summary data-i18n="q6">¿Se guarda mi partida?</summary><p data-i18n="a6">Sí, en el propio dispositivo. Y puedes exportarla como una imagen PNG para cargarla en otro equipo; envíala como archivo, no como foto, para que no se pierda.</p></details>
+          <details><summary data-i18n="q7">¿Puedo ver el código?</summary><p><span data-i18n="a7">Sí, todo el proyecto está en GitHub.</span> <a href="https://github.com/dnnyhr/nexus" rel="noopener" target="_blank">github.com/dnnyhr/nexus</a></p></details>
         </div>
       </section>
 
@@ -171,7 +321,7 @@
     <footer class="footer">
       <p data-i18n="footer1">Hecho por el equipo LifePlants (Managua) para el NASA Space Apps Challenge 2026 · reto «Build a Junior Astronaut Mission Trainer».</p>
       <p data-i18n="footer2">Proyecto independiente: no usa logos ni insignias de la NASA. Usamos Claude Code (Anthropic) como asistente de programación.</p>
-      <p><a href="https://github.com/dnnyhr/nexus" rel="noopener" target="_blank">GitHub</a> · <a href="./app/" data-i18n="play">Jugar</a></p>
+      <p class="foot-links"><a href="./app/" data-i18n="play">Jugar</a> · <a href="#educadores" data-i18n="navTeach">Educadores</a> · <a href="#faq" data-i18n="navFaq">Preguntas</a> · <a href="https://github.com/dnnyhr/nexus" rel="noopener" target="_blank">GitHub</a> · <a href="https://www.spaceappschallenge.org/2026/challenges/junior-astronaut-mission-trainer/" rel="noopener" target="_blank">Space Apps 2026</a></p>
     </footer>
 
     <script type="module" src="/src/landing/main.ts"></script>
